@@ -2,28 +2,24 @@ package com.dns.changer.ultimate
 
 import android.app.Activity
 import android.content.Intent
-import android.net.VpnService
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,9 +40,7 @@ import androidx.navigation.compose.rememberNavController
 import com.dns.changer.ultimate.ads.AdMobManager
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.preferences.RatingPreferences
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.dns.changer.ultimate.service.DnsSpeedTestService
 import com.dns.changer.ultimate.ui.components.ConnectionSuccessOverlay
 import com.dns.changer.ultimate.ui.components.DisconnectionOverlay
 import com.dns.changer.ultimate.ui.components.PremiumGatePopup
@@ -55,11 +49,13 @@ import com.dns.changer.ultimate.ui.navigation.DnsNavHost
 import com.dns.changer.ultimate.ui.navigation.Screen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
 import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
-import com.dns.changer.ultimate.service.DnsSpeedTestService
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import com.dns.changer.ultimate.ui.viewmodel.RatingViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -135,8 +131,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Stop and clear speed test when app is closed
-        speedTestService.stopAndClear()
+        // Only clear speed test when app is actually closing, not on config change (resize/fold)
+        if (isFinishing) {
+            speedTestService.stopAndClear()
+        }
     }
 }
 
@@ -187,62 +185,52 @@ fun DnsChangerApp(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Scaffold(
-            bottomBar = {
-                NavigationBar(
-                    modifier = Modifier.height(80.dp),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp
-                ) {
-                    Screen.bottomNavItems.forEach { screen ->
-                        val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+        // Get the current navigation suite type (NavigationBar on phones, NavigationRail on tablets)
+        val layoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
+            androidx.compose.material3.adaptive.currentWindowAdaptiveInfo()
+        )
 
-                        val iconColor by animateColorAsState(
-                            targetValue = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = tween(200),
-                            label = "iconColor"
-                        )
+        NavigationSuiteScaffold(
+            navigationSuiteItems = {
+                Screen.bottomNavItems.forEach { screen ->
+                    val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
 
-                        NavigationBarItem(
-                            icon = {
-                                Icon(
-                                    imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
-                                    contentDescription = null,
-                                    tint = iconColor
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = stringResource(screen.titleResId),
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                                )
-                            },
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
+                    item(
+                        selected = selected,
+                        onClick = {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
+                                contentDescription = null
                             )
-                        )
-                    }
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(screen.titleResId),
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    )
                 }
-            }
-        ) { innerPadding ->
+            },
+            layoutType = layoutType,
+            navigationSuiteColors = NavigationSuiteDefaults.colors(
+                navigationRailContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                navigationRailContentColor = MaterialTheme.colorScheme.onSurface
+            )
+        ) {
+            // Content area - no padding needed as NavigationSuiteScaffold handles it
             DnsNavHost(
                 navController = navController,
-                innerPadding = innerPadding,
+                innerPadding = PaddingValues(0.dp),
                 isPremium = isPremium,
                 preferences = preferences,
                 onRequestVpnPermission = { intent ->

@@ -17,12 +17,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,18 +51,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsCategory
 import com.dns.changer.ultimate.data.model.DnsServer
+import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
+import com.dns.changer.ultimate.ui.theme.WindowSize
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 
 @Composable
 fun ConnectScreen(
     viewModel: MainViewModel = hiltViewModel(),
-    onRequestVpnPermission: (android.content.Intent) -> Unit
+    onRequestVpnPermission: (android.content.Intent) -> Unit,
+    adaptiveConfig: AdaptiveLayoutConfig
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
@@ -68,52 +74,128 @@ fun ConnectScreen(
     var showServerPicker by remember { mutableStateOf(false) }
     var showCustomCategory by remember { mutableStateOf(false) }
 
+    // Determine power button size based on window size
+    val powerButtonSize = when (adaptiveConfig.windowSize) {
+        WindowSize.COMPACT -> 200.dp
+        WindowSize.MEDIUM -> 220.dp
+        WindowSize.EXPANDED -> 240.dp
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Power Button
-            PowerButton(
-                connectionState = connectionState,
-                onClick = {
-                    when (connectionState) {
-                        is ConnectionState.Connected -> viewModel.disconnect()
-                        is ConnectionState.Disconnected -> {
-                            val vpnIntent = uiState.vpnPermissionIntent
-                            if (vpnIntent != null) {
-                                onRequestVpnPermission(vpnIntent)
-                            } else {
-                                viewModel.connect()
+        // Use different layout for expanded screens (tablets in landscape)
+        if (adaptiveConfig.windowSize == WindowSize.EXPANDED) {
+            // Horizontal layout for large tablets
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = adaptiveConfig.horizontalPadding),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left side: Power Button and Status
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    PowerButton(
+                        connectionState = connectionState,
+                        size = powerButtonSize,
+                        onClick = {
+                            when (connectionState) {
+                                is ConnectionState.Connected -> viewModel.disconnect()
+                                is ConnectionState.Disconnected -> {
+                                    val vpnIntent = uiState.vpnPermissionIntent
+                                    if (vpnIntent != null) {
+                                        onRequestVpnPermission(vpnIntent)
+                                    } else {
+                                        viewModel.connect()
+                                    }
+                                }
+                                else -> {}
                             }
                         }
-                        else -> {}
-                    }
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    StatusText(connectionState = connectionState)
                 }
-            )
 
-            Spacer(modifier = Modifier.height(28.dp))
+                // Right side: Server Selection Card
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(start = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    ServerSelectionCard(
+                        server = uiState.selectedServer,
+                        isConnected = connectionState is ConnectionState.Connected,
+                        onClick = { showServerPicker = true },
+                        maxWidth = 400.dp
+                    )
+                }
+            }
+        } else {
+            // Vertical layout for compact and medium screens (phones and portrait tablets)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = adaptiveConfig.contentMaxWidth)
+                        .padding(horizontal = adaptiveConfig.horizontalPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(modifier = Modifier.height(48.dp))
 
-            // Status Text
-            StatusText(connectionState = connectionState)
+                    // Power Button
+                    PowerButton(
+                        connectionState = connectionState,
+                        size = powerButtonSize,
+                        onClick = {
+                            when (connectionState) {
+                                is ConnectionState.Connected -> viewModel.disconnect()
+                                is ConnectionState.Disconnected -> {
+                                    val vpnIntent = uiState.vpnPermissionIntent
+                                    if (vpnIntent != null) {
+                                        onRequestVpnPermission(vpnIntent)
+                                    } else {
+                                        viewModel.connect()
+                                    }
+                                }
+                                else -> {}
+                            }
+                        }
+                    )
 
-            Spacer(modifier = Modifier.height(40.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
 
-            // Server Selection Card
-            ServerSelectionCard(
-                server = uiState.selectedServer,
-                isConnected = connectionState is ConnectionState.Connected,
-                onClick = { showServerPicker = true }
-            )
+                    // Status Text
+                    StatusText(connectionState = connectionState)
 
-            Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(40.dp))
+
+                    // Server Selection Card
+                    ServerSelectionCard(
+                        server = uiState.selectedServer,
+                        isConnected = connectionState is ConnectionState.Connected,
+                        onClick = { showServerPicker = true }
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 
@@ -155,7 +237,8 @@ fun ConnectScreen(
 @Composable
 private fun PowerButton(
     connectionState: ConnectionState,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    size: Dp = 200.dp
 ) {
     val isConnected = connectionState is ConnectionState.Connected
     val isConnecting = connectionState is ConnectionState.Connecting
@@ -165,6 +248,10 @@ private fun PowerButton(
     val isTransitioning = isConnecting || isDisconnecting || isSwitching
 
     val infiniteTransition = rememberInfiniteTransition(label = "powerButton")
+
+    // Calculate inner button size (85% of outer size)
+    val innerButtonSize = size * 0.85f
+    val iconSize = size * 0.28f
 
     // Glow ring rotation
     val rotation by infiniteTransition.animateFloat(
@@ -209,13 +296,13 @@ private fun PowerButton(
     )
 
     Box(
-        modifier = Modifier.size(200.dp),
+        modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
         // Outer glow ring
         Box(
             modifier = Modifier
-                .size(200.dp)
+                .size(size)
                 .rotate(rotation)
                 .background(
                     brush = Brush.sweepGradient(
@@ -234,7 +321,7 @@ private fun PowerButton(
         // Main button with Material 3 elevation
         Surface(
             modifier = Modifier
-                .size(170.dp)
+                .size(innerButtonSize)
                 .scale(scale),
             shape = CircleShape,
             color = buttonColor,
@@ -257,7 +344,7 @@ private fun PowerButton(
             ) {
                 if (isTransitioning && !isError) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(56.dp),
+                        modifier = Modifier.size(iconSize),
                         color = Color.White,
                         strokeWidth = 3.dp,
                         trackColor = Color.White.copy(alpha = 0.2f)
@@ -267,7 +354,7 @@ private fun PowerButton(
                         imageVector = Icons.Rounded.PowerSettingsNew,
                         contentDescription = if (isConnected) "Disconnect" else "Connect",
                         tint = Color.White,
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(iconSize)
                     )
                 }
             }
@@ -314,7 +401,8 @@ private fun StatusText(connectionState: ConnectionState) {
 private fun ServerSelectionCard(
     server: DnsServer?,
     isConnected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    maxWidth: Dp = Dp.Unspecified
 ) {
     val isDarkTheme = isAppInDarkTheme()
     val categoryColor = remember(server, isDarkTheme) {
@@ -322,8 +410,14 @@ private fun ServerSelectionCard(
         else null
     }
 
+    val modifier = if (maxWidth != Dp.Unspecified) {
+        Modifier.widthIn(max = maxWidth).fillMaxWidth()
+    } else {
+        Modifier.fillMaxWidth()
+    }
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(24.dp),
         color = if (isConnected) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)

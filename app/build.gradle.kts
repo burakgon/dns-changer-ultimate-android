@@ -90,6 +90,13 @@ dependencies {
     implementation(libs.play.review)
     implementation(libs.play.review.ktx)
 
+    // Material 3 Adaptive (tablet/foldable support)
+    implementation(libs.material3.adaptive)
+    implementation(libs.material3.adaptive.layout)
+    implementation(libs.material3.adaptive.navigation)
+    implementation(libs.material3.adaptive.navigation.suite)
+    implementation(libs.material3.windowsizeclass)
+
     // Debug
     debugImplementation(libs.androidx.ui.tooling)
 

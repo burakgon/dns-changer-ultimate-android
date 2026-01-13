@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -16,6 +17,7 @@ import com.dns.changer.ultimate.ui.screens.connect.ConnectScreen
 import com.dns.changer.ultimate.ui.screens.settings.SettingsScreen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
 import com.dns.changer.ultimate.ui.screens.speedtest.SpeedTestScreen
+import com.dns.changer.ultimate.ui.theme.rememberAdaptiveLayoutConfig
 
 @Composable
 fun DnsNavHost(
@@ -28,10 +30,15 @@ fun DnsNavHost(
     onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
     onThemeChanged: (ThemeMode) -> Unit
 ) {
+    // Get adaptive layout configuration for tablets/foldables
+    val adaptiveConfig = rememberAdaptiveLayoutConfig()
+
     NavHost(
         navController = navController,
         startDestination = Screen.Connect.route,
-        modifier = Modifier.padding(innerPadding),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
         enterTransition = {
             fadeIn(animationSpec = tween(300))
         },
@@ -47,7 +54,8 @@ fun DnsNavHost(
     ) {
         composable(route = Screen.Connect.route) {
             ConnectScreen(
-                onRequestVpnPermission = onRequestVpnPermission
+                onRequestVpnPermission = onRequestVpnPermission,
+                adaptiveConfig = adaptiveConfig
             )
         }
 
@@ -55,14 +63,16 @@ fun DnsNavHost(
             SpeedTestScreen(
                 isPremium = isPremium,
                 onShowPremiumGate = onShowPremiumGate,
-                onRequestVpnPermission = onRequestVpnPermissionWithCallback
+                onRequestVpnPermission = onRequestVpnPermissionWithCallback,
+                adaptiveConfig = adaptiveConfig
             )
         }
 
         composable(route = Screen.Settings.route) {
             SettingsScreen(
                 preferences = preferences,
-                onThemeChanged = onThemeChanged
+                onThemeChanged = onThemeChanged,
+                adaptiveConfig = adaptiveConfig
             )
         }
     }

@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -133,7 +134,8 @@ fun PremiumGatePopup(
 
                 Card(
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
+                        .widthIn(max = 500.dp)
+                        .fillMaxWidth(0.92f)
                         .offset { IntOffset(0, -floatOffset.roundToInt().dp.roundToPx()) }
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },

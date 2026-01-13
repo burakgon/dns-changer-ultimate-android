@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -77,15 +79,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.model.LatencyRating
 import com.dns.changer.ultimate.data.model.SpeedTestResult
+import com.dns.changer.ultimate.data.model.SpeedTestState
 import com.dns.changer.ultimate.ui.screens.connect.CategoryColors
 import com.dns.changer.ultimate.ui.screens.connect.isAppInDarkTheme
+import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.theme.DnsShapes
+import com.dns.changer.ultimate.ui.theme.WindowSize
 import com.dns.changer.ultimate.ui.viewmodel.SpeedTestViewModel
 import kotlin.math.cos
 import kotlin.math.sin
@@ -117,7 +124,8 @@ fun SpeedTestScreen(
     viewModel: SpeedTestViewModel = hiltViewModel(),
     isPremium: Boolean,
     onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
-    onRequestVpnPermission: (android.content.Intent, (Boolean) -> Unit) -> Unit
+    onRequestVpnPermission: (android.content.Intent, (Boolean) -> Unit) -> Unit,
+    adaptiveConfig: AdaptiveLayoutConfig
 ) {
     val speedTestState by viewModel.speedTestState.collectAsState()
     val vpnPermissionIntent by viewModel.vpnPermissionIntent.collectAsState()
@@ -143,204 +151,359 @@ fun SpeedTestScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (isInitialState) {
-            // Fancy initial state
-            Spacer(modifier = Modifier.weight(0.8f))
+    // Gauge size based on window size
+    val gaugeSize = when (adaptiveConfig.windowSize) {
+        WindowSize.COMPACT -> if (speedTestState.isRunning) 200.dp else 180.dp
+        WindowSize.MEDIUM -> if (speedTestState.isRunning) 220.dp else 200.dp
+        WindowSize.EXPANDED -> if (speedTestState.isRunning) 260.dp else 240.dp
+    }
 
-            InitialSpeedTestView(onClick = onStartTest, totalServerCount = totalServerCount)
-
-            Spacer(modifier = Modifier.weight(1f))
-        } else {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Compact gauge when running or has results
-            val gaugeSize = if (speedTestState.isRunning) 200.dp else 180.dp
-
-            SpeedTestGauge(
-                progress = speedTestState.progress,
-                fastestLatency = speedTestState.fastestResult?.latencyMs,
-                isRunning = speedTestState.isRunning,
-                hasResults = speedTestState.results.isNotEmpty(),
-                currentServerName = speedTestState.currentServer?.name,
-                testedCount = speedTestState.results.size,
-                onClick = onStartTest,
-                modifier = Modifier.size(gaugeSize)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Testing status
-            if (speedTestState.isRunning) {
-                Text(
-                    text = "Testing ${speedTestState.results.size + 1} of $totalServerCount servers...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+    // Use horizontal layout for expanded screens with results
+    if (adaptiveConfig.windowSize == WindowSize.EXPANDED && !isInitialState) {
+        // Two-pane layout for tablets: gauge on left, results on right
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = adaptiveConfig.horizontalPadding, vertical = 16.dp)
+        ) {
+            // Left pane: Gauge and status
+            Column(
+                modifier = Modifier
+                    .weight(0.4f)
+                    .fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                SpeedTestGauge(
+                    progress = speedTestState.progress,
+                    fastestLatency = speedTestState.fastestResult?.latencyMs,
+                    isRunning = speedTestState.isRunning,
+                    hasResults = speedTestState.results.isNotEmpty(),
+                    currentServerName = speedTestState.currentServer?.name,
+                    testedCount = speedTestState.results.size,
+                    onClick = onStartTest,
+                    modifier = Modifier.size(gaugeSize)
                 )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Testing status
+                if (speedTestState.isRunning) {
+                    Text(
+                        text = "Testing ${speedTestState.results.size + 1} of $totalServerCount servers...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (speedTestState.results.isNotEmpty()) {
+                    // Retest button
+                    Surface(
+                        onClick = onStartTest,
+                        shape = DnsShapes.Chip,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = stringResource(R.string.test_again),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Results List
-            if (speedTestState.results.isNotEmpty() || speedTestState.isRunning) {
+            // Right pane: Results list
+            Column(
+                modifier = Modifier
+                    .weight(0.6f)
+                    .fillMaxHeight()
+                    .padding(start = 24.dp)
+            ) {
+                // Results header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.results),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        if (speedTestState.results.isNotEmpty()) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primary
-                            ) {
-                                Text(
-                                    text = "${speedTestState.results.size}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Retest button
-                    if (!speedTestState.isRunning && speedTestState.results.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.results),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (speedTestState.results.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(12.dp))
                         Surface(
-                            onClick = onStartTest,
-                            shape = DnsShapes.Chip,
-                            color = MaterialTheme.colorScheme.primaryContainer
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary
                         ) {
                             Text(
-                                text = stringResource(R.string.test_again),
+                                text = "${speedTestState.results.size}",
                                 style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
                     }
                 }
 
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    // Show locked top 3 overlay if not unlocked and has 3+ results (even while running)
-                    val showLockedOverlay = !resultsUnlocked && speedTestState.results.size >= 3
+                // Results list content
+                SpeedTestResultsList(
+                    speedTestState = speedTestState,
+                    resultsUnlocked = resultsUnlocked,
+                    onShowPremiumGate = onShowPremiumGate,
+                    onAdWatched = { viewModel.onAdWatched() },
+                    onConnectToServer = { viewModel.connectToServer(it) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    } else {
+        // Vertical layout for compact/medium screens and initial state
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(adaptiveConfig.horizontalPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (isInitialState) {
+                // Fancy initial state
+                Spacer(modifier = Modifier.weight(0.8f))
 
-                    if (showLockedOverlay) {
-                        // Locked Top 3 Results Card
-                        item(key = "locked_top_3") {
-                            LockedTop3ResultsCard(
-                                top3Results = speedTestState.results.take(3),
-                                onUnlockClick = {
-                                    onShowPremiumGate { viewModel.onAdWatched() }
-                                },
-                                isRunning = speedTestState.isRunning
+                InitialSpeedTestView(
+                    onClick = onStartTest,
+                    totalServerCount = totalServerCount,
+                    viewSize = when (adaptiveConfig.windowSize) {
+                        WindowSize.COMPACT -> 300.dp
+                        WindowSize.MEDIUM -> 340.dp
+                        WindowSize.EXPANDED -> 380.dp
+                    }
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SpeedTestGauge(
+                    progress = speedTestState.progress,
+                    fastestLatency = speedTestState.fastestResult?.latencyMs,
+                    isRunning = speedTestState.isRunning,
+                    hasResults = speedTestState.results.isNotEmpty(),
+                    currentServerName = speedTestState.currentServer?.name,
+                    testedCount = speedTestState.results.size,
+                    onClick = onStartTest,
+                    modifier = Modifier.size(gaugeSize)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Testing status
+                if (speedTestState.isRunning) {
+                    Text(
+                        text = "Testing ${speedTestState.results.size + 1} of $totalServerCount servers...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Results List
+                if (speedTestState.results.isNotEmpty() || speedTestState.isRunning) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = adaptiveConfig.contentMaxWidth)
+                            .padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(R.string.results),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                        }
-
-                        // Show results from position 4 onwards
-                        val remainingResults = speedTestState.results.drop(3)
-                        itemsIndexed(
-                            items = remainingResults,
-                            key = { _, result -> result.server.id }
-                        ) { index, result ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = slideInVertically(
-                                    initialOffsetY = { 50 },
-                                    animationSpec = spring()
-                                ) + fadeIn() + scaleIn(initialScale = 0.9f)
-                            ) {
-                                SpeedTestResultItem(
-                                    result = result,
-                                    rank = index + 4, // Start from rank 4
-                                    isFastest = false,
-                                    isNew = speedTestState.isRunning && index == 0,
-                                    onClick = { viewModel.connectToServer(result.server) }
-                                )
-                            }
-                        }
-                    } else if (resultsUnlocked) {
-                        // Premium/unlocked users see all results as list
-                        itemsIndexed(
-                            items = speedTestState.results,
-                            key = { _, result -> result.server.id }
-                        ) { index, result ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = slideInVertically(
-                                    initialOffsetY = { 50 },
-                                    animationSpec = spring()
-                                ) + fadeIn() + scaleIn(initialScale = 0.9f)
-                            ) {
-                                SpeedTestResultItem(
-                                    result = result,
-                                    rank = index + 1,
-                                    isFastest = index == 0 && !speedTestState.isRunning,
-                                    isNew = speedTestState.isRunning && index == 0,
-                                    onClick = { viewModel.connectToServer(result.server) }
-                                )
-                            }
-                        }
-                    } else {
-                        // Not unlocked but less than 3 results - show nothing (still collecting)
-                        // Or show a placeholder indicating results are being collected
-                        if (speedTestState.results.isNotEmpty()) {
-                            item {
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = DnsShapes.Card,
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                    )
+                            if (speedTestState.results.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(32.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "Testing servers...",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+                                    Text(
+                                        text = "${speedTestState.results.size}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
                                 }
                             }
                         }
+
+                        // Retest button
+                        if (!speedTestState.isRunning && speedTestState.results.isNotEmpty()) {
+                            Surface(
+                                onClick = onStartTest,
+                                shape = DnsShapes.Chip,
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.test_again),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    SpeedTestResultsList(
+                        speedTestState = speedTestState,
+                        resultsUnlocked = resultsUnlocked,
+                        onShowPremiumGate = onShowPremiumGate,
+                        onAdWatched = { viewModel.onAdWatched() },
+                        onConnectToServer = { viewModel.connectToServer(it) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .widthIn(max = adaptiveConfig.contentMaxWidth)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+// Extracted results list to be reused in both layouts
+@Composable
+private fun SpeedTestResultsList(
+    speedTestState: SpeedTestState,
+    resultsUnlocked: Boolean,
+    onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
+    onAdWatched: () -> Unit,
+    onConnectToServer: (DnsServer) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
+    ) {
+        // Show locked top 3 overlay if not unlocked and has 3+ results (even while running)
+        val showLockedOverlay = !resultsUnlocked && speedTestState.results.size >= 3
+
+        if (showLockedOverlay) {
+            // Locked Top 3 Results Card
+            item(key = "locked_top_3") {
+                LockedTop3ResultsCard(
+                    top3Results = speedTestState.results.take(3),
+                    onUnlockClick = {
+                        onShowPremiumGate { onAdWatched() }
+                    },
+                    isRunning = speedTestState.isRunning
+                )
+            }
+
+            // Show results from position 4 onwards
+            val remainingResults = speedTestState.results.drop(3)
+            itemsIndexed(
+                items = remainingResults,
+                key = { _, result -> result.server.id }
+            ) { index, result ->
+                AnimatedVisibility(
+                    visible = true,
+                    enter = slideInVertically(
+                        initialOffsetY = { 50 },
+                        animationSpec = spring()
+                    ) + fadeIn() + scaleIn(initialScale = 0.9f)
+                ) {
+                    SpeedTestResultItem(
+                        result = result,
+                        rank = index + 4, // Start from rank 4
+                        isFastest = false,
+                        isNew = speedTestState.isRunning && index == 0,
+                        onClick = { onConnectToServer(result.server) }
+                    )
+                }
+            }
+        } else if (resultsUnlocked) {
+            // Premium/unlocked users see all results as list
+            itemsIndexed(
+                items = speedTestState.results,
+                key = { _, result -> result.server.id }
+            ) { index, result ->
+                AnimatedVisibility(
+                    visible = true,
+                    enter = slideInVertically(
+                        initialOffsetY = { 50 },
+                        animationSpec = spring()
+                    ) + fadeIn() + scaleIn(initialScale = 0.9f)
+                ) {
+                    SpeedTestResultItem(
+                        result = result,
+                        rank = index + 1,
+                        isFastest = index == 0 && !speedTestState.isRunning,
+                        isNew = speedTestState.isRunning && index == 0,
+                        onClick = { onConnectToServer(result.server) }
+                    )
+                }
+            }
+        } else {
+            // Not unlocked but less than 3 results - show nothing (still collecting)
+            // Or show a placeholder indicating results are being collected
+            if (speedTestState.results.isNotEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = DnsShapes.Card,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Testing servers...",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun InitialSpeedTestView(onClick: () -> Unit, totalServerCount: Int) {
+private fun InitialSpeedTestView(
+    onClick: () -> Unit,
+    totalServerCount: Int,
+    viewSize: Dp = 300.dp
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "initialView")
+
+    // Calculate relative sizes based on container size
+    val containerSize = viewSize
+    val glowSize = viewSize * 0.93f
+    val outerRingSize = viewSize * 0.93f
+    val middleRingSize = viewSize * 0.8f
+    val orbitingDotsSize = viewSize * 0.87f
+    val centerButtonSize = viewSize * 0.6f
+    val iconSize = viewSize * 0.21f
 
     // Outer ring rotation
     val outerRotation by infiniteTransition.animateFloat(
@@ -407,13 +570,13 @@ private fun InitialSpeedTestView(onClick: () -> Unit, totalServerCount: Int) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier.size(300.dp),
+            modifier = Modifier.size(containerSize),
             contentAlignment = Alignment.Center
         ) {
             // Background glow effect
             Box(
                 modifier = Modifier
-                    .size(280.dp)
+                    .size(glowSize)
                     .alpha(glowAlpha)
                     .blur(40.dp)
                     .background(
@@ -431,7 +594,7 @@ private fun InitialSpeedTestView(onClick: () -> Unit, totalServerCount: Int) {
             // Outer decorative ring with gradient
             Canvas(
                 modifier = Modifier
-                    .size(280.dp)
+                    .size(outerRingSize)
                     .rotate(outerRotation)
             ) {
                 val strokeWidth = 2.dp.toPx()
@@ -456,7 +619,7 @@ private fun InitialSpeedTestView(onClick: () -> Unit, totalServerCount: Int) {
             // Middle ring with gradient sweep - uses Material You colors
             Canvas(
                 modifier = Modifier
-                    .size(240.dp)
+                    .size(middleRingSize)
                     .rotate(innerRotation)
             ) {
                 val strokeWidth = 4.dp.toPx()
@@ -484,7 +647,7 @@ private fun InitialSpeedTestView(onClick: () -> Unit, totalServerCount: Int) {
             }
 
             // Orbiting dots - uses Material You colors
-            Canvas(modifier = Modifier.size(260.dp)) {
+            Canvas(modifier = Modifier.size(orbitingDotsSize)) {
                 val orbitRadius = size.minDimension / 2 - 20.dp.toPx()
                 val center = Offset(size.width / 2, size.height / 2)
 
@@ -505,7 +668,7 @@ private fun InitialSpeedTestView(onClick: () -> Unit, totalServerCount: Int) {
             // Main tappable button
             Surface(
                 modifier = Modifier
-                    .size(180.dp)
+                    .size(centerButtonSize)
                     .scale(pulse),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -532,7 +695,7 @@ private fun InitialSpeedTestView(onClick: () -> Unit, totalServerCount: Int) {
                             imageVector = Icons.Rounded.Speed,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(64.dp)
+                            modifier = Modifier.size(iconSize)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(

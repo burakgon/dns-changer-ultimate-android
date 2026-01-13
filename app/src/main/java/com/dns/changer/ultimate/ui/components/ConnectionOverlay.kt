@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -133,8 +134,9 @@ fun ConnectionSuccessOverlay(
         ) {
             Column(
                 modifier = Modifier
+                    .widthIn(max = 500.dp)
                     .fillMaxWidth()
-                    .padding(32.dp),
+                    .padding(horizontal = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Success Icon with pulsing rings
@@ -392,8 +394,9 @@ fun DisconnectionOverlay(
         ) {
             Column(
                 modifier = Modifier
+                    .widthIn(max = 500.dp)
                     .fillMaxWidth()
-                    .padding(32.dp),
+                    .padding(horizontal = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Disconnected Icon

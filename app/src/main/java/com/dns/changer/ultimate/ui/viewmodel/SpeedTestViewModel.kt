@@ -27,12 +27,8 @@ class SpeedTestViewModel @Inject constructor(
     private val dnsRepository: com.dns.changer.ultimate.data.repository.DnsRepository
 ) : ViewModel() {
 
+    // Directly expose service state - service is Singleton so state survives config changes
     val speedTestState: StateFlow<SpeedTestState> = speedTestService.state
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = SpeedTestState()
-        )
 
     // Total server count (preset + custom)
     val totalServerCount: StateFlow<Int> = dnsRepository.allServers
