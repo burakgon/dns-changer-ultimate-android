@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DNS Changer</string>
+    <string name="connect_tab">Connect</string>
+    <string name="speed_test_tab">Speed Test</string>
+    <string name="settings_tab">Settings</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="connecting">Connecting…</string>
+    <string name="disconnecting">Disconnecting…</string>
+    <string name="switching">Switching…</string>
+    <string name="connected">Connected</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="not_connected">Not Connected</string>
+    <string name="tap_to_connect">Tap to connect</string>
+    <string name="tap_to_disconnect">Tap to disconnect</string>
+    <string name="current_dns">Current DNS</string>
+    <string name="select_server">Select Server</string>
+    <string name="add_custom_dns">Add Custom DNS</string>
+    <string name="dns_primary">Primary DNS</string>
+    <string name="dns_secondary">Secondary DNS</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="done">Done</string>
+    <string name="start_test">Start Test</string>
+    <string name="test_again">Test Again</string>
+    <string name="testing">Testing…</string>
+    <string name="tap_to_test">Tap to test</string>
+    <string name="excellent">Excellent</string>
+    <string name="good">Good</string>
+    <string name="fair">Fair</string>
+    <string name="poor">Poor</string>
+    <string name="ms">ms</string>
+    <string name="fastest">FASTEST</string>
+    <string name="results">Results</string>
+    <string name="vpn_permission_title">VPN Permission Required</string>
+    <string name="vpn_permission_message">DNS Changer needs VPN permission to route your DNS traffic through the selected server.</string>
+    <string name="allow">Allow</string>
+    <string name="notification_channel_name">DNS Connection</string>
+    <string name="notification_channel_description">Shows DNS connection status</string>
+    <string name="notification_title">DNS Changer Active</string>
+    <string name="notification_text">Connected to %s</string>
+
+    <!-- Connection Success/Disconnection -->
+    <string name="dns_protected">Your DNS is now protected</string>
+    <string name="dns_disabled">DNS protection is now disabled</string>
+    <string name="using_default_dns">Your device is now using your network\'s default DNS</string>
+    <string name="previously_connected">Previously connected to</string>
+    <string name="continue_text">Continue</string>
+    <string name="latency">Latency</string>
+    <string name="protocol">Protocol</string>
+    <string name="protection">Protection</string>
+    <string name="active">Active</string>
+
+    <!-- Settings -->
+    <string name="appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="light">Light</string>
+    <string name="dark">Dark</string>
+    <string name="system">System</string>
+    <string name="about">About</string>
+    <string name="version">Version</string>
+    <string name="restore_purchases">Restore Purchases</string>
+
+    <!-- Premium Gate -->
+    <string name="unlock_feature">Unlock Speed Test</string>
+    <string name="premium_description">Test all DNS servers to find the fastest one for your connection</string>
+    <string name="continue_free">Continue Free</string>
+    <string name="quick_video">Quick 15–30s video</string>
+    <string name="or">or</string>
+    <string name="go_premium">Go Premium</string>
+    <string name="no_ads">No Ads</string>
+    <string name="all_features">All Features</string>
+</resources>
