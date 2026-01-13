@@ -95,6 +95,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -728,16 +729,11 @@ private fun ActionButton(
     onStartTest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Use Material theme colors for better compatibility with all color schemes
-    // For status colors, use tertiary (secure), secondary (warning), error (leak)
+    // Use Material theme colors for backgrounds
     val primaryColor = MaterialTheme.colorScheme.primary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val onTertiaryColor = MaterialTheme.colorScheme.onTertiary
     val secondaryColor = MaterialTheme.colorScheme.secondary
-    val onSecondaryColor = MaterialTheme.colorScheme.onSecondary
     val errorColor = MaterialTheme.colorScheme.error
-    val onErrorColor = MaterialTheme.colorScheme.onError
 
     val containerColor = when (status) {
         LeakTestStatus.COMPLETED_SECURE -> tertiaryColor
@@ -746,12 +742,9 @@ private fun ActionButton(
         else -> primaryColor
     }
 
-    val contentColor = when (status) {
-        LeakTestStatus.COMPLETED_SECURE -> onTertiaryColor
-        LeakTestStatus.COMPLETED_NOT_PROTECTED -> onSecondaryColor
-        LeakTestStatus.COMPLETED_LEAK_DETECTED -> onErrorColor
-        else -> onPrimaryColor
-    }
+    // Calculate content color based on background luminance for guaranteed contrast
+    // This works correctly even in grey Material You themes
+    val contentColor = if (containerColor.luminance() > 0.5f) Color.Black else Color.White
 
     Button(
         onClick = onStartTest,

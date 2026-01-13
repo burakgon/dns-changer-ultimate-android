@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -313,17 +314,12 @@ private fun PowerButton(
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val primaryColor = MaterialTheme.colorScheme.primary
-
-    // Content colors for proper contrast on button backgrounds
-    val onTertiaryColor = MaterialTheme.colorScheme.onTertiary
-    val onSecondaryColor = MaterialTheme.colorScheme.onSecondary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
-    val onErrorColor = MaterialTheme.colorScheme.onError
+    val errorColor = MaterialTheme.colorScheme.error
 
     val buttonColor by animateColorAsState(
         targetValue = when {
             isConnected -> tertiaryColor
-            isError -> MaterialTheme.colorScheme.error
+            isError -> errorColor
             isTransitioning -> secondaryColor
             else -> primaryColor
         },
@@ -331,17 +327,9 @@ private fun PowerButton(
         label = "buttonColor"
     )
 
-    // Animate content color to match button background
-    val contentColor by animateColorAsState(
-        targetValue = when {
-            isConnected -> onTertiaryColor
-            isError -> onErrorColor
-            isTransitioning -> onSecondaryColor
-            else -> onPrimaryColor
-        },
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "contentColor"
-    )
+    // Calculate content color based on background luminance for guaranteed contrast
+    // This works correctly even in grey Material You themes
+    val contentColor = if (buttonColor.luminance() > 0.5f) Color.Black else Color.White
 
     val scale by animateFloatAsState(
         targetValue = if (isTransitioning) pulseScale else 1f,
