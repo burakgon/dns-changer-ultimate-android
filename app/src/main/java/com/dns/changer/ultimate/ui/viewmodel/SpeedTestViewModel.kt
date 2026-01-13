@@ -1,7 +1,9 @@
 package com.dns.changer.ultimate.ui.viewmodel
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.model.PresetDnsServers
 import com.dns.changer.ultimate.data.model.SpeedTestState
@@ -33,6 +35,12 @@ class SpeedTestViewModel @Inject constructor(
     private val _showPremiumGate = MutableStateFlow(false)
     val showPremiumGate: StateFlow<Boolean> = _showPremiumGate.asStateFlow()
 
+    // VPN permission state
+    private val _vpnPermissionIntent = MutableStateFlow<Intent?>(null)
+    val vpnPermissionIntent: StateFlow<Intent?> = _vpnPermissionIntent.asStateFlow()
+
+    private var pendingConnectionServer: DnsServer? = null
+
     fun startSpeedTest(isPremium: Boolean, hasWatchedAd: Boolean) {
         if (!isPremium && !hasWatchedAd) {
             _showPremiumGate.value = true
@@ -49,11 +57,51 @@ class SpeedTestViewModel @Inject constructor(
     }
 
     fun connectToServer(server: DnsServer) {
+        // Check if already connected - use switch instead
+        val currentState = connectionManager.connectionState.value
+        if (currentState is ConnectionState.Connected) {
+            // Already connected, just switch server (no permission needed)
+            viewModelScope.launch {
+                dnsRepository.selectServer(server)
+                connectionManager.switchServer(server)
+            }
+            return
+        }
+
+        // Check VPN permission first
+        val vpnIntent = connectionManager.checkVpnPermission()
+        if (vpnIntent != null) {
+            // Need permission - store pending server and emit intent
+            pendingConnectionServer = server
+            _vpnPermissionIntent.value = vpnIntent
+            return
+        }
+
+        // Permission granted, connect directly
         viewModelScope.launch {
-            // Save the selected server so MainViewModel can track it
             dnsRepository.selectServer(server)
             connectionManager.connect(server)
         }
+    }
+
+    fun onVpnPermissionResult(granted: Boolean) {
+        _vpnPermissionIntent.value = null
+
+        if (granted && pendingConnectionServer != null) {
+            val server = pendingConnectionServer!!
+            pendingConnectionServer = null
+            viewModelScope.launch {
+                dnsRepository.selectServer(server)
+                connectionManager.connect(server)
+            }
+        } else {
+            pendingConnectionServer = null
+        }
+    }
+
+    fun dismissVpnPermission() {
+        _vpnPermissionIntent.value = null
+        pendingConnectionServer = null
     }
 
     fun dismissPremiumGate() {

@@ -213,6 +213,7 @@ fun DnsChangerApp(
                         mainViewModel.onVpnPermissionResult(granted)
                     }
                 },
+                onRequestVpnPermissionWithCallback = onRequestVpnPermission,
                 onShowPremiumGate = { showPremiumGate = true },
                 onThemeChanged = onThemeChanged
             )

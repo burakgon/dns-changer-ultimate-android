@@ -56,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -92,9 +93,11 @@ fun SpeedTestScreen(
     viewModel: SpeedTestViewModel = hiltViewModel(),
     isPremium: Boolean,
     hasWatchedAd: Boolean,
-    onShowPremiumGate: () -> Unit
+    onShowPremiumGate: () -> Unit,
+    onRequestVpnPermission: (android.content.Intent, (Boolean) -> Unit) -> Unit
 ) {
     val speedTestState by viewModel.speedTestState.collectAsState()
+    val vpnPermissionIntent by viewModel.vpnPermissionIntent.collectAsState()
 
     val isInitialState = speedTestState.results.isEmpty() && !speedTestState.isRunning
 
@@ -104,6 +107,15 @@ fun SpeedTestScreen(
     // Speed test always runs freely - no pre-gate
     val onStartTest = {
         viewModel.startSpeedTest(isPremium = true, hasWatchedAd = true) // Always allow test
+    }
+
+    // Handle VPN permission request
+    LaunchedEffect(vpnPermissionIntent) {
+        vpnPermissionIntent?.let { intent ->
+            onRequestVpnPermission(intent) { granted ->
+                viewModel.onVpnPermissionResult(granted)
+            }
+        }
     }
 
     Column(

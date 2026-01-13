@@ -25,6 +25,7 @@ fun DnsNavHost(
     hasWatchedAd: Boolean,
     preferences: DnsPreferences,
     onRequestVpnPermission: (Intent) -> Unit,
+    onRequestVpnPermissionWithCallback: (Intent, (Boolean) -> Unit) -> Unit,
     onShowPremiumGate: () -> Unit,
     onThemeChanged: (ThemeMode) -> Unit
 ) {
@@ -55,7 +56,8 @@ fun DnsNavHost(
             SpeedTestScreen(
                 isPremium = isPremium,
                 hasWatchedAd = hasWatchedAd,
-                onShowPremiumGate = onShowPremiumGate
+                onShowPremiumGate = onShowPremiumGate,
+                onRequestVpnPermission = onRequestVpnPermissionWithCallback
             )
         }
 
