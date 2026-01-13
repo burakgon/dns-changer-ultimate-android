@@ -14,6 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.ui.screens.connect.ConnectScreen
+import com.dns.changer.ultimate.ui.screens.leaktest.DnsLeakTestScreen
 import com.dns.changer.ultimate.ui.screens.settings.SettingsScreen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
 import com.dns.changer.ultimate.ui.screens.speedtest.SpeedTestScreen
@@ -55,7 +56,9 @@ fun DnsNavHost(
         composable(route = Screen.Connect.route) {
             ConnectScreen(
                 onRequestVpnPermission = onRequestVpnPermission,
-                adaptiveConfig = adaptiveConfig
+                adaptiveConfig = adaptiveConfig,
+                isPremium = isPremium,
+                onShowPremiumGate = onShowPremiumGate
             )
         }
 
@@ -64,6 +67,12 @@ fun DnsNavHost(
                 isPremium = isPremium,
                 onShowPremiumGate = onShowPremiumGate,
                 onRequestVpnPermission = onRequestVpnPermissionWithCallback,
+                adaptiveConfig = adaptiveConfig
+            )
+        }
+
+        composable(route = Screen.LeakTest.route) {
+            DnsLeakTestScreen(
                 adaptiveConfig = adaptiveConfig
             )
         }

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -165,6 +166,7 @@ fun SpeedTestScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
+                .statusBarsPadding()
                 .padding(horizontal = adaptiveConfig.horizontalPadding, vertical = 16.dp)
         ) {
             // Left pane: Gauge and status
@@ -268,6 +270,7 @@ fun SpeedTestScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
+                .statusBarsPadding()
                 .padding(adaptiveConfig.horizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

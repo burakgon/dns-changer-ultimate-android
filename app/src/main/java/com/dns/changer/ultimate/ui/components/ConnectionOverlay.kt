@@ -240,9 +240,14 @@ fun ConnectionSuccessOverlay(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "${srv.primaryDns} • ${srv.secondaryDns}",
+                                        text = if (srv.isDoH && !srv.dohUrl.isNullOrBlank()) {
+                                            srv.dohUrl
+                                        } else {
+                                            "${srv.primaryDns} • ${srv.secondaryDns}"
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
                                     )
                                 }
                             }
@@ -265,7 +270,7 @@ fun ConnectionSuccessOverlay(
                                 StatItem(
                                     icon = Icons.Default.Security,
                                     label = stringResource(R.string.protocol),
-                                    value = "DNS",
+                                    value = if (srv.isDoH) "DoH" else "DNS",
                                     valueColor = MaterialTheme.colorScheme.onSurface
                                 )
                                 StatItem(

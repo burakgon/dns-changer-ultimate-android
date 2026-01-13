@@ -11,6 +11,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -78,6 +79,47 @@ private val DarkColorScheme = darkColorScheme(
     inverseOnSurface = Color(0xFF313033),
     inversePrimary = Color(0xFF6B4DE6),
     surfaceTint = Color(0xFFCFBCFF)
+)
+
+// Semantic colors for status indicators (success, warning, error)
+// Following Material Design 3 tonal palette guidelines:
+// Light mode: use tone 40 (darker) for text/icons on light backgrounds
+// Dark mode: use tone 80 (lighter) for text/icons on dark backgrounds
+object SemanticColors {
+    // Success colors (green) - using Material green tonal palette
+    val SuccessLight = Color(0xFF006E2C)  // Green tone 40 - good contrast on light
+    val SuccessDark = Color(0xFF78DC77)   // Green tone 80 - good contrast on dark
+    val SuccessContainerLight = Color(0xFFB6F2AF)  // Green tone 90
+    val SuccessContainerDark = Color(0xFF005321)   // Green tone 30
+
+    // Warning colors (amber/orange) - using Material orange tonal palette
+    val WarningLight = Color(0xFF8B5000)  // Orange tone 40 - good contrast on light
+    val WarningDark = Color(0xFFFFB870)   // Orange tone 80 - good contrast on dark
+    val WarningContainerLight = Color(0xFFFFDDB5)  // Orange tone 90
+    val WarningContainerDark = Color(0xFF6A3C00)   // Orange tone 30
+
+    // Error colors - use Material 3 error colors from theme
+}
+
+@Composable
+fun rememberSemanticColors(): SemanticColorScheme {
+    // Use the actual theme's background color to determine if we're in dark mode
+    // This respects the app's theme setting, not just the system setting
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val isDark = backgroundColor.luminance() < 0.5f
+    return SemanticColorScheme(
+        success = if (isDark) SemanticColors.SuccessDark else SemanticColors.SuccessLight,
+        successContainer = if (isDark) SemanticColors.SuccessContainerDark else SemanticColors.SuccessContainerLight,
+        warning = if (isDark) SemanticColors.WarningDark else SemanticColors.WarningLight,
+        warningContainer = if (isDark) SemanticColors.WarningContainerDark else SemanticColors.WarningContainerLight
+    )
+}
+
+data class SemanticColorScheme(
+    val success: Color,
+    val successContainer: Color,
+    val warning: Color,
+    val warningContainer: Color
 )
 
 @Composable

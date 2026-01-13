@@ -83,7 +83,9 @@ class DnsRepository @Inject constructor(
                         secondaryDns = obj.getString("secondaryDns"),
                         category = DnsCategory.CUSTOM,
                         description = obj.optString("description", "Custom DNS server"),
-                        isCustom = true
+                        isCustom = true,
+                        isDoH = obj.optBoolean("isDoH", false),
+                        dohUrl = if (obj.has("dohUrl")) obj.getString("dohUrl").takeIf { it.isNotBlank() } else null
                     )
                 )
             }
@@ -103,6 +105,10 @@ class DnsRepository @Inject constructor(
                 put("primaryDns", server.primaryDns)
                 put("secondaryDns", server.secondaryDns)
                 put("description", server.description)
+                put("isDoH", server.isDoH)
+                if (!server.dohUrl.isNullOrBlank()) {
+                    put("dohUrl", server.dohUrl)
+                }
             }
             jsonArray.put(obj)
         }

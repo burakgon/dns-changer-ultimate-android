@@ -28,7 +28,9 @@ data class DnsServer(
     val secondaryDns: String,
     val category: DnsCategory,
     val description: String = "",
-    val isCustom: Boolean = false
+    val isCustom: Boolean = false,
+    val isDoH: Boolean = false,
+    val dohUrl: String? = null
 )
 
 // Preset DNS servers

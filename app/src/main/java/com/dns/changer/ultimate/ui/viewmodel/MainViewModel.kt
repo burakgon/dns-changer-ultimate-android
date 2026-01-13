@@ -282,15 +282,23 @@ class MainViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showCustomDnsDialog = false)
     }
 
-    fun addCustomDns(name: String, primaryDns: String, secondaryDns: String) {
+    fun addCustomDns(
+        name: String,
+        primaryDns: String,
+        secondaryDns: String,
+        isDoH: Boolean = false,
+        dohUrl: String? = null
+    ) {
         val customServer = DnsServer(
             id = "custom_${System.currentTimeMillis()}",
             name = name,
             primaryDns = primaryDns,
             secondaryDns = secondaryDns,
             category = DnsCategory.CUSTOM,
-            description = "Custom DNS server",
-            isCustom = true
+            description = if (isDoH) "Custom DoH server" else "Custom DNS server",
+            isCustom = true,
+            isDoH = isDoH,
+            dohUrl = dohUrl
         )
 
         viewModelScope.launch {

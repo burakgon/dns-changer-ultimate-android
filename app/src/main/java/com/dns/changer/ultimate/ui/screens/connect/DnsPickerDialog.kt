@@ -383,18 +383,25 @@ private fun DnsServerCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // DNS IPs as chips
+                // DNS IPs or DoH URL as chips
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    DnsIpChip(
-                        ip = server.primaryDns,
-                        isSelected = isSelected
-                    )
-                    DnsIpChip(
-                        ip = server.secondaryDns,
-                        isSelected = isSelected
-                    )
+                    if (server.isDoH && !server.dohUrl.isNullOrBlank()) {
+                        DnsIpChip(
+                            ip = server.dohUrl,
+                            isSelected = isSelected
+                        )
+                    } else {
+                        DnsIpChip(
+                            ip = server.primaryDns,
+                            isSelected = isSelected
+                        )
+                        DnsIpChip(
+                            ip = server.secondaryDns,
+                            isSelected = isSelected
+                        )
+                    }
                 }
             }
 

@@ -86,6 +86,9 @@ dependencies {
     // RevenueCat
     implementation(libs.revenuecat.purchases)
 
+    // OkHttp for DNS over HTTPS
+    implementation(libs.okhttp)
+
     // Play In-App Review
     implementation(libs.play.review)
     implementation(libs.play.review.ktx)

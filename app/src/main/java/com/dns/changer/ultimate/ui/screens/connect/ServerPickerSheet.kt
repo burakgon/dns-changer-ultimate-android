@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,12 +78,12 @@ object CategoryColors {
     }
 }
 
-// Helper to determine if current theme is dark based on surface color luminance
+// Helper to determine if current theme is dark based on background color luminance
+// This respects the app's theme setting (Light/Dark/System), not just the system setting
 @Composable
 fun isAppInDarkTheme(): Boolean {
-    val surface = MaterialTheme.colorScheme.surface
-    // Calculate luminance - if less than 0.5, it's dark
-    return (0.299f * surface.red + 0.587f * surface.green + 0.114f * surface.blue) < 0.5f
+    val background = MaterialTheme.colorScheme.background
+    return background.luminance() < 0.5f
 }
 
 // Sealed class for list items to enable proper diffing
@@ -301,9 +302,15 @@ private fun ServerRow(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${server.primaryDns} • ${server.secondaryDns}",
+                    text = if (server.isDoH && !server.dohUrl.isNullOrBlank()) {
+                        server.dohUrl
+                    } else {
+                        "${server.primaryDns} • ${server.secondaryDns}"
+                    },
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.outline,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 

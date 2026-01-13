@@ -72,6 +72,67 @@
     <string name="no_ads">No Ads</string>
     <string name="all_features">All Features</string>
 
+    <!-- DNS over HTTPS -->
+    <string name="dns_over_https">DNS over HTTPS</string>
+    <string name="doh_encrypted">Encrypted DNS queries</string>
+    <string name="doh_url">DoH URL</string>
+    <string name="doh_url_hint">https://cloudflare-dns.com/dns-query</string>
+    <string name="doh_url_error">Enter a valid HTTPS URL</string>
+    <string name="doh_fallback_dns">Fallback DNS (optional)</string>
+    <string name="doh_badge">DoH</string>
+    <string name="premium_badge">PREMIUM</string>
+    <string name="unlock_doh">Unlock DNS over HTTPS</string>
+    <string name="doh_premium_description">Encrypt your DNS queries for enhanced privacy and security. DoH prevents ISPs and attackers from seeing your DNS lookups.</string>
+
+    <!-- DNS Leak Test -->
+    <string name="leak_test_tab">Leak Test</string>
+    <string name="leak_test_title">DNS Leak Test</string>
+    <string name="leak_test_subtitle">Verify your DNS queries are protected and not leaking to your ISP</string>
+    <string name="leak_test_running">Testing DNS Privacy…</string>
+    <string name="leak_test_checking">Checking your DNS servers for potential leaks</string>
+    <string name="leak_test_secure">No DNS Leak Detected</string>
+    <string name="leak_test_secure_desc">All your DNS queries are routed through secure servers</string>
+    <string name="leak_test_leak_detected">DNS Leak Detected!</string>
+    <string name="leak_test_leak_desc">Your DNS queries may be exposed to third parties</string>
+    <string name="leak_test_no_leak">Secure</string>
+    <string name="leak_test_leak">Leak</string>
+    <string name="leak_test_dns_servers">DNS Servers Detected</string>
+    <string name="leak_test_info_title">Learn About DNS Leaks</string>
+    <string name="leak_test_what_is_title">What is a DNS Leak?</string>
+    <string name="leak_test_what_is_desc">A DNS leak occurs when your device sends DNS queries outside your secure DNS connection. This means your ISP or other third parties can see which websites you visit, even if you\'re using a private DNS server.</string>
+    <string name="leak_test_why_matters_title">Why Does It Matter?</string>
+    <string name="leak_test_why_matters_desc">DNS leaks expose your browsing history to your Internet Service Provider, who can log, sell, or share this data. It also allows network administrators, hackers, or governments to monitor your online activity.</string>
+    <string name="leak_test_how_fix_title">How to Stay Protected</string>
+    <string name="leak_test_how_fix_desc">Activate DNS Changer to route all your DNS queries through a secure server. Choose a trusted DNS provider and run this test regularly to ensure your DNS protection is working properly.</string>
+    <string name="leak_test_summary_title">Test Summary</string>
+    <string name="leak_test_status">Status</string>
+    <string name="leak_test_status_secure">Secure</string>
+    <string name="leak_test_status_leak">Leak</string>
+    <string name="leak_test_servers_found">Servers</string>
+    <string name="leak_test_countries">Countries</string>
+    <string name="leak_test_providers">Providers</string>
+    <string name="leak_test_detected_ips">Detected IP Addresses</string>
+    <string name="leak_test_recommendation_title">Recommendations</string>
+    <string name="leak_test_recommendation_secure">Your DNS configuration is secure. All DNS queries are being routed through your selected DNS server, ensuring your browsing privacy is protected.</string>
+    <string name="leak_test_recommendation_leak">DNS leaks were detected. Your queries may be exposed to third parties. Follow these steps to secure your connection:</string>
+    <string name="leak_test_tip_1">Activate DNS Changer before browsing</string>
+    <string name="leak_test_tip_2">Choose a trusted DNS provider from the list</string>
+    <string name="leak_test_tip_3">Run this test regularly to verify your protection</string>
+    <string name="leak_test_protected_by">Protected by</string>
+    <string name="leak_test_your_ip">Your IP</string>
+    <string name="leak_test_not_connected_warning">Connect to DNS Changer for protection</string>
+    <string name="leak_test_not_protected">Unprotected</string>
+    <string name="leak_test_not_protected_title">DNS Not Protected</string>
+    <string name="leak_test_not_protected_desc">You are not connected to DNS Changer. Your DNS queries use your network\'s default settings.</string>
+    <string name="leak_test_status_not_protected">Unprotected</string>
+    <string name="leak_test_status_complete">Tested</string>
+    <string name="leak_test_servers_secure_desc">All queries routed securely</string>
+    <string name="leak_test_servers_single_desc">Using network default DNS</string>
+    <string name="leak_test_servers_multiple_desc">Multiple DNS servers in use</string>
+    <string name="leak_test_servers_leak_desc">DNS queries may be exposed</string>
+    <string name="leak_test_recommendation_not_protected">Your device is using your network\'s default DNS servers. Connect to DNS Changer for enhanced privacy and security.</string>
+    <string name="leak_test_recommendation_complete">Test complete. These are the DNS servers currently handling your queries. Connect to DNS Changer to use a different DNS provider.</string>
+
     <!-- Rating Dialog -->
     <string name="rating_title">Enjoying DNS Changer?</string>
     <string name="rating_subtitle">Your feedback helps us improve</string>

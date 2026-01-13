@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -66,7 +67,9 @@ import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 fun ConnectScreen(
     viewModel: MainViewModel = hiltViewModel(),
     onRequestVpnPermission: (android.content.Intent) -> Unit,
-    adaptiveConfig: AdaptiveLayoutConfig
+    adaptiveConfig: AdaptiveLayoutConfig,
+    isPremium: Boolean = false,
+    onShowPremiumGate: (() -> Unit) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
@@ -91,6 +94,7 @@ fun ConnectScreen(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
+                    .statusBarsPadding()
                     .padding(horizontal = adaptiveConfig.horizontalPadding),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
@@ -147,7 +151,9 @@ fun ConnectScreen(
         } else {
             // Vertical layout for compact and medium screens (phones and portrait tablets)
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -157,7 +163,7 @@ fun ConnectScreen(
                         .padding(horizontal = adaptiveConfig.horizontalPadding),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     // Power Button
                     PowerButton(
@@ -225,10 +231,16 @@ fun ConnectScreen(
     if (uiState.showCustomDnsDialog) {
         AddCustomDnsDialog(
             onDismiss = { viewModel.hideAddCustomDns() },
-            onConfirm = { name, primary, secondary ->
-                viewModel.addCustomDns(name, primary, secondary)
+            onConfirm = { name, primary, secondary, isDoH, dohUrl ->
+                viewModel.addCustomDns(name, primary, secondary, isDoH, dohUrl)
                 // After adding custom DNS, show picker with Custom category selected
                 showCustomCategory = true
+            },
+            isPremium = isPremium,
+            onShowPremiumGate = {
+                // When DoH toggle is tapped without premium, show premium gate
+                // The callback will be called after user unlocks premium (via ad or subscription)
+                onShowPremiumGate { /* DoH access granted via session unlock */ }
             }
         )
     }
@@ -478,8 +490,12 @@ private fun ServerSelectionCard(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        DnsChip(server.primaryDns, isConnected)
-                        DnsChip(server.secondaryDns, isConnected)
+                        if (server.isDoH && !server.dohUrl.isNullOrBlank()) {
+                            DnsChip(server.dohUrl, isConnected)
+                        } else {
+                            DnsChip(server.primaryDns, isConnected)
+                            DnsChip(server.secondaryDns, isConnected)
+                        }
                     }
                 } else {
                     Spacer(modifier = Modifier.height(4.dp))

@@ -186,6 +186,10 @@ class DnsConnectionManager @Inject constructor(
             putExtra(DnsVpnService.EXTRA_PRIMARY_DNS, server.primaryDns)
             putExtra(DnsVpnService.EXTRA_SECONDARY_DNS, server.secondaryDns)
             putExtra(DnsVpnService.EXTRA_SERVER_NAME, server.name)
+            putExtra(DnsVpnService.EXTRA_IS_DOH, server.isDoH)
+            if (server.isDoH && !server.dohUrl.isNullOrBlank()) {
+                putExtra(DnsVpnService.EXTRA_DOH_URL, server.dohUrl)
+            }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

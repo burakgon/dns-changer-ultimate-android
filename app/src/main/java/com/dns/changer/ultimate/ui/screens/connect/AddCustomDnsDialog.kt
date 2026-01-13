@@ -1,23 +1,27 @@
 package com.dns.changer.ultimate.ui.screens.connect
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -25,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,17 +43,26 @@ import com.dns.changer.ultimate.ui.theme.DnsShapes
 @Composable
 fun AddCustomDnsDialog(
     onDismiss: () -> Unit,
-    onConfirm: (name: String, primaryDns: String, secondaryDns: String) -> Unit
+    onConfirm: (name: String, primaryDns: String, secondaryDns: String, isDoH: Boolean, dohUrl: String?) -> Unit,
+    isPremium: Boolean = false,
+    onShowPremiumGate: () -> Unit = {}
 ) {
     var name by remember { mutableStateOf("") }
     var primaryDns by remember { mutableStateOf("") }
     var secondaryDns by remember { mutableStateOf("") }
+    var isDoHEnabled by remember { mutableStateOf(false) }
+    var dohUrl by remember { mutableStateOf("https://cloudflare-dns.com/dns-query") }
 
     var nameError by remember { mutableStateOf(false) }
     var primaryError by remember { mutableStateOf(false) }
+    var dohUrlError by remember { mutableStateOf(false) }
 
     val isValidIp: (String) -> Boolean = { ip ->
         ip.isEmpty() || ip.matches(Regex("^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$"))
+    }
+
+    val isValidDohUrl: (String) -> Boolean = { url ->
+        url.isEmpty() || url.matches(Regex("^https://[a-zA-Z0-9.-]+(/[a-zA-Z0-9./_-]*)?$"))
     }
 
     AlertDialog(
@@ -75,6 +89,7 @@ fun AddCustomDnsDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Name field
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
@@ -93,54 +108,195 @@ fun AddCustomDnsDialog(
                     shape = DnsShapes.SmallButton
                 )
 
-                OutlinedTextField(
-                    value = primaryDns,
-                    onValueChange = {
-                        primaryDns = it
-                        primaryError = !isValidIp(it) || it.isBlank()
-                    },
-                    label = { Text(stringResource(R.string.dns_primary)) },
-                    placeholder = { Text("1.1.1.1") },
-                    isError = primaryError,
-                    supportingText = if (primaryError) {
-                        { Text("Enter a valid IP address") }
-                    } else null,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                        imeAction = ImeAction.Next
-                    ),
+                // DoH Toggle with Premium Gate
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = DnsShapes.SmallButton
-                )
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stringResource(R.string.dns_over_https),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (!isPremium) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.premium_badge),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                Text(
+                                    text = stringResource(R.string.doh_encrypted),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
-                OutlinedTextField(
-                    value = secondaryDns,
-                    onValueChange = { secondaryDns = it },
-                    label = { Text(stringResource(R.string.dns_secondary)) },
-                    placeholder = { Text("1.0.0.1") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                        imeAction = ImeAction.Done
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = DnsShapes.SmallButton
-                )
+                        Switch(
+                            checked = isDoHEnabled,
+                            onCheckedChange = { enabled ->
+                                // TODO: Re-enable premium gate after testing
+                                // if (enabled && !isPremium) {
+                                //     onShowPremiumGate()
+                                // } else {
+                                //     isDoHEnabled = enabled
+                                // }
+                                isDoHEnabled = enabled
+                            }
+                        )
+                    }
+                }
+
+                // DoH URL field (visible when DoH enabled)
+                AnimatedVisibility(visible = isDoHEnabled) {
+                    OutlinedTextField(
+                        value = dohUrl,
+                        onValueChange = {
+                            dohUrl = it
+                            dohUrlError = it.isNotBlank() && !isValidDohUrl(it)
+                        },
+                        label = { Text(stringResource(R.string.doh_url)) },
+                        placeholder = { Text(stringResource(R.string.doh_url_hint)) },
+                        isError = dohUrlError,
+                        supportingText = if (dohUrlError) {
+                            { Text(stringResource(R.string.doh_url_error)) }
+                        } else null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Done
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = DnsShapes.SmallButton
+                    )
+                }
+
+                // IP fields (always visible, but labeled as fallback when DoH enabled)
+                AnimatedVisibility(visible = !isDoHEnabled) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedTextField(
+                            value = primaryDns,
+                            onValueChange = {
+                                primaryDns = it
+                                primaryError = !isValidIp(it) || it.isBlank()
+                            },
+                            label = { Text(stringResource(R.string.dns_primary)) },
+                            placeholder = { Text("1.1.1.1") },
+                            isError = primaryError,
+                            supportingText = if (primaryError) {
+                                { Text("Enter a valid IP address") }
+                            } else null,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Next
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = DnsShapes.SmallButton
+                        )
+
+                        OutlinedTextField(
+                            value = secondaryDns,
+                            onValueChange = { secondaryDns = it },
+                            label = { Text(stringResource(R.string.dns_secondary)) },
+                            placeholder = { Text("1.0.0.1") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = DnsShapes.SmallButton
+                        )
+                    }
+                }
+
+                // Fallback DNS for DoH (optional)
+                AnimatedVisibility(visible = isDoHEnabled) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = stringResource(R.string.doh_fallback_dns),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = primaryDns,
+                            onValueChange = {
+                                primaryDns = it
+                                // Don't show error for fallback - it's optional
+                            },
+                            label = { Text(stringResource(R.string.dns_primary) + " (Optional)") },
+                            placeholder = { Text("1.1.1.1") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = DnsShapes.SmallButton
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     nameError = name.isBlank()
-                    primaryError = primaryDns.isBlank() || !isValidIp(primaryDns)
 
-                    if (!nameError && !primaryError) {
-                        onConfirm(
-                            name.trim(),
-                            primaryDns.trim(),
-                            secondaryDns.trim().ifBlank { primaryDns.trim() }
-                        )
+                    if (isDoHEnabled) {
+                        dohUrlError = dohUrl.isBlank() || !isValidDohUrl(dohUrl)
+                        if (!nameError && !dohUrlError) {
+                            onConfirm(
+                                name.trim(),
+                                primaryDns.trim().ifBlank { "1.1.1.1" },
+                                secondaryDns.trim().ifBlank { "1.0.0.1" },
+                                true,
+                                dohUrl.trim()
+                            )
+                        }
+                    } else {
+                        primaryError = primaryDns.isBlank() || !isValidIp(primaryDns)
+                        if (!nameError && !primaryError) {
+                            onConfirm(
+                                name.trim(),
+                                primaryDns.trim(),
+                                secondaryDns.trim().ifBlank { primaryDns.trim() },
+                                false,
+                                null
+                            )
+                        }
                     }
                 },
                 shape = DnsShapes.SmallButton

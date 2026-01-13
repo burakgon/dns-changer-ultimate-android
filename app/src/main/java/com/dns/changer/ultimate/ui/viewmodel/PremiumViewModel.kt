@@ -29,7 +29,12 @@ class PremiumViewModel @Inject constructor(
 
     companion object {
         private const val ENTITLEMENT_ID = "premium"
-        private const val PRODUCT_ID = "dns_changer_premium"
+        // Subscription product IDs
+        private const val PRODUCT_ID_MONTHLY = "dc_sub_1_month_7.50try"
+        private const val PRODUCT_ID_YEARLY = "dc_sub_1_year_32.00try"
+        private const val PRODUCT_ID_YEARLY_TRIAL = "dc_sub_trial_1_year_32.00try"
+        // Default product to use for purchase
+        private const val PRODUCT_ID = PRODUCT_ID_YEARLY_TRIAL
     }
 
     private val _premiumState = MutableStateFlow(PremiumState())
