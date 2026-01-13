@@ -73,16 +73,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.ui.theme.DnsShapes
+import com.dns.changer.ultimate.ui.theme.rememberSemanticColors
 import kotlin.math.roundToInt
 
-// Premium colors
-private val PurpleGradientStart = Color(0xFF6B4DE6)
-private val PurpleGradientMid = Color(0xFF9933EA)
-private val PurpleGradientEnd = Color(0xFF5066F2)
-
-private val GreenGradientStart = Color(0xFF2ECC71)
-private val GreenGradientEnd = Color(0xFF1ABC9C)
-
+// Gold colors for premium badge (these are intentional branding colors)
 private val GoldColor = Color(0xFFFFD700)
 private val GoldColorLight = Color(0xFFFFF8DC)
 
@@ -178,13 +172,18 @@ private fun PremiumHeader(
     title: String,
     onClose: () -> Unit
 ) {
+    // Use Material You colors for the gradient
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp)
             .background(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(PurpleGradientStart, PurpleGradientMid, PurpleGradientEnd)
+                    colors = listOf(primaryColor, secondaryColor, tertiaryColor)
                 ),
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
             )
@@ -439,6 +438,10 @@ private fun ShimmerButton(
     subtitle: String,
     onClick: () -> Unit
 ) {
+    // Use semantic success colors for the "continue free" action
+    val semanticColors = rememberSemanticColors()
+    val buttonColor = semanticColors.success
+
     val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
     val shimmerOffset by infiniteTransition.animateFloat(
         initialValue = -1f,
@@ -463,9 +466,7 @@ private fun ShimmerButton(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(GreenGradientStart, GreenGradientEnd)
-                    ),
+                    color = buttonColor,
                     shape = DnsShapes.Button
                 ),
             contentAlignment = Alignment.Center

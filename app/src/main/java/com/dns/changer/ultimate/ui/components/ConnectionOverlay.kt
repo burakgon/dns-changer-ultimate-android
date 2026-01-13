@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.ui.theme.DnsShapes
+import com.dns.changer.ultimate.ui.theme.rememberSemanticColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
@@ -72,6 +73,11 @@ fun ConnectionSuccessOverlay(
     server: DnsServer?,
     onContinue: () -> Unit
 ) {
+    // Use Material You compatible semantic colors
+    val semanticColors = rememberSemanticColors()
+    val successColor = semanticColors.success
+    val successContainerColor = semanticColors.successContainer
+
     // Measure latency when overlay becomes visible
     var latency by remember { mutableLongStateOf(-1L) }
 
@@ -150,7 +156,7 @@ fun ConnectionSuccessOverlay(
                             .size(140.dp)
                             .scale(ringScale)
                             .clip(CircleShape)
-                            .background(Color(0xFF4CAF50).copy(alpha = ringAlpha))
+                            .background(successColor.copy(alpha = ringAlpha))
                     )
                     // Middle ring
                     Box(
@@ -158,7 +164,7 @@ fun ConnectionSuccessOverlay(
                             .size(130.dp)
                             .scale(pulseScale * 0.95f)
                             .clip(CircleShape)
-                            .background(Color(0xFF4CAF50).copy(alpha = 0.2f))
+                            .background(successColor.copy(alpha = 0.2f))
                     )
                     // Main icon circle
                     Box(
@@ -166,13 +172,13 @@ fun ConnectionSuccessOverlay(
                             .size(120.dp)
                             .scale(pulseScale)
                             .clip(CircleShape)
-                            .background(Color(0xFF4CAF50)),
+                            .background(successColor),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shield,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.surface,
                             modifier = Modifier.size(60.dp)
                         )
                     }
@@ -185,7 +191,7 @@ fun ConnectionSuccessOverlay(
                     text = stringResource(R.string.connected),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF4CAF50),
+                    color = successColor,
                     textAlign = TextAlign.Center
                 )
 
@@ -277,7 +283,7 @@ fun ConnectionSuccessOverlay(
                                     icon = Icons.Default.Verified,
                                     label = stringResource(R.string.protection),
                                     value = stringResource(R.string.active),
-                                    valueColor = Color(0xFF4CAF50)
+                                    valueColor = successColor
                                 )
                             }
                         }
@@ -286,7 +292,7 @@ fun ConnectionSuccessOverlay(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Continue Button
+                // Continue Button - use primary color for Material You compatibility
                 Button(
                     onClick = onContinue,
                     modifier = Modifier
@@ -294,7 +300,7 @@ fun ConnectionSuccessOverlay(
                         .height(56.dp),
                     shape = DnsShapes.Button,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Text(
@@ -340,25 +346,28 @@ private fun StatItem(
     }
 }
 
+// Category colors use MaterialTheme colors for Material You compatibility
+@Composable
 private fun getCategoryColor(category: String): Color {
     return when (category) {
-        "SPEED" -> Color(0xFFFFC107)
-        "PRIVACY" -> Color(0xFF2196F3)
-        "SECURITY" -> Color(0xFF4CAF50)
-        "AD_BLOCKING" -> Color(0xFFF44336)
-        "FAMILY" -> Color(0xFF9C27B0)
-        else -> Color(0xFF607D8B)
+        "SPEED" -> MaterialTheme.colorScheme.tertiary
+        "PRIVACY" -> MaterialTheme.colorScheme.primary
+        "SECURITY" -> MaterialTheme.colorScheme.primary
+        "AD_BLOCKING" -> MaterialTheme.colorScheme.error
+        "FAMILY" -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.outline
     }
 }
 
 @Composable
 private fun getLatencyColor(latency: Long): Color {
+    val semanticColors = rememberSemanticColors()
     return when {
         latency < 0 -> MaterialTheme.colorScheme.onSurfaceVariant
-        latency < 30 -> Color(0xFF4CAF50) // Excellent - green
-        latency < 60 -> Color(0xFF8BC34A) // Good - light green
-        latency < 100 -> Color(0xFFFFC107) // Fair - yellow
-        else -> Color(0xFFF44336) // Poor - red
+        latency < 30 -> semanticColors.success // Excellent
+        latency < 60 -> MaterialTheme.colorScheme.primary // Good
+        latency < 100 -> semanticColors.warning // Fair
+        else -> MaterialTheme.colorScheme.error // Poor
     }
 }
 
