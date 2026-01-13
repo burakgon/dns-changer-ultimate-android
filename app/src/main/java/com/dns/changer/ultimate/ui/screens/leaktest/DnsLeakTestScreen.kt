@@ -530,19 +530,23 @@ private fun LeakTestGauge(
             }
         }
 
-        // Center button
+        // Center button - use solid colors for guaranteed contrast
+        val centerBgColor = when (status) {
+            LeakTestStatus.COMPLETED -> primaryColor
+            LeakTestStatus.COMPLETED_SECURE -> successColor
+            LeakTestStatus.COMPLETED_NOT_PROTECTED -> warningColor
+            LeakTestStatus.COMPLETED_LEAK_DETECTED -> errorColor
+            else -> primaryColor
+        }
+        // Calculate content color based on background luminance
+        val centerContentColor = if (centerBgColor.luminance() > 0.5f) Color.Black else Color.White
+
         Surface(
             modifier = Modifier
                 .size(gaugeSize - 30.dp)
                 .scale(if (status == LeakTestStatus.IDLE) pulse else 1f),
             shape = CircleShape,
-            color = when (status) {
-                LeakTestStatus.COMPLETED -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                LeakTestStatus.COMPLETED_SECURE -> successColor.copy(alpha = 0.12f)
-                LeakTestStatus.COMPLETED_NOT_PROTECTED -> warningColor.copy(alpha = 0.12f)
-                LeakTestStatus.COMPLETED_LEAK_DETECTED -> errorColor.copy(alpha = 0.12f)
-                else -> MaterialTheme.colorScheme.primaryContainer
-            },
+            color = centerBgColor,
             shadowElevation = if (status == LeakTestStatus.IDLE) 8.dp else 4.dp,
             onClick = if (status != LeakTestStatus.RUNNING) onStartTest else ({})
         ) {
@@ -564,7 +568,7 @@ private fun LeakTestGauge(
                                 Icon(
                                     imageVector = Icons.Rounded.Security,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = centerContentColor,
                                     modifier = Modifier.size(48.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -572,7 +576,7 @@ private fun LeakTestGauge(
                                     text = "START",
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = centerContentColor,
                                     letterSpacing = 2.sp
                                 )
                             }
@@ -583,22 +587,21 @@ private fun LeakTestGauge(
                                     text = "${(animatedProgress * 100).toInt()}%",
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = primaryColor
+                                    color = centerContentColor
                                 )
                                 Text(
                                     text = stringResource(R.string.testing),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = centerContentColor.copy(alpha = 0.7f)
                                 )
                             }
                         }
                         LeakTestStatus.COMPLETED -> {
-                            // Neutral state - just show results without judgment
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = Icons.Filled.Dns,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = centerContentColor,
                                     modifier = Modifier.size(48.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -606,7 +609,7 @@ private fun LeakTestGauge(
                                     text = stringResource(R.string.done),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = centerContentColor
                                 )
                             }
                         }
@@ -615,7 +618,7 @@ private fun LeakTestGauge(
                                 Icon(
                                     imageVector = Icons.Filled.Shield,
                                     contentDescription = null,
-                                    tint = successColor,
+                                    tint = centerContentColor,
                                     modifier = Modifier.size(48.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -623,7 +626,7 @@ private fun LeakTestGauge(
                                     text = stringResource(R.string.leak_test_no_leak),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = successColor
+                                    color = centerContentColor
                                 )
                             }
                         }
@@ -632,7 +635,7 @@ private fun LeakTestGauge(
                                 Icon(
                                     imageVector = Icons.Outlined.Shield,
                                     contentDescription = null,
-                                    tint = warningColor,
+                                    tint = centerContentColor,
                                     modifier = Modifier.size(48.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -640,7 +643,7 @@ private fun LeakTestGauge(
                                     text = stringResource(R.string.leak_test_not_protected),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = warningColor
+                                    color = centerContentColor
                                 )
                             }
                         }
@@ -649,7 +652,7 @@ private fun LeakTestGauge(
                                 Icon(
                                     imageVector = Icons.Filled.Warning,
                                     contentDescription = null,
-                                    tint = errorColor,
+                                    tint = centerContentColor,
                                     modifier = Modifier.size(48.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -657,7 +660,7 @@ private fun LeakTestGauge(
                                     text = stringResource(R.string.leak_test_leak),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = errorColor
+                                    color = centerContentColor
                                 )
                             }
                         }
@@ -755,7 +758,9 @@ private fun ActionButton(
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
-            contentColor = contentColor
+            contentColor = contentColor,
+            disabledContainerColor = containerColor,
+            disabledContentColor = contentColor
         ),
         elevation = ButtonDefaults.buttonElevation(
             defaultElevation = 4.dp,
@@ -772,19 +777,22 @@ private fun ActionButton(
             Text(
                 text = stringResource(R.string.testing),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor
             )
         } else {
             Icon(
                 imageVector = if (status == LeakTestStatus.IDLE) Icons.Rounded.PlayArrow else Icons.Rounded.Refresh,
                 contentDescription = null,
+                tint = contentColor,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = if (status == LeakTestStatus.IDLE) stringResource(R.string.start_test) else stringResource(R.string.test_again),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor
             )
         }
     }

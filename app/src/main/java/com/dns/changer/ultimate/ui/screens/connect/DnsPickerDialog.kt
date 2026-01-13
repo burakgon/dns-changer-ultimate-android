@@ -55,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -166,7 +167,7 @@ fun DnsPickerDialog(
                             Icon(
                                 imageVector = Icons.Rounded.Add,
                                 contentDescription = "Add Custom DNS",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         IconButton(onClick = onDismiss) {
@@ -216,48 +217,64 @@ fun DnsPickerDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // "All" chip
+                    // "All" chip - use luminance-based content color
+                    val allChipBgColor = MaterialTheme.colorScheme.primary
+                    val allChipContentColor = if (allChipBgColor.luminance() > 0.5f) Color.Black else Color.White
+                    val isAllSelected = selectedCategory == null
                     FilterChip(
-                        selected = selectedCategory == null,
+                        selected = isAllSelected,
                         onClick = { selectedCategory = null },
-                        label = { Text("All") },
-                        leadingIcon = if (selectedCategory == null) {
+                        label = {
+                            Text(
+                                text = "All",
+                                color = if (isAllSelected) allChipContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        leadingIcon = if (isAllSelected) {
                             {
                                 Icon(
                                     imageVector = Icons.Rounded.Check,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
+                                    tint = allChipContentColor
                                 )
                             }
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            selectedContainerColor = allChipBgColor,
+                            selectedLabelColor = allChipContentColor,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     )
 
                     // Category chips
                     DnsCategory.entries.forEach { category ->
                         val categoryColor = CategoryColors.forCategory(category, isDarkTheme)
+                        val isThisCategorySelected = selectedCategory == category
+                        // Use luminance-based content color for selected state
+                        val selectedContentColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
                         FilterChip(
-                            selected = selectedCategory == category,
+                            selected = isThisCategorySelected,
                             onClick = {
                                 selectedCategory = if (selectedCategory == category) null else category
                             },
-                            label = { Text(category.displayName) },
+                            label = {
+                                Text(
+                                    text = category.displayName,
+                                    color = if (isThisCategorySelected) selectedContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
                             leadingIcon = {
                                 Icon(
                                     imageVector = category.icon,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
-                                    tint = if (selectedCategory == category)
-                                        MaterialTheme.colorScheme.onSecondaryContainer
-                                    else categoryColor
+                                    tint = if (isThisCategorySelected) selectedContentColor else categoryColor
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = categoryColor.copy(alpha = 0.15f),
-                                selectedLabelColor = categoryColor,
+                                selectedContainerColor = categoryColor,
+                                selectedLabelColor = selectedContentColor,
                                 labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
@@ -418,16 +435,21 @@ private fun DnsServerCard(
     onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    // Use Material theme colors for proper contrast in all color schemes
+    val isDarkTheme = isAppInDarkTheme()
+    val categoryColor = remember(server.category, isDarkTheme) {
+        CategoryColors.forCategory(server.category, isDarkTheme)
+    }
+
+    // Use category colors for icon, with luminance-based content when selected
     val iconBackgroundColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary
+        categoryColor
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest
+        categoryColor.copy(alpha = 0.15f)
     }
     val iconTintColor = if (isSelected) {
-        MaterialTheme.colorScheme.onPrimary
+        if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        categoryColor
     }
 
     Surface(
