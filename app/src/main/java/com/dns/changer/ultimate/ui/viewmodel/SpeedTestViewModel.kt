@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -33,8 +34,21 @@ class SpeedTestViewModel @Inject constructor(
             initialValue = SpeedTestState()
         )
 
+    // Total server count (preset + custom)
+    val totalServerCount: StateFlow<Int> = dnsRepository.allServers
+        .map { it.size }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 26
+        )
+
     private val _showPremiumGate = MutableStateFlow(false)
     val showPremiumGate: StateFlow<Boolean> = _showPremiumGate.asStateFlow()
+
+    // Session-based unlock for current speed test results (resets on new test)
+    private val _resultsUnlockedForSession = MutableStateFlow(false)
+    val resultsUnlockedForSession: StateFlow<Boolean> = _resultsUnlockedForSession.asStateFlow()
 
     // VPN permission state
     private val _vpnPermissionIntent = MutableStateFlow<Intent?>(null)
@@ -42,21 +56,27 @@ class SpeedTestViewModel @Inject constructor(
 
     private var pendingConnectionServer: DnsServer? = null
 
-    fun startSpeedTest(isPremium: Boolean, hasWatchedAd: Boolean) {
-        if (!isPremium && !hasWatchedAd) {
-            _showPremiumGate.value = true
-            return
+    fun startSpeedTest(isPremium: Boolean) {
+        // Reset session unlock when starting a new test (non-premium users need to watch ad again)
+        if (!isPremium) {
+            _resultsUnlockedForSession.value = false
         }
 
         viewModelScope.launch {
             // Get all servers including custom ones
             val allServers = dnsRepository.allServers.first()
+            android.util.Log.d("SpeedTestViewModel", "Starting speed test with ${allServers.size} servers (${allServers.count { it.isCustom }} custom)")
             speedTestService.runSpeedTest(allServers)
         }
     }
 
     fun resetTest() {
         speedTestService.reset()
+    }
+
+    fun stopAndClearTest() {
+        speedTestService.stopAndClear()
+        _resultsUnlockedForSession.value = false
     }
 
     fun connectToServer(server: DnsServer) {
@@ -113,10 +133,8 @@ class SpeedTestViewModel @Inject constructor(
 
     fun onAdWatched() {
         _showPremiumGate.value = false
-        viewModelScope.launch {
-            val allServers = dnsRepository.allServers.first()
-            speedTestService.runSpeedTest(allServers)
-        }
+        // Unlock results for current session only
+        _resultsUnlockedForSession.value = true
     }
 
     fun onPremiumPurchased() {

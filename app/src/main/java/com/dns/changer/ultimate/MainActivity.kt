@@ -50,6 +50,7 @@ import com.dns.changer.ultimate.ui.navigation.DnsNavHost
 import com.dns.changer.ultimate.ui.navigation.Screen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
 import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
+import com.dns.changer.ultimate.service.DnsSpeedTestService
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -63,6 +64,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var dnsPreferences: DnsPreferences
+
+    @Inject
+    lateinit var speedTestService: DnsSpeedTestService
 
     private var pendingVpnPermissionCallback: ((Boolean) -> Unit)? = null
 
@@ -114,6 +118,12 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Stop and clear speed test when app is closed
+        speedTestService.stopAndClear()
+    }
 }
 
 @Composable
@@ -131,10 +141,10 @@ fun DnsChangerApp(
     val currentDestination = navBackStackEntry?.destination
 
     val isPremium by premiumViewModel.isPremium.collectAsState()
-    val hasWatchedAd by premiumViewModel.hasWatchedAd.collectAsState()
     val mainUiState by mainViewModel.uiState.collectAsState()
 
     var showPremiumGate by remember { mutableStateOf(false) }
+    var onPremiumUnlock by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Handle VPN permission dialog
     LaunchedEffect(mainUiState.vpnPermissionIntent) {
@@ -206,7 +216,6 @@ fun DnsChangerApp(
                 navController = navController,
                 innerPadding = innerPadding,
                 isPremium = isPremium,
-                hasWatchedAd = hasWatchedAd,
                 preferences = preferences,
                 onRequestVpnPermission = { intent ->
                     onRequestVpnPermission(intent) { granted ->
@@ -214,7 +223,10 @@ fun DnsChangerApp(
                     }
                 },
                 onRequestVpnPermissionWithCallback = onRequestVpnPermission,
-                onShowPremiumGate = { showPremiumGate = true },
+                onShowPremiumGate = { unlockCallback ->
+                    onPremiumUnlock = unlockCallback
+                    showPremiumGate = true
+                },
                 onThemeChanged = onThemeChanged
             )
         }
@@ -228,9 +240,12 @@ fun DnsChangerApp(
             onDismiss = { showPremiumGate = false },
             onWatchAd = {
                 showPremiumGate = false
+                val unlockCallback = onPremiumUnlock
+                onPremiumUnlock = null
                 onShowRewardedAd(
                     {
-                        premiumViewModel.onAdWatched()
+                        // Call the session-specific unlock callback
+                        unlockCallback?.invoke()
                     },
                     { error ->
                         // Handle ad error - could show a toast/snackbar

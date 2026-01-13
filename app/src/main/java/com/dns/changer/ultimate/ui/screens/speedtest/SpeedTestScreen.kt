@@ -83,30 +83,55 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.LatencyRating
 import com.dns.changer.ultimate.data.model.SpeedTestResult
+import com.dns.changer.ultimate.ui.screens.connect.CategoryColors
+import com.dns.changer.ultimate.ui.screens.connect.isAppInDarkTheme
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 import com.dns.changer.ultimate.ui.viewmodel.SpeedTestViewModel
 import kotlin.math.cos
 import kotlin.math.sin
 
+// Fixed semantic colors for latency ratings (not dynamic Material You)
+private object RatingColors {
+    // Light mode
+    private val excellentLight = Color(0xFF2E7D32) // Green 800
+    private val goodLight = Color(0xFF1565C0) // Blue 800
+    private val fairLight = Color(0xFFE65100) // Deep Orange 800
+    private val poorLight = Color(0xFFC62828) // Red 800
+
+    // Dark mode (lighter for contrast)
+    private val excellentDark = Color(0xFF81C784) // Green 300
+    private val goodDark = Color(0xFF64B5F6) // Blue 300
+    private val fairDark = Color(0xFFFFB74D) // Orange 300
+    private val poorDark = Color(0xFFE57373) // Red 300
+
+    fun forRating(rating: LatencyRating, isDarkTheme: Boolean): Color = when (rating) {
+        LatencyRating.EXCELLENT -> if (isDarkTheme) excellentDark else excellentLight
+        LatencyRating.GOOD -> if (isDarkTheme) goodDark else goodLight
+        LatencyRating.FAIR -> if (isDarkTheme) fairDark else fairLight
+        LatencyRating.POOR -> if (isDarkTheme) poorDark else poorLight
+    }
+}
+
 @Composable
 fun SpeedTestScreen(
     viewModel: SpeedTestViewModel = hiltViewModel(),
     isPremium: Boolean,
-    hasWatchedAd: Boolean,
-    onShowPremiumGate: () -> Unit,
+    onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
     onRequestVpnPermission: (android.content.Intent, (Boolean) -> Unit) -> Unit
 ) {
     val speedTestState by viewModel.speedTestState.collectAsState()
     val vpnPermissionIntent by viewModel.vpnPermissionIntent.collectAsState()
+    val totalServerCount by viewModel.totalServerCount.collectAsState()
+    val sessionUnlocked by viewModel.resultsUnlockedForSession.collectAsState()
 
     val isInitialState = speedTestState.results.isEmpty() && !speedTestState.isRunning
 
-    // Results are unlocked if premium or has watched ad
-    val resultsUnlocked = isPremium || hasWatchedAd
+    // Results are unlocked if premium OR unlocked for current session (via ad watch)
+    val resultsUnlocked = isPremium || sessionUnlocked
 
     // Speed test always runs freely - no pre-gate
     val onStartTest = {
-        viewModel.startSpeedTest(isPremium = true, hasWatchedAd = true) // Always allow test
+        viewModel.startSpeedTest(isPremium = isPremium)
     }
 
     // Handle VPN permission request
@@ -129,7 +154,7 @@ fun SpeedTestScreen(
             // Fancy initial state
             Spacer(modifier = Modifier.weight(0.8f))
 
-            InitialSpeedTestView(onClick = onStartTest)
+            InitialSpeedTestView(onClick = onStartTest, totalServerCount = totalServerCount)
 
             Spacer(modifier = Modifier.weight(1f))
         } else {
@@ -154,7 +179,7 @@ fun SpeedTestScreen(
             // Testing status
             if (speedTestState.isRunning) {
                 Text(
-                    text = "Testing ${speedTestState.results.size + 1} of 26 servers...",
+                    text = "Testing ${speedTestState.results.size + 1} of $totalServerCount servers...",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -226,7 +251,9 @@ fun SpeedTestScreen(
                         item(key = "locked_top_3") {
                             LockedTop3ResultsCard(
                                 top3Results = speedTestState.results.take(3),
-                                onUnlockClick = onShowPremiumGate,
+                                onUnlockClick = {
+                                    onShowPremiumGate { viewModel.onAdWatched() }
+                                },
                                 isRunning = speedTestState.isRunning
                             )
                         }
@@ -254,7 +281,7 @@ fun SpeedTestScreen(
                             }
                         }
                     } else if (resultsUnlocked) {
-                        // Premium/unlocked users see all results normally
+                        // Premium/unlocked users see all results as list
                         itemsIndexed(
                             items = speedTestState.results,
                             key = { _, result -> result.server.id }
@@ -312,7 +339,7 @@ fun SpeedTestScreen(
 }
 
 @Composable
-private fun InitialSpeedTestView(onClick: () -> Unit) {
+private fun InitialSpeedTestView(onClick: () -> Unit, totalServerCount: Int) {
     val infiniteTransition = rememberInfiniteTransition(label = "initialView")
 
     // Outer ring rotation
@@ -546,7 +573,7 @@ private fun InitialSpeedTestView(onClick: () -> Unit) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            FeaturePill(text = "26 Servers", color = primaryColor)
+            FeaturePill(text = "$totalServerCount Servers", color = primaryColor)
             FeaturePill(text = "Fast", color = secondaryColor)
             FeaturePill(text = "Accurate", color = tertiaryColor)
         }
@@ -580,6 +607,8 @@ private fun SpeedTestGauge(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDarkTheme = isAppInDarkTheme()
+
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(300),
@@ -615,6 +644,11 @@ private fun SpeedTestGauge(
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val onSurface = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
+    // Fixed green color for fastest result (consistent with rating colors)
+    val fastestColor = remember(isDarkTheme) {
+        RatingColors.forRating(LatencyRating.EXCELLENT, isDarkTheme)
+    }
 
     // Gradient colors for progress - uses Material You colors
     val gradientColors = listOf(
@@ -681,7 +715,7 @@ private fun SpeedTestGauge(
                             text = latency.toString(),
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
-                            color = tertiaryColor
+                            color = fastestColor
                         )
                         Text(
                             text = "ms",
@@ -691,7 +725,7 @@ private fun SpeedTestGauge(
                         Text(
                             text = "Fastest",
                             style = MaterialTheme.typography.labelSmall,
-                            color = tertiaryColor,
+                            color = fastestColor,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -748,126 +782,120 @@ private fun SpeedTestResultItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val errorColor = MaterialTheme.colorScheme.error
+    val isDarkTheme = isAppInDarkTheme()
 
-    val ratingColor = remember(result.rating, tertiaryColor, secondaryColor, primaryColor, errorColor) {
-        when (result.rating) {
-            LatencyRating.EXCELLENT -> tertiaryColor
-            LatencyRating.GOOD -> secondaryColor
-            LatencyRating.FAIR -> primaryColor
-            LatencyRating.POOR -> errorColor
-        }
+    // Get category color for icon
+    val categoryColor = remember(result.server.category, isDarkTheme) {
+        CategoryColors.forCategory(result.server.category, isDarkTheme)
     }
 
-    // Simple card color without animation for better scroll performance
-    val cardColor = when {
-        isFastest -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-        isNew -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
-        else -> MaterialTheme.colorScheme.surface
+    // Fixed semantic rating colors (green=excellent, blue=good, orange=fair, red=poor)
+    val ratingColor = remember(result.rating, isDarkTheme) {
+        RatingColors.forRating(result.rating, isDarkTheme)
     }
 
-    Card(
-        modifier = modifier.clickable { onClick() },
-        shape = DnsShapes.Card,
-        colors = CardDefaults.cardColors(containerColor = cardColor)
+    // Material 3 compliant list item - 72dp height for 2-line content
+    // #1 gets a subtle highlight
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = if (isFastest) RoundedCornerShape(16.dp) else RoundedCornerShape(0.dp),
+        color = if (isFastest) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                else Color.Transparent,
+        onClick = onClick
     ) {
-        Column {
-            // FASTEST badge at the top of the card
-            if (isFastest) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primary)
-                        .padding(vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.fastest),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        letterSpacing = 1.sp
-                    )
-                }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Simple rank number
+            Text(
+                text = rank.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isFastest) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(28.dp),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Category Icon
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(categoryColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = result.server.category.icon,
+                    contentDescription = null,
+                    tint = categoryColor,
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Rank Badge
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isFastest) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                    contentAlignment = Alignment.Center
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Content
+            Column(modifier = Modifier.weight(1f)) {
+                // Server name with optional Top 3 badge
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    if (isFastest) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    } else {
-                        Text(
-                            text = rank.toString(),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = result.server.name,
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                    Text(
-                        text = result.server.primaryDns,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "${result.latencyMs} ms",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Surface(
-                        shape = DnsShapes.Chip,
-                        color = ratingColor.copy(alpha = 0.2f)
-                    ) {
-                        Text(
-                            text = result.rating.displayName,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = ratingColor,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
+                    // Top 3 badge
+                    if (rank <= 3) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            Text(
+                                text = "TOP ${rank}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
+                Spacer(modifier = Modifier.height(2.dp))
+                // Rating badge
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = ratingColor.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = result.rating.displayName,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = ratingColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
             }
+
+            // Latency
+            Text(
+                text = "${result.latencyMs} ms",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+                color = if (isFastest) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -879,102 +907,115 @@ private fun LockedTop3ResultsCard(
     isRunning: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
-    val errorColor = MaterialTheme.colorScheme.error
+    val isDarkTheme = isAppInDarkTheme()
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth(),
         shape = DnsShapes.Card,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+            containerColor = if (isDarkTheme) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            }
+        ),
+        // Subtle border only in light mode
+        border = if (!isDarkTheme) {
+            androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            )
+        } else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(280.dp)
         ) {
-            // Blurred result rows in background
+            // Blurred result rows - simple Material You style
+            // Reduced blur for better visibility of underlying content
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(12.dp),
+                    .blur(6.dp),
                 verticalArrangement = Arrangement.Top
             ) {
                 top3Results.forEachIndexed { index, result ->
-                    val ratingColor = when (result.rating) {
-                        LatencyRating.EXCELLENT -> tertiaryColor
-                        LatencyRating.GOOD -> secondaryColor
-                        LatencyRating.FAIR -> primaryColor
-                        LatencyRating.POOR -> errorColor
-                    }
+                    val ratingColor = RatingColors.forRating(result.rating, isDarkTheme)
+                    val categoryColor = CategoryColors.forCategory(result.server.category, isDarkTheme)
 
-                    // Simplified preview row
+                    // Simple Material You row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Rank circle
+                        // Rank number
+                        Text(
+                            text = "${index + 1}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(28.dp)
+                        )
+
+                        // Category Icon
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (index == 0) primaryColor
-                                    else MaterialTheme.colorScheme.surfaceVariant
-                                ),
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(categoryColor.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "${index + 1}",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = if (index == 0) MaterialTheme.colorScheme.onPrimary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant
+                            Icon(
+                                imageVector = result.server.category.icon,
+                                contentDescription = null,
+                                tint = categoryColor,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        // Server name
-                        Text(
-                            text = result.server.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        // Latency chip
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = ratingColor.copy(alpha = 0.2f)
-                        ) {
+                        // Server name and rating
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "${result.latencyMs} ms",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = ratingColor,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                text = result.server.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = result.rating.displayName,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = ratingColor
                             )
                         }
+
+                        // Latency
+                        Text(
+                            text = "${result.latencyMs} ms",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }
 
-            // Dark overlay with content
+            // Overlay - reduced alpha to show more of the blurred content underneath
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                                MaterialTheme.colorScheme.surface.copy(alpha = if (isDarkTheme) 0.55f else 0.60f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = if (isDarkTheme) 0.70f else 0.75f)
                             )
                         )
                     ),

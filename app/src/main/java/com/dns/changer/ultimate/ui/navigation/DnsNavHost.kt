@@ -22,11 +22,10 @@ fun DnsNavHost(
     navController: NavHostController,
     innerPadding: PaddingValues,
     isPremium: Boolean,
-    hasWatchedAd: Boolean,
     preferences: DnsPreferences,
     onRequestVpnPermission: (Intent) -> Unit,
     onRequestVpnPermissionWithCallback: (Intent, (Boolean) -> Unit) -> Unit,
-    onShowPremiumGate: () -> Unit,
+    onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
     onThemeChanged: (ThemeMode) -> Unit
 ) {
     NavHost(
@@ -55,7 +54,6 @@ fun DnsNavHost(
         composable(route = Screen.SpeedTest.route) {
             SpeedTestScreen(
                 isPremium = isPremium,
-                hasWatchedAd = hasWatchedAd,
                 onShowPremiumGate = onShowPremiumGate,
                 onRequestVpnPermission = onRequestVpnPermissionWithCallback
             )

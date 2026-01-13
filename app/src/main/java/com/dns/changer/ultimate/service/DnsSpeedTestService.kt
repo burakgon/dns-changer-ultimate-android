@@ -23,20 +23,31 @@ class DnsSpeedTestService @Inject constructor() {
     private val _state = MutableStateFlow(SpeedTestState())
     val state: StateFlow<SpeedTestState> = _state.asStateFlow()
 
+    // Flag to cancel running test
+    @Volatile
+    private var isCancelled = false
+
     suspend fun runSpeedTest(servers: List<DnsServer> = PresetDnsServers.all) {
         if (_state.value.isRunning) return
 
+        isCancelled = false
         _state.value = SpeedTestState(isRunning = true, progress = 0f, results = emptyList())
         val results = mutableListOf<SpeedTestResult>()
 
         withContext(Dispatchers.IO) {
             servers.forEachIndexed { index, server ->
+                // Check if cancelled
+                if (isCancelled) return@withContext
+
                 // Update current server being tested
                 _state.value = _state.value.copy(
                     currentServer = server
                 )
 
                 val latency = measureDnsLatency(server.primaryDns)
+
+                // Check again after network operation
+                if (isCancelled) return@withContext
 
                 if (latency >= 0) {
                     val result = SpeedTestResult(
@@ -65,14 +76,21 @@ class DnsSpeedTestService @Inject constructor() {
             }
         }
 
-        // Mark as complete
-        val sortedResults = results.sortedBy { it.latencyMs }
-        _state.value = SpeedTestState(
-            isRunning = false,
-            progress = 1f,
-            results = sortedResults,
-            fastestResult = sortedResults.firstOrNull()
-        )
+        // Only mark as complete if not cancelled
+        if (!isCancelled) {
+            val sortedResults = results.sortedBy { it.latencyMs }
+            _state.value = SpeedTestState(
+                isRunning = false,
+                progress = 1f,
+                results = sortedResults,
+                fastestResult = sortedResults.firstOrNull()
+            )
+        }
+    }
+
+    fun stopAndClear() {
+        isCancelled = true
+        _state.value = SpeedTestState()
     }
 
     fun reset() {
