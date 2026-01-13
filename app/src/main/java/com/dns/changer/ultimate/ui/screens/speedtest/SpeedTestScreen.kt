@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,6 +37,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.rounded.Check
@@ -44,6 +47,8 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -93,12 +98,12 @@ fun SpeedTestScreen(
 
     val isInitialState = speedTestState.results.isEmpty() && !speedTestState.isRunning
 
+    // Results are unlocked if premium or has watched ad
+    val resultsUnlocked = isPremium || hasWatchedAd
+
+    // Speed test always runs freely - no pre-gate
     val onStartTest = {
-        if (!isPremium && !hasWatchedAd) {
-            onShowPremiumGate()
-        } else {
-            viewModel.startSpeedTest(isPremium, hasWatchedAd)
-        }
+        viewModel.startSpeedTest(isPremium = true, hasWatchedAd = true) // Always allow test
     }
 
     Column(
@@ -201,24 +206,89 @@ fun SpeedTestScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    itemsIndexed(
-                        items = speedTestState.results,
-                        key = { _, result -> result.server.id }
-                    ) { index, result ->
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = slideInVertically(
-                                initialOffsetY = { 50 },
-                                animationSpec = spring()
-                            ) + fadeIn() + scaleIn(initialScale = 0.9f)
-                        ) {
-                            SpeedTestResultItem(
-                                result = result,
-                                rank = index + 1,
-                                isFastest = index == 0 && !speedTestState.isRunning,
-                                isNew = speedTestState.isRunning && index == 0,
-                                onClick = { viewModel.connectToServer(result.server) }
+                    // Show locked top 3 overlay if not unlocked and has 3+ results (even while running)
+                    val showLockedOverlay = !resultsUnlocked && speedTestState.results.size >= 3
+
+                    if (showLockedOverlay) {
+                        // Locked Top 3 Results Card
+                        item(key = "locked_top_3") {
+                            LockedTop3ResultsCard(
+                                top3Results = speedTestState.results.take(3),
+                                onUnlockClick = onShowPremiumGate,
+                                isRunning = speedTestState.isRunning
                             )
+                        }
+
+                        // Show results from position 4 onwards
+                        val remainingResults = speedTestState.results.drop(3)
+                        itemsIndexed(
+                            items = remainingResults,
+                            key = { _, result -> result.server.id }
+                        ) { index, result ->
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = slideInVertically(
+                                    initialOffsetY = { 50 },
+                                    animationSpec = spring()
+                                ) + fadeIn() + scaleIn(initialScale = 0.9f)
+                            ) {
+                                SpeedTestResultItem(
+                                    result = result,
+                                    rank = index + 4, // Start from rank 4
+                                    isFastest = false,
+                                    isNew = speedTestState.isRunning && index == 0,
+                                    onClick = { viewModel.connectToServer(result.server) }
+                                )
+                            }
+                        }
+                    } else if (resultsUnlocked) {
+                        // Premium/unlocked users see all results normally
+                        itemsIndexed(
+                            items = speedTestState.results,
+                            key = { _, result -> result.server.id }
+                        ) { index, result ->
+                            AnimatedVisibility(
+                                visible = true,
+                                enter = slideInVertically(
+                                    initialOffsetY = { 50 },
+                                    animationSpec = spring()
+                                ) + fadeIn() + scaleIn(initialScale = 0.9f)
+                            ) {
+                                SpeedTestResultItem(
+                                    result = result,
+                                    rank = index + 1,
+                                    isFastest = index == 0 && !speedTestState.isRunning,
+                                    isNew = speedTestState.isRunning && index == 0,
+                                    onClick = { viewModel.connectToServer(result.server) }
+                                )
+                            }
+                        }
+                    } else {
+                        // Not unlocked but less than 3 results - show nothing (still collecting)
+                        // Or show a placeholder indicating results are being collected
+                        if (speedTestState.results.isNotEmpty()) {
+                            item {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = DnsShapes.Card,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    )
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Testing servers...",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -789,4 +859,188 @@ private fun SpeedTestResultItem(
         }
     }
 }
+
+@Composable
+private fun LockedTop3ResultsCard(
+    top3Results: List<SpeedTestResult>,
+    onUnlockClick: () -> Unit,
+    isRunning: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val errorColor = MaterialTheme.colorScheme.error
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = DnsShapes.Card,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+        ) {
+            // Blurred result rows in background
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(12.dp),
+                verticalArrangement = Arrangement.Top
+            ) {
+                top3Results.forEachIndexed { index, result ->
+                    val ratingColor = when (result.rating) {
+                        LatencyRating.EXCELLENT -> tertiaryColor
+                        LatencyRating.GOOD -> secondaryColor
+                        LatencyRating.FAIR -> primaryColor
+                        LatencyRating.POOR -> errorColor
+                    }
+
+                    // Simplified preview row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Rank circle
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (index == 0) primaryColor
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${index + 1}",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (index == 0) MaterialTheme.colorScheme.onPrimary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // Server name
+                        Text(
+                            text = result.server.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Latency chip
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = ratingColor.copy(alpha = 0.2f)
+                        ) {
+                            Text(
+                                text = "${result.latencyMs} ms",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = ratingColor,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Dark overlay with content
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    // Lock icon
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Title
+                    Text(
+                        text = "Top 3 Results",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Subtitle
+                    Text(
+                        text = "See your fastest DNS servers",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Unlock button
+                    Button(
+                        onClick = onUnlockClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier
+                            .fillMaxWidth(0.7f)
+                            .height(52.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LockOpen,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Unlock",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
