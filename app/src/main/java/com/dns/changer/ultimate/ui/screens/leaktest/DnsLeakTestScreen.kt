@@ -728,13 +728,30 @@ private fun ActionButton(
     onStartTest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val semanticColors = rememberSemanticColors()
-    val successColor = semanticColors.success
-    val warningColor = semanticColors.warning
+    // Use Material theme colors for better compatibility with all color schemes
+    // For status colors, use tertiary (secure), secondary (warning), error (leak)
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val onTertiaryColor = MaterialTheme.colorScheme.onTertiary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val onSecondaryColor = MaterialTheme.colorScheme.onSecondary
     val errorColor = MaterialTheme.colorScheme.error
+    val onErrorColor = MaterialTheme.colorScheme.onError
 
-    // Content color should contrast with background
-    val contentColor = MaterialTheme.colorScheme.surface
+    val containerColor = when (status) {
+        LeakTestStatus.COMPLETED_SECURE -> tertiaryColor
+        LeakTestStatus.COMPLETED_NOT_PROTECTED -> secondaryColor
+        LeakTestStatus.COMPLETED_LEAK_DETECTED -> errorColor
+        else -> primaryColor
+    }
+
+    val contentColor = when (status) {
+        LeakTestStatus.COMPLETED_SECURE -> onTertiaryColor
+        LeakTestStatus.COMPLETED_NOT_PROTECTED -> onSecondaryColor
+        LeakTestStatus.COMPLETED_LEAK_DETECTED -> onErrorColor
+        else -> onPrimaryColor
+    }
 
     Button(
         onClick = onStartTest,
@@ -744,16 +761,8 @@ private fun ActionButton(
             .height(56.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = when (status) {
-                LeakTestStatus.COMPLETED_SECURE -> successColor
-                LeakTestStatus.COMPLETED_NOT_PROTECTED -> warningColor
-                LeakTestStatus.COMPLETED_LEAK_DETECTED -> errorColor
-                else -> MaterialTheme.colorScheme.primary
-            },
-            contentColor = when (status) {
-                LeakTestStatus.COMPLETED_SECURE, LeakTestStatus.COMPLETED_NOT_PROTECTED, LeakTestStatus.COMPLETED_LEAK_DETECTED -> contentColor
-                else -> MaterialTheme.colorScheme.onPrimary
-            }
+            containerColor = containerColor,
+            contentColor = contentColor
         ),
         elevation = ButtonDefaults.buttonElevation(
             defaultElevation = 4.dp,
@@ -763,7 +772,7 @@ private fun ActionButton(
         if (status == LeakTestStatus.RUNNING) {
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = contentColor,
                 strokeWidth = 2.dp
             )
             Spacer(modifier = Modifier.width(12.dp))

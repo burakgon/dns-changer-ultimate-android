@@ -418,8 +418,17 @@ private fun DnsServerCard(
     onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme = isAppInDarkTheme()
-    val categoryColor = remember(server.category, isDarkTheme) { CategoryColors.forCategory(server.category, isDarkTheme) }
+    // Use Material theme colors for proper contrast in all color schemes
+    val iconBackgroundColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHighest
+    }
+    val iconTintColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -438,16 +447,12 @@ private fun DnsServerCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Category Icon
+            // Category Icon - use solid colors for proper contrast
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        } else {
-                            categoryColor.copy(alpha = 0.15f)
-                        },
+                        color = iconBackgroundColor,
                         shape = RoundedCornerShape(12.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -455,7 +460,7 @@ private fun DnsServerCard(
                 Icon(
                     imageVector = server.category.icon,
                     contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else categoryColor,
+                    tint = iconTintColor,
                     modifier = Modifier.size(24.dp)
                 )
             }
