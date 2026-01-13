@@ -176,6 +176,8 @@ private fun PremiumHeader(
     val primaryColor = MaterialTheme.colorScheme.primary
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    // Content color for proper contrast on the gradient background
+    val contentColor = MaterialTheme.colorScheme.onPrimary
 
     Box(
         modifier = Modifier
@@ -189,7 +191,7 @@ private fun PremiumHeader(
             )
     ) {
         // Decorative circles
-        DecorativeCircles()
+        DecorativeCircles(contentColor)
 
         // Close button
         IconButton(
@@ -201,7 +203,7 @@ private fun PremiumHeader(
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Close",
-                tint = Color.White.copy(alpha = 0.8f)
+                tint = contentColor.copy(alpha = 0.8f)
             )
         }
 
@@ -213,7 +215,7 @@ private fun PremiumHeader(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            AnimatedFeatureIcon(icon = icon)
+            AnimatedFeatureIcon(icon = icon, contentColor = contentColor)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -221,32 +223,32 @@ private fun PremiumHeader(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = contentColor
             )
         }
     }
 }
 
 @Composable
-private fun DecorativeCircles() {
+private fun DecorativeCircles(contentColor: Color) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         // Large translucent circle - top right
         drawCircle(
-            color = Color.White.copy(alpha = 0.1f),
+            color = contentColor.copy(alpha = 0.1f),
             radius = 100.dp.toPx(),
             center = Offset(size.width * 0.85f, size.height * 0.2f)
         )
 
         // Medium circle - bottom left
         drawCircle(
-            color = Color.White.copy(alpha = 0.08f),
+            color = contentColor.copy(alpha = 0.08f),
             radius = 60.dp.toPx(),
             center = Offset(size.width * 0.15f, size.height * 0.8f)
         )
 
         // Small circle - center right
         drawCircle(
-            color = Color.White.copy(alpha = 0.12f),
+            color = contentColor.copy(alpha = 0.12f),
             radius = 30.dp.toPx(),
             center = Offset(size.width * 0.9f, size.height * 0.6f)
         )
@@ -254,7 +256,7 @@ private fun DecorativeCircles() {
 }
 
 @Composable
-private fun AnimatedFeatureIcon(icon: ImageVector) {
+private fun AnimatedFeatureIcon(icon: ImageVector, contentColor: Color) {
     val infiniteTransition = rememberInfiniteTransition(label = "iconAnimation")
 
     // Rotating ring - 8 second rotation
@@ -302,7 +304,7 @@ private fun AnimatedFeatureIcon(icon: ImageVector) {
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.4f),
+                            contentColor.copy(alpha = 0.4f),
                             Color.Transparent
                         )
                     ),
@@ -319,9 +321,9 @@ private fun AnimatedFeatureIcon(icon: ImageVector) {
             drawArc(
                 brush = Brush.sweepGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0f),
-                        Color.White.copy(alpha = 0.8f),
-                        Color.White.copy(alpha = 0f)
+                        contentColor.copy(alpha = 0f),
+                        contentColor.copy(alpha = 0.8f),
+                        contentColor.copy(alpha = 0f)
                     )
                 ),
                 startAngle = 0f,
@@ -336,13 +338,13 @@ private fun AnimatedFeatureIcon(icon: ImageVector) {
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.2f)),
+                .background(contentColor.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color.White,
+                tint = contentColor,
                 modifier = Modifier.size(32.dp)
             )
         }
@@ -489,6 +491,8 @@ private fun ShimmerButton(
                     )
             )
 
+            // Use surface color for content on success background for contrast
+            val buttonContentColor = MaterialTheme.colorScheme.surface
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -496,7 +500,7 @@ private fun ShimmerButton(
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = buttonContentColor,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -505,12 +509,12 @@ private fun ShimmerButton(
                         text = text,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = buttonContentColor
                     )
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = buttonContentColor.copy(alpha = 0.8f)
                     )
                 }
             }
@@ -540,7 +544,7 @@ private fun PremiumButton(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
-        // Crown icon with gold gradient
+        // Crown icon with gold gradient - use dark color for icon on gold background
         Box(
             modifier = Modifier
                 .size(28.dp)
@@ -555,7 +559,7 @@ private fun PremiumButton(
             Icon(
                 imageVector = Icons.Default.WorkspacePremium,
                 contentDescription = null,
-                tint = Color.White,
+                tint = Color.Black.copy(alpha = 0.8f), // Dark icon on gold background
                 modifier = Modifier.size(18.dp)
             )
         }

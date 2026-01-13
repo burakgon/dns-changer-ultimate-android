@@ -63,6 +63,7 @@ import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 import com.dns.changer.ultimate.ui.theme.rememberSemanticColors
+import androidx.compose.material3.contentColorFor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
@@ -223,17 +224,18 @@ fun ConnectionSuccessOverlay(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                val categoryColor = getCategoryColor(srv.category.name)
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
                                         .clip(CircleShape)
-                                        .background(getCategoryColor(srv.category.name)),
+                                        .background(categoryColor),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = srv.category.icon,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = contentColorFor(categoryColor),
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }

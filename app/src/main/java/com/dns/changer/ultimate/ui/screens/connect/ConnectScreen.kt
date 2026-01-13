@@ -312,16 +312,35 @@ private fun PowerButton(
 
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val secondaryColor = MaterialTheme.colorScheme.secondary
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    // Content colors for proper contrast on button backgrounds
+    val onTertiaryColor = MaterialTheme.colorScheme.onTertiary
+    val onSecondaryColor = MaterialTheme.colorScheme.onSecondary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+    val onErrorColor = MaterialTheme.colorScheme.onError
 
     val buttonColor by animateColorAsState(
         targetValue = when {
             isConnected -> tertiaryColor
             isError -> MaterialTheme.colorScheme.error
             isTransitioning -> secondaryColor
-            else -> MaterialTheme.colorScheme.primary
+            else -> primaryColor
         },
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "buttonColor"
+    )
+
+    // Animate content color to match button background
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            isConnected -> onTertiaryColor
+            isError -> onErrorColor
+            isTransitioning -> onSecondaryColor
+            else -> onPrimaryColor
+        },
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "contentColor"
     )
 
     val scale by animateFloatAsState(
@@ -370,7 +389,7 @@ private fun PowerButton(
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.15f),
+                                contentColor.copy(alpha = 0.15f),
                                 Color.Transparent
                             )
                         )
@@ -380,15 +399,15 @@ private fun PowerButton(
                 if (isTransitioning && !isError) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(iconSize),
-                        color = Color.White,
+                        color = contentColor,
                         strokeWidth = 3.dp,
-                        trackColor = Color.White.copy(alpha = 0.2f)
+                        trackColor = contentColor.copy(alpha = 0.2f)
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Rounded.PowerSettingsNew,
                         contentDescription = if (isConnected) "Disconnect" else "Connect",
-                        tint = Color.White,
+                        tint = contentColor,
                         modifier = Modifier.size(iconSize)
                     )
                 }
