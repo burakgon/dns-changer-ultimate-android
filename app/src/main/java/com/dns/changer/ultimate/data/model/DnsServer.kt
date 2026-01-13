@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -16,7 +17,8 @@ enum class DnsCategory(
     PRIVACY("Privacy", Icons.Default.Lock),
     SECURITY("Security", Icons.Default.Security),
     AD_BLOCKING("Ad Blocking", Icons.Default.Block),
-    FAMILY("Family", Icons.Default.FamilyRestroom)
+    FAMILY("Family", Icons.Default.FamilyRestroom),
+    CUSTOM("Custom", Icons.Default.PersonAdd)
 }
 
 data class DnsServer(

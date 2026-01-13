@@ -126,6 +126,9 @@ fun ConnectScreen(
             onAddCustomDns = {
                 viewModel.showAddCustomDns()
             },
+            onDeleteCustomDns = { serverId ->
+                viewModel.removeCustomDns(serverId)
+            },
             onDismiss = {
                 showServerPicker = false
             }

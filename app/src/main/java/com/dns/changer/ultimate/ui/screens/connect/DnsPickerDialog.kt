@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -65,6 +66,7 @@ fun DnsPickerDialog(
     selectedServer: DnsServer?,
     onServerSelected: (DnsServer) -> Unit,
     onAddCustomDns: () -> Unit,
+    onDeleteCustomDns: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf<DnsCategory?>(null) }
@@ -219,6 +221,9 @@ fun DnsPickerDialog(
                                             onServerSelected(server)
                                             onDismiss()
                                         },
+                                        onDelete = if (server.isCustom) {
+                                            { onDeleteCustomDns(server.id) }
+                                        } else null,
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                     )
                                 }
@@ -237,6 +242,9 @@ fun DnsPickerDialog(
                                     onServerSelected(server)
                                     onDismiss()
                                 },
+                                onDelete = if (server.isCustom) {
+                                    { onDeleteCustomDns(server.id) }
+                                } else null,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                             )
                         }
@@ -294,6 +302,7 @@ private fun DnsServerCard(
     server: DnsServer,
     isSelected: Boolean,
     onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isDarkTheme = isAppInDarkTheme()
@@ -384,6 +393,22 @@ private fun DnsServerCard(
                         isSelected = isSelected
                     )
                 }
+            }
+
+            // Delete button for custom servers
+            if (onDelete != null) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
             }
 
             // Selection indicator

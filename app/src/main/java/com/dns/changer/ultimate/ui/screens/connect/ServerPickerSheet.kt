@@ -57,6 +57,7 @@ object CategoryColors {
     private val securityLight = Color(0xFF2E7D32) // Green 800
     private val adBlockingLight = Color(0xFFC62828) // Red 800
     private val familyLight = Color(0xFF6A1B9A) // Purple 800
+    private val customLight = Color(0xFF00838F) // Cyan 800
 
     // Dark mode colors (lighter/more vibrant for contrast on dark backgrounds)
     private val speedDark = Color(0xFFFFB74D) // Orange 300
@@ -64,6 +65,7 @@ object CategoryColors {
     private val securityDark = Color(0xFF81C784) // Green 300
     private val adBlockingDark = Color(0xFFE57373) // Red 300
     private val familyDark = Color(0xFFBA68C8) // Purple 300
+    private val customDark = Color(0xFF4DD0E1) // Cyan 300
 
     fun forCategory(category: DnsCategory, isDarkTheme: Boolean): Color = when (category) {
         DnsCategory.SPEED -> if (isDarkTheme) speedDark else speedLight
@@ -71,6 +73,7 @@ object CategoryColors {
         DnsCategory.SECURITY -> if (isDarkTheme) securityDark else securityLight
         DnsCategory.AD_BLOCKING -> if (isDarkTheme) adBlockingDark else adBlockingLight
         DnsCategory.FAMILY -> if (isDarkTheme) familyDark else familyLight
+        DnsCategory.CUSTOM -> if (isDarkTheme) customDark else customLight
     }
 }
 

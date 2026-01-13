@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -48,7 +49,9 @@ class SpeedTestViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            speedTestService.runSpeedTest(PresetDnsServers.all)
+            // Get all servers including custom ones
+            val allServers = dnsRepository.allServers.first()
+            speedTestService.runSpeedTest(allServers)
         }
     }
 
@@ -111,14 +114,16 @@ class SpeedTestViewModel @Inject constructor(
     fun onAdWatched() {
         _showPremiumGate.value = false
         viewModelScope.launch {
-            speedTestService.runSpeedTest(PresetDnsServers.all)
+            val allServers = dnsRepository.allServers.first()
+            speedTestService.runSpeedTest(allServers)
         }
     }
 
     fun onPremiumPurchased() {
         _showPremiumGate.value = false
         viewModelScope.launch {
-            speedTestService.runSpeedTest(PresetDnsServers.all)
+            val allServers = dnsRepository.allServers.first()
+            speedTestService.runSpeedTest(allServers)
         }
     }
 }

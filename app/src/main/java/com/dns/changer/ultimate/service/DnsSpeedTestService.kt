@@ -79,6 +79,17 @@ class DnsSpeedTestService @Inject constructor() {
         _state.value = SpeedTestState()
     }
 
+    fun removeServerFromResults(serverId: String) {
+        val currentState = _state.value
+        if (currentState.results.isEmpty()) return
+
+        val filteredResults = currentState.results.filter { it.server.id != serverId }
+        _state.value = currentState.copy(
+            results = filteredResults,
+            fastestResult = filteredResults.firstOrNull()
+        )
+    }
+
     private fun measureDnsLatency(dnsServer: String): Long {
         return try {
             val socket = DatagramSocket()

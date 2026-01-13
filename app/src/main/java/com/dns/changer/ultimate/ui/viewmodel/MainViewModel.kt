@@ -9,6 +9,7 @@ import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.model.PresetDnsServers
 import com.dns.changer.ultimate.data.repository.DnsRepository
 import com.dns.changer.ultimate.service.DnsConnectionManager
+import com.dns.changer.ultimate.service.DnsSpeedTestService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,7 +35,8 @@ data class MainUiState(
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val dnsRepository: DnsRepository,
-    private val connectionManager: DnsConnectionManager
+    private val connectionManager: DnsConnectionManager,
+    private val speedTestService: DnsSpeedTestService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -97,8 +99,17 @@ class MainViewModel @Inject constructor(
     }
 
     private fun loadServers() {
+        // Initial load with preset servers
         val serversByCategory = PresetDnsServers.all.groupBy { it.category }
         _uiState.value = _uiState.value.copy(servers = serversByCategory)
+
+        // Observe custom servers and update the list when they change
+        viewModelScope.launch {
+            dnsRepository.allServers.collect { allServers ->
+                val grouped = allServers.groupBy { it.category }
+                _uiState.update { it.copy(servers = grouped) }
+            }
+        }
     }
 
     private fun observeConnectionState() {
@@ -277,17 +288,26 @@ class MainViewModel @Inject constructor(
             name = name,
             primaryDns = primaryDns,
             secondaryDns = secondaryDns,
-            category = DnsCategory.SPEED,
+            category = DnsCategory.CUSTOM,
             description = "Custom DNS server",
             isCustom = true
         )
 
         viewModelScope.launch {
             dnsRepository.addCustomServer(customServer)
-            loadServers()
+            // No need to call loadServers() - Flow will auto-update
         }
 
         hideAddCustomDns()
+    }
+
+    fun removeCustomDns(serverId: String) {
+        viewModelScope.launch {
+            dnsRepository.removeCustomServer(serverId)
+            // Also remove from speed test results if present
+            speedTestService.removeServerFromResults(serverId)
+            // Flow will auto-update the servers list
+        }
     }
 
     fun dismissVpnDialog() {
