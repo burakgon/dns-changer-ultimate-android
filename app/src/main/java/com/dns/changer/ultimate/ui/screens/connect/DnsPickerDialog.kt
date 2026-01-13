@@ -67,9 +67,10 @@ fun DnsPickerDialog(
     onServerSelected: (DnsServer) -> Unit,
     onAddCustomDns: () -> Unit,
     onDeleteCustomDns: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    initialCategory: DnsCategory? = null
 ) {
-    var selectedCategory by remember { mutableStateOf<DnsCategory?>(null) }
+    var selectedCategory by remember(initialCategory) { mutableStateOf(initialCategory) }
     val isDarkTheme = isAppInDarkTheme()
 
     // Filter servers by selected category

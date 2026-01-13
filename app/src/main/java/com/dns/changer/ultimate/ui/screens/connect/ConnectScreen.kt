@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.ConnectionState
+import com.dns.changer.ultimate.data.model.DnsCategory
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 
@@ -65,6 +66,7 @@ fun ConnectScreen(
     val connectionState by viewModel.connectionState.collectAsState()
 
     var showServerPicker by remember { mutableStateOf(false) }
+    var showCustomCategory by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -131,7 +133,9 @@ fun ConnectScreen(
             },
             onDismiss = {
                 showServerPicker = false
-            }
+                showCustomCategory = false
+            },
+            initialCategory = if (showCustomCategory) DnsCategory.CUSTOM else null
         )
     }
 
@@ -141,6 +145,8 @@ fun ConnectScreen(
             onDismiss = { viewModel.hideAddCustomDns() },
             onConfirm = { name, primary, secondary ->
                 viewModel.addCustomDns(name, primary, secondary)
+                // After adding custom DNS, show picker with Custom category selected
+                showCustomCategory = true
             }
         )
     }
