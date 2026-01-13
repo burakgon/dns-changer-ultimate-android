@@ -733,6 +733,9 @@ private fun ActionButton(
     val warningColor = semanticColors.warning
     val errorColor = MaterialTheme.colorScheme.error
 
+    // Content color should contrast with background
+    val contentColor = MaterialTheme.colorScheme.surface
+
     Button(
         onClick = onStartTest,
         enabled = status != LeakTestStatus.RUNNING,
@@ -746,6 +749,10 @@ private fun ActionButton(
                 LeakTestStatus.COMPLETED_NOT_PROTECTED -> warningColor
                 LeakTestStatus.COMPLETED_LEAK_DETECTED -> errorColor
                 else -> MaterialTheme.colorScheme.primary
+            },
+            contentColor = when (status) {
+                LeakTestStatus.COMPLETED_SECURE, LeakTestStatus.COMPLETED_NOT_PROTECTED, LeakTestStatus.COMPLETED_LEAK_DETECTED -> contentColor
+                else -> MaterialTheme.colorScheme.onPrimary
             }
         ),
         elevation = ButtonDefaults.buttonElevation(
@@ -1017,7 +1024,7 @@ private fun ResultsSection(
                             text = "${results.size}",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.surface,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                         )
                     }

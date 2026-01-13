@@ -696,6 +696,7 @@ private fun InitialSpeedTestView(
             }
 
             // Main tappable button
+            val onPrimaryContainerColor = MaterialTheme.colorScheme.onPrimaryContainer
             Surface(
                 modifier = Modifier
                     .size(centerButtonSize)
@@ -711,7 +712,7 @@ private fun InitialSpeedTestView(
                         .background(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = 0.1f),
+                                    onPrimaryContainerColor.copy(alpha = 0.1f),
                                     Color.Transparent
                                 )
                             )
@@ -724,7 +725,7 @@ private fun InitialSpeedTestView(
                         Icon(
                             imageVector = Icons.Rounded.Speed,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = onPrimaryContainerColor,
                             modifier = Modifier.size(iconSize)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -732,7 +733,7 @@ private fun InitialSpeedTestView(
                             text = "START",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = onPrimaryContainerColor,
                             letterSpacing = 2.sp
                         )
                     }
