@@ -43,9 +43,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.dns.changer.ultimate.ads.AdMobManager
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
+import com.dns.changer.ultimate.data.preferences.RatingPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.dns.changer.ultimate.ui.components.ConnectionSuccessOverlay
 import com.dns.changer.ultimate.ui.components.DisconnectionOverlay
 import com.dns.changer.ultimate.ui.components.PremiumGatePopup
+import com.dns.changer.ultimate.ui.components.RatingDialog
 import com.dns.changer.ultimate.ui.navigation.DnsNavHost
 import com.dns.changer.ultimate.ui.navigation.Screen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
@@ -53,6 +58,7 @@ import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
 import com.dns.changer.ultimate.service.DnsSpeedTestService
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
+import com.dns.changer.ultimate.ui.viewmodel.RatingViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -68,6 +74,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var speedTestService: DnsSpeedTestService
 
+    @Inject
+    lateinit var ratingPreferences: RatingPreferences
+
     private var pendingVpnPermissionCallback: ((Boolean) -> Unit)? = null
 
     private val vpnPermissionLauncher = registerForActivityResult(
@@ -82,6 +91,11 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Increment launch count for rating prompt
+        CoroutineScope(Dispatchers.IO).launch {
+            ratingPreferences.incrementLaunchCount()
+        }
 
         setContent {
             val savedTheme by dnsPreferences.themeMode.collectAsState(initial = "SYSTEM")
@@ -134,7 +148,8 @@ fun DnsChangerApp(
     preferences: DnsPreferences,
     onThemeChanged: (ThemeMode) -> Unit,
     mainViewModel: MainViewModel = hiltViewModel(),
-    premiumViewModel: PremiumViewModel = hiltViewModel()
+    premiumViewModel: PremiumViewModel = hiltViewModel(),
+    ratingViewModel: RatingViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -143,8 +158,21 @@ fun DnsChangerApp(
     val isPremium by premiumViewModel.isPremium.collectAsState()
     val mainUiState by mainViewModel.uiState.collectAsState()
 
+    // Rating state
+    val showRatingDialog by ratingViewModel.showRatingDialog.collectAsState()
+    val shouldRequestReview by ratingViewModel.shouldRequestReview.collectAsState()
+
     var showPremiumGate by remember { mutableStateOf(false) }
     var onPremiumUnlock by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    // Rating prompt is automatically checked via Flow observation in RatingViewModel
+
+    // Handle In-App Review request
+    LaunchedEffect(shouldRequestReview) {
+        if (shouldRequestReview) {
+            ratingViewModel.requestInAppReview(activity)
+        }
+    }
 
     // Handle VPN permission dialog
     LaunchedEffect(mainUiState.vpnPermissionIntent) {
@@ -284,6 +312,18 @@ fun DnsChangerApp(
             visible = showDisconnectOverlay,
             previousServer = mainUiState.lastConnectedServer,
             onContinue = { mainViewModel.dismissDisconnectionOverlay() }
+        )
+
+        // Rating Dialog
+        RatingDialog(
+            visible = showRatingDialog,
+            onDismiss = { ratingViewModel.dismissDialog() },
+            onPositive = { ratingViewModel.onPositiveResponse() },
+            onNegative = { ratingViewModel.onNegativeResponse() },
+            onFeedbackSubmit = { feedback ->
+                ratingViewModel.onFeedbackSubmitted(feedback, activity)
+            },
+            onFeedbackSkip = { ratingViewModel.onFeedbackSkipped() }
         )
     }
 }

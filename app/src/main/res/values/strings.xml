@@ -71,4 +71,19 @@
     <string name="go_premium">Go Premium</string>
     <string name="no_ads">No Ads</string>
     <string name="all_features">All Features</string>
+
+    <!-- Rating Dialog -->
+    <string name="rating_title">Enjoying DNS Changer?</string>
+    <string name="rating_subtitle">Your feedback helps us improve</string>
+    <string name="rating_positive">Yes, I love it!</string>
+    <string name="rating_negative">Not really</string>
+    <string name="thank_you_title">Thank You!</string>
+    <string name="thank_you_subtitle">We\'re thrilled you\'re enjoying the app!</string>
+    <string name="feedback_title">Help Us Improve</string>
+    <string name="feedback_subtitle">Tell us what we can do better</string>
+    <string name="feedback_placeholder">Share your thoughts with us…</string>
+    <string name="feedback_min_chars">Minimum 25 characters (%1$d more)</string>
+    <string name="feedback_ready">Ready to send</string>
+    <string name="skip">Skip</string>
+    <string name="send">Send</string>
 </resources>
