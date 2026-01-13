@@ -14,10 +14,18 @@ android {
         applicationId = "com.dns.changer.ultimate"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output.outputFileName = "DNSChanger-${variant.versionName}-${variant.buildType.name}.apk"
+        }
     }
 
     buildTypes {
