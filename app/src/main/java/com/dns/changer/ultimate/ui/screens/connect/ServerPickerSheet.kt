@@ -48,22 +48,38 @@ import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.DnsCategory
 import com.dns.changer.ultimate.data.model.DnsServer
 
-// Stable category colors to prevent recomposition
+// Category colors - theme-aware for good contrast in both light and dark modes
 @Stable
 object CategoryColors {
-    val speed = Color(0xFFFFC107)
-    val privacy = Color(0xFF2196F3)
-    val security = Color(0xFF4CAF50)
-    val adBlocking = Color(0xFFF44336)
-    val family = Color(0xFF9C27B0)
+    // Light mode colors (darker for contrast on light backgrounds)
+    private val speedLight = Color(0xFFE65100) // Deep Orange 800
+    private val privacyLight = Color(0xFF1565C0) // Blue 800
+    private val securityLight = Color(0xFF2E7D32) // Green 800
+    private val adBlockingLight = Color(0xFFC62828) // Red 800
+    private val familyLight = Color(0xFF6A1B9A) // Purple 800
 
-    fun forCategory(category: DnsCategory): Color = when (category) {
-        DnsCategory.SPEED -> speed
-        DnsCategory.PRIVACY -> privacy
-        DnsCategory.SECURITY -> security
-        DnsCategory.AD_BLOCKING -> adBlocking
-        DnsCategory.FAMILY -> family
+    // Dark mode colors (lighter/more vibrant for contrast on dark backgrounds)
+    private val speedDark = Color(0xFFFFB74D) // Orange 300
+    private val privacyDark = Color(0xFF64B5F6) // Blue 300
+    private val securityDark = Color(0xFF81C784) // Green 300
+    private val adBlockingDark = Color(0xFFE57373) // Red 300
+    private val familyDark = Color(0xFFBA68C8) // Purple 300
+
+    fun forCategory(category: DnsCategory, isDarkTheme: Boolean): Color = when (category) {
+        DnsCategory.SPEED -> if (isDarkTheme) speedDark else speedLight
+        DnsCategory.PRIVACY -> if (isDarkTheme) privacyDark else privacyLight
+        DnsCategory.SECURITY -> if (isDarkTheme) securityDark else securityLight
+        DnsCategory.AD_BLOCKING -> if (isDarkTheme) adBlockingDark else adBlockingLight
+        DnsCategory.FAMILY -> if (isDarkTheme) familyDark else familyLight
     }
+}
+
+// Helper to determine if current theme is dark based on surface color luminance
+@Composable
+fun isAppInDarkTheme(): Boolean {
+    val surface = MaterialTheme.colorScheme.surface
+    // Calculate luminance - if less than 0.5, it's dark
+    return (0.299f * surface.red + 0.587f * surface.green + 0.114f * surface.blue) < 0.5f
 }
 
 // Sealed class for list items to enable proper diffing
@@ -178,7 +194,8 @@ fun ServerPickerSheet(
 
 @Composable
 private fun CategorySectionHeader(category: DnsCategory) {
-    val categoryColor = remember(category) { CategoryColors.forCategory(category) }
+    val isDarkTheme = isAppInDarkTheme()
+    val categoryColor = remember(category, isDarkTheme) { CategoryColors.forCategory(category, isDarkTheme) }
 
     Row(
         modifier = Modifier
@@ -220,7 +237,8 @@ private fun ServerRow(
     onClick: () -> Unit
 ) {
     // Use stable remembered colors - no animation during scroll
-    val categoryColor = remember(server.category) { CategoryColors.forCategory(server.category) }
+    val isDarkTheme = isAppInDarkTheme()
+    val categoryColor = remember(server.category, isDarkTheme) { CategoryColors.forCategory(server.category, isDarkTheme) }
 
     // Simple conditional color without animation for better scroll performance
     val backgroundColor = if (isSelected) {
@@ -245,7 +263,7 @@ private fun ServerRow(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        color = categoryColor.copy(alpha = 0.12f),
+                        color = categoryColor.copy(alpha = 0.15f),
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center

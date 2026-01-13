@@ -4,24 +4,52 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- DNS Icon - Shield with network -->
+
+    <!-- Material You DNS Icon - Clean Design -->
+
+    <!-- Outer purple glow ring -->
+    <path
+        android:fillColor="#D0BCFF"
+        android:pathData="M54,20 C72.8,20 88,35.2 88,54 C88,72.8 72.8,88 54,88 C35.2,88 20,72.8 20,54 C20,35.2 35.2,20 54,20 Z"/>
+
+    <!-- White circle badge -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,24L24,36v18c0,16.5 12.8,31.9 30,36 17.2,-4.1 30,-19.5 30,-36V36L54,24zM54,83.7C40.4,79.9 30,67.3 30,54V40.6l24,-9.6 24,9.6V54c0,13.3 -10.4,25.9 -24,29.7z"/>
+        android:pathData="M54,25 C70,25 83,38 83,54 C83,70 70,83 54,83 C38,83 25,70 25,54 C25,38 38,25 54,25 Z"/>
+
+    <!-- D letter - outer shape -->
+    <path
+        android:fillColor="#6750A4"
+        android:pathData="M31,44 L31,64 L39,64 C45,64 49,59 49,54 C49,49 45,44 39,44 Z"/>
+    <!-- D letter - inner cutout -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,45m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"/>
+        android:pathData="M35,48 L35,60 L38,60 C42,60 45,57 45,54 C45,51 42,48 38,48 Z"/>
+
+    <!-- N letter -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M42,60m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"/>
+        android:fillColor="#6750A4"
+        android:pathData="M51,44 L51,64 L55,64 L55,52 L62,64 L66,64 L66,44 L62,44 L62,56 L55,44 Z"/>
+
+    <!-- S letter - top bar -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M66,60m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"/>
+        android:fillColor="#6750A4"
+        android:pathData="M68,44 L77,44 L77,48 L68,48 Z"/>
+    <!-- S letter - upper left -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,72m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"/>
+        android:fillColor="#6750A4"
+        android:pathData="M68,48 L72,48 L72,52 L68,52 Z"/>
+    <!-- S letter - middle bar -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2"
-        android:pathData="M54,51v17M48,56l-6,4M60,56l6,4"/>
+        android:fillColor="#6750A4"
+        android:pathData="M68,52 L77,52 L77,56 L68,56 Z"/>
+    <!-- S letter - lower right -->
+    <path
+        android:fillColor="#6750A4"
+        android:pathData="M73,56 L77,56 L77,60 L73,60 Z"/>
+    <!-- S letter - bottom bar -->
+    <path
+        android:fillColor="#6750A4"
+        android:pathData="M68,60 L77,60 L77,64 L68,64 Z"/>
+
 </vector>

@@ -68,6 +68,7 @@ fun DnsPickerDialog(
     onDismiss: () -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf<DnsCategory?>(null) }
+    val isDarkTheme = isAppInDarkTheme()
 
     // Filter servers by selected category
     val filteredServers = remember(servers, selectedCategory) {
@@ -164,7 +165,7 @@ fun DnsPickerDialog(
 
                     // Category chips
                     DnsCategory.entries.forEach { category ->
-                        val categoryColor = CategoryColors.forCategory(category)
+                        val categoryColor = CategoryColors.forCategory(category, isDarkTheme)
                         FilterChip(
                             selected = selectedCategory == category,
                             onClick = {
@@ -182,8 +183,9 @@ fun DnsPickerDialog(
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = categoryColor.copy(alpha = 0.2f),
-                                selectedLabelColor = categoryColor
+                                selectedContainerColor = categoryColor.copy(alpha = 0.15f),
+                                selectedLabelColor = categoryColor,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
@@ -247,7 +249,8 @@ fun DnsPickerDialog(
 
 @Composable
 private fun CategoryHeader(category: DnsCategory) {
-    val categoryColor = remember(category) { CategoryColors.forCategory(category) }
+    val isDarkTheme = isAppInDarkTheme()
+    val categoryColor = remember(category, isDarkTheme) { CategoryColors.forCategory(category, isDarkTheme) }
 
     Row(
         modifier = Modifier
@@ -259,7 +262,7 @@ private fun CategoryHeader(category: DnsCategory) {
             modifier = Modifier
                 .size(28.dp)
                 .background(
-                    color = categoryColor.copy(alpha = 0.12f),
+                    color = categoryColor.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(8.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -293,7 +296,8 @@ private fun DnsServerCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val categoryColor = remember(server.category) { CategoryColors.forCategory(server.category) }
+    val isDarkTheme = isAppInDarkTheme()
+    val categoryColor = remember(server.category, isDarkTheme) { CategoryColors.forCategory(server.category, isDarkTheme) }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -320,7 +324,7 @@ private fun DnsServerCard(
                         color = if (isSelected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                         } else {
-                            categoryColor.copy(alpha = 0.12f)
+                            categoryColor.copy(alpha = 0.15f)
                         },
                         shape = RoundedCornerShape(12.dp)
                     ),

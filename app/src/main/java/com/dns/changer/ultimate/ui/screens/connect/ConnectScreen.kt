@@ -179,11 +179,14 @@ private fun PowerButton(
         label = "pulse"
     )
 
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+
     val buttonColor by animateColorAsState(
         targetValue = when {
-            isConnected -> Color(0xFF34A853) // Material Green
+            isConnected -> tertiaryColor
             isError -> MaterialTheme.colorScheme.error
-            isTransitioning -> Color(0xFFFAAD14) // Amber
+            isTransitioning -> secondaryColor
             else -> MaterialTheme.colorScheme.primary
         },
         animationSpec = spring(stiffness = Spring.StiffnessLow),
@@ -267,7 +270,7 @@ private fun PowerButton(
 @Composable
 private fun StatusText(connectionState: ConnectionState) {
     val statusText = when (connectionState) {
-        is ConnectionState.Connected -> "Protected"
+        is ConnectionState.Connected -> "Connected"
         is ConnectionState.Connecting -> "Connecting..."
         is ConnectionState.Disconnecting -> "Disconnecting..."
         is ConnectionState.Switching -> "Switching..."
@@ -275,11 +278,14 @@ private fun StatusText(connectionState: ConnectionState) {
         is ConnectionState.Disconnected -> "Tap to connect"
     }
 
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+
     val statusColor by animateColorAsState(
         targetValue = when (connectionState) {
-            is ConnectionState.Connected -> Color(0xFF34A853)
+            is ConnectionState.Connected -> tertiaryColor
             is ConnectionState.Error -> MaterialTheme.colorScheme.error
-            is ConnectionState.Connecting, is ConnectionState.Disconnecting, is ConnectionState.Switching -> Color(0xFFFAAD14)
+            is ConnectionState.Connecting, is ConnectionState.Disconnecting, is ConnectionState.Switching -> secondaryColor
             is ConnectionState.Disconnected -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         animationSpec = spring(stiffness = Spring.StiffnessLow),
@@ -301,8 +307,9 @@ private fun ServerSelectionCard(
     isConnected: Boolean,
     onClick: () -> Unit
 ) {
-    val categoryColor = remember(server) {
-        if (server != null) CategoryColors.forCategory(server.category)
+    val isDarkTheme = isAppInDarkTheme()
+    val categoryColor = remember(server, isDarkTheme) {
+        if (server != null) CategoryColors.forCategory(server.category, isDarkTheme)
         else null
     }
 
@@ -331,7 +338,7 @@ private fun ServerSelectionCard(
                         color = if (isConnected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                         } else {
-                            categoryColor?.copy(alpha = 0.12f)
+                            categoryColor?.copy(alpha = 0.15f)
                                 ?: MaterialTheme.colorScheme.surfaceContainerHighest
                         },
                         shape = RoundedCornerShape(16.dp)

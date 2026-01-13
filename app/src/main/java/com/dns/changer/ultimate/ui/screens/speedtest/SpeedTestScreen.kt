@@ -289,8 +289,10 @@ private fun InitialSpeedTestView(onClick: () -> Unit) {
     )
 
     val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
@@ -342,7 +344,7 @@ private fun InitialSpeedTestView(onClick: () -> Unit) {
                 }
             }
 
-            // Middle ring with gradient sweep
+            // Middle ring with gradient sweep - uses Material You colors
             Canvas(
                 modifier = Modifier
                     .size(240.dp)
@@ -355,11 +357,11 @@ private fun InitialSpeedTestView(onClick: () -> Unit) {
                 drawArc(
                     brush = Brush.sweepGradient(
                         colors = listOf(
-                            Color(0xFF2196F3).copy(alpha = 0.8f),
-                            Color(0xFF00BCD4).copy(alpha = 0.6f),
-                            Color(0xFF4CAF50).copy(alpha = 0.8f),
-                            Color(0xFF00BCD4).copy(alpha = 0.6f),
-                            Color(0xFF2196F3).copy(alpha = 0.8f)
+                            primaryColor.copy(alpha = 0.8f),
+                            secondaryColor.copy(alpha = 0.6f),
+                            tertiaryColor.copy(alpha = 0.8f),
+                            secondaryColor.copy(alpha = 0.6f),
+                            primaryColor.copy(alpha = 0.8f)
                         ),
                         center = center
                     ),
@@ -372,22 +374,19 @@ private fun InitialSpeedTestView(onClick: () -> Unit) {
                 )
             }
 
-            // Orbiting dots
+            // Orbiting dots - uses Material You colors
             Canvas(modifier = Modifier.size(260.dp)) {
                 val orbitRadius = size.minDimension / 2 - 20.dp.toPx()
                 val center = Offset(size.width / 2, size.height / 2)
 
+                val dotColors = listOf(primaryColor, secondaryColor, tertiaryColor)
                 for (i in 0 until 3) {
                     val angle = Math.toRadians((orbitPhase + i * 120).toDouble())
                     val x = center.x + orbitRadius * cos(angle).toFloat()
                     val y = center.y + orbitRadius * sin(angle).toFloat()
 
                     drawCircle(
-                        color = when (i) {
-                            0 -> Color(0xFF2196F3)
-                            1 -> Color(0xFF4CAF50)
-                            else -> Color(0xFF00BCD4)
-                        },
+                        color = dotColors[i],
                         radius = 6.dp.toPx(),
                         center = Offset(x, y)
                     )
@@ -461,13 +460,13 @@ private fun InitialSpeedTestView(onClick: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Feature pills
+        // Feature pills - uses Material You colors
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            FeaturePill(text = "26 Servers", color = Color(0xFF2196F3))
-            FeaturePill(text = "Fast", color = Color(0xFF4CAF50))
-            FeaturePill(text = "Accurate", color = Color(0xFF9C27B0))
+            FeaturePill(text = "26 Servers", color = primaryColor)
+            FeaturePill(text = "Fast", color = secondaryColor)
+            FeaturePill(text = "Accurate", color = tertiaryColor)
         }
     }
 }
@@ -476,12 +475,12 @@ private fun InitialSpeedTestView(onClick: () -> Unit) {
 private fun FeaturePill(text: String, color: Color) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = color.copy(alpha = 0.12f)
+        color = color.copy(alpha = 0.15f)
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             color = color,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
         )
@@ -529,18 +528,19 @@ private fun SpeedTestGauge(
     )
 
     val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val onSurface = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
-    // Gradient colors for progress - blue to cyan to green
+    // Gradient colors for progress - uses Material You colors
     val gradientColors = listOf(
-        Color(0xFF2196F3), // Blue
-        Color(0xFF00BCD4), // Cyan
-        Color(0xFF4CAF50), // Green
-        Color(0xFF00BCD4), // Cyan
-        Color(0xFF2196F3)  // Blue
+        primaryColor,
+        secondaryColor,
+        tertiaryColor,
+        secondaryColor,
+        primaryColor
     )
 
     Box(
@@ -599,7 +599,7 @@ private fun SpeedTestGauge(
                             text = latency.toString(),
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF4CAF50) // Green for success
+                            color = tertiaryColor
                         )
                         Text(
                             text = "ms",
@@ -609,7 +609,7 @@ private fun SpeedTestGauge(
                         Text(
                             text = "Fastest",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF4CAF50),
+                            color = tertiaryColor,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -666,12 +666,17 @@ private fun SpeedTestResultItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val ratingColor = remember(result.rating) {
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val errorColor = MaterialTheme.colorScheme.error
+
+    val ratingColor = remember(result.rating, tertiaryColor, secondaryColor, primaryColor, errorColor) {
         when (result.rating) {
-            LatencyRating.EXCELLENT -> Color(0xFF4CAF50)
-            LatencyRating.GOOD -> Color(0xFF8BC34A)
-            LatencyRating.FAIR -> Color(0xFFFFC107)
-            LatencyRating.POOR -> Color(0xFFF44336)
+            LatencyRating.EXCELLENT -> tertiaryColor
+            LatencyRating.GOOD -> secondaryColor
+            LatencyRating.FAIR -> primaryColor
+            LatencyRating.POOR -> errorColor
         }
     }
 
