@@ -31,7 +31,7 @@ class DnsSpeedTestService @Inject constructor() {
         if (_state.value.isRunning) return
 
         isCancelled = false
-        _state.value = SpeedTestState(isRunning = true, progress = 0f, results = emptyList())
+        _state.value = SpeedTestState(isRunning = true, progress = 0f, results = emptyList(), totalServers = servers.size)
         val results = mutableListOf<SpeedTestResult>()
 
         withContext(Dispatchers.IO) {

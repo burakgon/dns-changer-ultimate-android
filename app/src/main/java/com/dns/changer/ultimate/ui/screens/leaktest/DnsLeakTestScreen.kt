@@ -1,5 +1,6 @@
 package com.dns.changer.ultimate.ui.screens.leaktest
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -58,10 +59,15 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.material3.Button
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsServer
+import com.dns.changer.ultimate.ui.viewmodel.LeakTestViewModel
+import com.dns.changer.ultimate.ui.viewmodel.DnsLeakResult
+import com.dns.changer.ultimate.ui.viewmodel.LeakTestStatus
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -74,10 +80,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,77 +109,41 @@ import com.dns.changer.ultimate.ui.screens.connect.isAppInDarkTheme
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.theme.WindowSize
 import com.dns.changer.ultimate.ui.theme.rememberSemanticColors
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlin.math.cos
 import kotlin.math.sin
-
-data class DnsLeakResult(
-    val ip: String,
-    val hostname: String?,
-    val isp: String?,
-    val country: String?,
-    val countryCode: String?
-)
-
-data class DnsLeakTestResult(
-    val dnsServers: List<DnsLeakResult>,
-    val userPublicIp: String?
-)
-
-enum class LeakTestStatus {
-    IDLE,
-    RUNNING,
-    COMPLETED,              // Neutral - just shows results without judgment
-    COMPLETED_SECURE,       // Connected to VPN and secure
-    COMPLETED_NOT_PROTECTED,
-    COMPLETED_LEAK_DETECTED
-}
 
 @Composable
 fun DnsLeakTestScreen(
     adaptiveConfig: AdaptiveLayoutConfig,
-    viewModel: MainViewModel = hiltViewModel()
+    mainViewModel: MainViewModel = hiltViewModel(),
+    leakTestViewModel: LeakTestViewModel = hiltViewModel()
 ) {
-    val scope = rememberCoroutineScope()
-    var testStatus by remember { mutableStateOf(LeakTestStatus.IDLE) }
-    val results = remember { mutableStateListOf<DnsLeakResult>() }
-    var userPublicIp by remember { mutableStateOf<String?>(null) }
-    var progress by remember { mutableStateOf(0f) }
+    // Get state from ViewModel
+    val leakTestState by leakTestViewModel.state.collectAsState()
+    val testStatus = leakTestState.status
+    val results = leakTestState.results
+    val userPublicIp = leakTestState.userPublicIp
+    val progress = leakTestState.progress
 
     // Get connection state to determine if user is protected
-    val connectionState by viewModel.connectionState.collectAsState()
+    val connectionState by leakTestViewModel.connectionState.collectAsState()
     val isConnectedToVpn = connectionState is ConnectionState.Connected
     val connectedServer = (connectionState as? ConnectionState.Connected)?.server
 
-    val onStartTest: () -> Unit = {
-        scope.launch {
-            testStatus = LeakTestStatus.RUNNING
-            results.clear()
-            userPublicIp = null
-            progress = 0f
-
-            val testResult = performDnsLeakTest { prog ->
-                progress = prog
-            }
-
-            results.addAll(testResult.dnsServers)
-            userPublicIp = testResult.userPublicIp
-
-            // Determine status based on connection state
-            // If connected to VPN, show secure. If not, show unprotected (yellow/warning)
-            testStatus = if (isConnectedToVpn) {
-                LeakTestStatus.COMPLETED_SECURE
-            } else {
-                LeakTestStatus.COMPLETED_NOT_PROTECTED  // Yellow warning - unprotected
+    // Clear ViewModel state when app is closed (activity finishing), not on config changes
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        onDispose {
+            val activity = context as? Activity
+            if (activity?.isFinishing == true) {
+                leakTestViewModel.clearState()
             }
         }
+    }
+
+    val onStartTest: () -> Unit = {
+        leakTestViewModel.startTest()
     }
 
     // Size based on window size
@@ -1160,58 +1128,6 @@ private fun TestSummaryCard(
                     icon = Icons.Default.Public
                 )
             }
-
-
-            // IP addresses list
-            if (results.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text(
-                            text = stringResource(R.string.leak_test_detected_ips),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        results.forEach { result ->
-                            Row(
-                                modifier = Modifier.padding(vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .background(
-                                            color = statusColor,
-                                            shape = CircleShape
-                                        )
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = result.ip,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                if (!result.countryCode.isNullOrBlank()) {
-                                    Text(
-                                        text = result.countryCode,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -1423,72 +1339,109 @@ private fun DnsServerResultItem(
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            // Index badge
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(36.dp)
+            // Top row: Flag + Provider + Index
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                // Flag emoji
+                result.flagEmoji?.let { flag ->
                     Text(
-                        text = "$index",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        text = flag,
+                        style = MaterialTheme.typography.headlineMedium
                     )
+                    Spacer(modifier = Modifier.width(12.dp))
                 }
-            }
 
-            Spacer(modifier = Modifier.width(14.dp))
-
-            // Server info
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = result.ip,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                if (!result.isp.isNullOrBlank()) {
+                // Provider name
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = result.isp,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = result.provider ?: "Unknown Provider",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (!result.countryName.isNullOrBlank()) {
+                        Text(
+                            text = result.countryName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Index badge
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = "$index",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
 
-            // Country badge
-            if (!result.countryCode.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Bottom row: IP address and ASN chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // IP chip
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Public,
+                            imageVector = Icons.Default.Dns,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = result.countryCode,
+                            text = result.ip,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+
+                // ASN chip (if different from provider name)
+                result.asn?.let { asn ->
+                    val asnNumber = asn.split(" ").firstOrNull()?.takeIf { it.startsWith("AS") }
+                    if (asnNumber != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            Text(
+                                text = asnNumber,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1611,272 +1564,4 @@ private fun InfoCard(
             }
         }
     }
-}
-
-private suspend fun performDnsLeakTest(
-    onProgress: (Float) -> Unit
-): DnsLeakTestResult = withContext(Dispatchers.IO) {
-    val results = mutableListOf<DnsLeakResult>()
-    val client = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .build()
-
-    onProgress(0.1f)
-
-    // Method 1: Use whoami.akamai.net - this returns the IP of the DNS RESOLVER
-    // that contacted Akamai's nameserver (the actual DNS server handling your queries)
-    try {
-        val testId = System.currentTimeMillis().toString(36) + (0..999999).random().toString(36)
-        android.util.Log.d("DnsLeakTest", "Starting DNS leak test with ID: $testId")
-
-        // whoami.akamai.net returns the IP of the DNS resolver that made the query
-        // This is the REAL test - it shows which DNS server is actually handling your queries
-        try {
-            val addresses = java.net.InetAddress.getAllByName("whoami.akamai.net")
-            addresses.forEach { addr ->
-                val ip = addr.hostAddress ?: ""
-                android.util.Log.d("DnsLeakTest", "whoami.akamai.net -> $ip (THIS IS YOUR DNS RESOLVER)")
-                if (ip.isNotBlank() && results.none { it.ip == ip }) {
-                    results.add(DnsLeakResult(
-                        ip = ip,
-                        hostname = null,
-                        isp = null,
-                        country = null,
-                        countryCode = null
-                    ))
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("DnsLeakTest", "whoami.akamai.net failed: ${e.message}")
-        }
-
-        // Also try ns1.google.com which returns the resolver IP
-        try {
-            val addresses = java.net.InetAddress.getAllByName("ns1.google.com")
-            // This just confirms DNS is working, doesn't reveal resolver
-        } catch (e: Exception) {
-            // Ignore
-        }
-    } catch (e: Exception) {
-        android.util.Log.e("DnsLeakTest", "DNS resolution test failed: ${e.message}")
-    }
-
-    onProgress(0.4f)
-
-    // Method 2: Use ipleak.net to get public IP (for reference only, not added to DNS results)
-    var userPublicIp: String? = null
-    try {
-        val request = okhttp3.Request.Builder()
-            .url("https://ipv4.ipleak.net/json/")
-            .header("User-Agent", "Mozilla/5.0")
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: ""
-                android.util.Log.d("DnsLeakTest", "ipleak.net response: $body")
-                val json = JSONObject(body)
-                userPublicIp = json.optString("ip", "")
-                android.util.Log.d("DnsLeakTest", "User's public IP: $userPublicIp (not a DNS server)")
-                // Don't add public IP to results - it's not a DNS server
-            }
-        }
-    } catch (e: Exception) {
-        android.util.Log.e("DnsLeakTest", "ipleak.net failed: ${e.message}")
-    }
-
-    onProgress(0.6f)
-
-    // Method 3: Check dnsleaktest.com DNS servers API
-    try {
-        // Generate random subdomain for leak detection
-        val randomId = (100000..999999).random()
-        val testDomain = "$randomId.test.dnsleaktest.com"
-
-        android.util.Log.d("DnsLeakTest", "Testing with domain: $testDomain")
-
-        // Resolve the test domain - this will hit dnsleaktest.com's nameserver
-        try {
-            java.net.InetAddress.getByName(testDomain)
-        } catch (e: Exception) {
-            // Expected to fail, but the DNS query was still made
-        }
-
-        // Small delay to let the test register
-        kotlinx.coroutines.delay(500)
-
-        // Now check what DNS servers were detected
-        val request = okhttp3.Request.Builder()
-            .url("https://bash.ws/dnsleak/test/$randomId?json")
-            .header("User-Agent", "Mozilla/5.0")
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: ""
-                android.util.Log.d("DnsLeakTest", "dnsleaktest.com response: $body")
-
-                try {
-                    val jsonArray = JSONArray(body)
-                    for (i in 0 until jsonArray.length()) {
-                        val server = jsonArray.getJSONObject(i)
-                        val ip = server.optString("ip", "")
-                        val countryName = server.optString("country_name", "")
-                        val asn = server.optString("asn", "")
-                        val asnName = server.optString("asn_name", "")
-                        val serverType = server.optString("type", "")
-
-                        if (ip.isNotBlank() && results.none { it.ip == ip }) {
-                            results.add(DnsLeakResult(
-                                ip = ip,
-                                hostname = null,
-                                isp = null,
-                                country = countryName.ifBlank { null },
-                                countryCode = null
-                            ))
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("DnsLeakTest", "Failed to parse dnsleaktest response: ${e.message}")
-                }
-            }
-        }
-    } catch (e: Exception) {
-        android.util.Log.e("DnsLeakTest", "dnsleaktest.com failed: ${e.message}")
-    }
-
-    onProgress(0.85f)
-
-    // Method 4: Direct check of current DNS configuration
-    // Resolve myip.opendns.com which returns YOUR IP as seen by OpenDNS
-    try {
-        val addresses = java.net.InetAddress.getAllByName("myip.opendns.com")
-        addresses.forEach { addr ->
-            val ip = addr.hostAddress ?: ""
-            android.util.Log.d("DnsLeakTest", "myip.opendns.com -> $ip (your IP seen by OpenDNS)")
-            // This is your public IP, not a DNS server - skip adding to results
-        }
-    } catch (e: Exception) {
-        android.util.Log.w("DnsLeakTest", "myip.opendns.com failed: ${e.message}")
-    }
-
-    onProgress(1.0f)
-
-    // Filter out the user's public IP from results (it's not a DNS server)
-    val filteredResults = if (userPublicIp != null) {
-        results.filter { it.ip != userPublicIp }
-    } else {
-        results.toList()
-    }
-
-    android.util.Log.d("DnsLeakTest", "Test complete. Found ${filteredResults.size} DNS servers (filtered from ${results.size})")
-    filteredResults.forEach {
-        android.util.Log.d("DnsLeakTest", "  - ${it.ip} (${it.isp})")
-    }
-
-    DnsLeakTestResult(
-        dnsServers = filteredResults,
-        userPublicIp = userPublicIp
-    )
-}
-
-/**
- * Identify if an IP belongs to a known DNS provider
- */
-private fun identifyDnsProvider(ip: String): Pair<String, Boolean> {
-    return when {
-        // OpenDNS (main IPs and anycast resolver network)
-        ip.startsWith("208.67.222.") || ip.startsWith("208.67.220.") -> "OpenDNS" to true
-        ip == "208.67.222.222" || ip == "208.67.220.220" -> "OpenDNS" to true
-        ip.startsWith("146.112.") -> "OpenDNS" to true  // OpenDNS resolver anycast network
-        ip.startsWith("67.215.") -> "OpenDNS" to true   // OpenDNS alternate range
-
-        // Cloudflare
-        ip.startsWith("1.1.1.") || ip.startsWith("1.0.0.") -> "Cloudflare DNS" to true
-        ip == "1.1.1.1" || ip == "1.0.0.1" -> "Cloudflare DNS" to true
-        ip.startsWith("172.64.") || ip.startsWith("104.16.") -> "Cloudflare DNS" to true
-
-        // Google DNS
-        ip.startsWith("8.8.8.") || ip.startsWith("8.8.4.") -> "Google DNS" to true
-        ip == "8.8.8.8" || ip == "8.8.4.4" -> "Google DNS" to true
-        ip.startsWith("216.239.") -> "Google DNS" to true  // Google resolver network
-
-        // Quad9
-        ip.startsWith("9.9.9.") || ip.startsWith("149.112.112.") -> "Quad9 DNS" to true
-        ip == "9.9.9.9" || ip == "149.112.112.112" -> "Quad9 DNS" to true
-
-        // AdGuard DNS
-        ip.startsWith("94.140.14.") || ip.startsWith("94.140.15.") -> "AdGuard DNS" to true
-        ip == "94.140.14.14" || ip == "94.140.15.15" -> "AdGuard DNS" to true
-
-        // NextDNS (main IPs and anycast network)
-        ip.startsWith("45.90.28.") || ip.startsWith("45.90.30.") -> "NextDNS" to true
-        ip.startsWith("45.90.") -> "NextDNS" to true  // NextDNS anycast range
-        ip.startsWith("185.228.136.") || ip.startsWith("185.228.137.") -> "NextDNS" to true
-
-        // Comodo Secure DNS
-        ip.startsWith("8.26.56.") || ip.startsWith("8.20.247.") -> "Comodo DNS" to true
-
-        // Level3/CenturyLink
-        ip.startsWith("4.2.2.") -> "Level3 DNS" to true
-
-        // Verisign
-        ip.startsWith("64.6.64.") || ip.startsWith("64.6.65.") -> "Verisign DNS" to true
-
-        // CleanBrowsing
-        ip.startsWith("185.228.168.") || ip.startsWith("185.228.169.") -> "CleanBrowsing DNS" to true
-
-        else -> "Unknown Provider" to false
-    }
-}
-
-// Keep the old method signature for compatibility but it's no longer used
-private suspend fun performDnsLeakTestOld(
-    onProgress: (Float) -> Unit
-): List<DnsLeakResult> = withContext(Dispatchers.IO) {
-    val results = mutableListOf<DnsLeakResult>()
-    val client = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .build()
-
-    onProgress(0.1f)
-
-    // Method 1: Use mullvad DNS leak test API (most reliable)
-    try {
-        val request = okhttp3.Request.Builder()
-            .url("https://am.i.mullvad.net/json")
-            .header("User-Agent", "Mozilla/5.0")
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: ""
-                val json = JSONObject(body)
-
-                // Get IP info
-                val ip = json.optString("ip", "")
-                val city = json.optString("city", "")
-                val country = json.optString("country", "")
-                val org = json.optString("organization", "")
-                val mullvadExit = json.optBoolean("mullvad_exit_ip", false)
-
-                if (ip.isNotBlank()) {
-                    results.add(DnsLeakResult(
-                        ip = ip,
-                        hostname = if (mullvadExit) "Mullvad VPN" else null,
-                        isp = org.ifBlank { null },
-                        country = country.ifBlank { null },
-                        countryCode = null
-                    ))
-                }
-            }
-        }
-    } catch (e: Exception) {
-        android.util.Log.e("DnsLeakTest", "mullvad failed: ${e.message}")
-    }
-
-    onProgress(1.0f)
-    results
 }

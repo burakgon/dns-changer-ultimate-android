@@ -36,5 +36,6 @@ data class SpeedTestState(
     val progress: Float = 0f,
     val currentServer: DnsServer? = null,
     val results: List<SpeedTestResult> = emptyList(),
-    val fastestResult: SpeedTestResult? = null
+    val fastestResult: SpeedTestResult? = null,
+    val totalServers: Int = 0
 )

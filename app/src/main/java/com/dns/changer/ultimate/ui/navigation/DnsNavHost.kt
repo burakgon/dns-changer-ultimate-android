@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,6 +21,7 @@ import com.dns.changer.ultimate.ui.screens.settings.SettingsScreen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
 import com.dns.changer.ultimate.ui.screens.speedtest.SpeedTestScreen
 import com.dns.changer.ultimate.ui.theme.rememberAdaptiveLayoutConfig
+import com.dns.changer.ultimate.ui.viewmodel.SpeedTestViewModel
 
 @Composable
 fun DnsNavHost(
@@ -33,6 +36,9 @@ fun DnsNavHost(
 ) {
     // Get adaptive layout configuration for tablets/foldables
     val adaptiveConfig = rememberAdaptiveLayoutConfig()
+
+    // Shared SpeedTestViewModel for auto-start communication
+    val speedTestViewModel: SpeedTestViewModel = hiltViewModel()
 
     NavHost(
         navController = navController,
@@ -58,12 +64,23 @@ fun DnsNavHost(
                 onRequestVpnPermission = onRequestVpnPermission,
                 adaptiveConfig = adaptiveConfig,
                 isPremium = isPremium,
-                onShowPremiumGate = onShowPremiumGate
+                onShowPremiumGate = onShowPremiumGate,
+                onNavigateToSpeedTest = {
+                    speedTestViewModel.requestAutoStart()
+                    navController.navigate(Screen.SpeedTest.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
             )
         }
 
         composable(route = Screen.SpeedTest.route) {
             SpeedTestScreen(
+                viewModel = speedTestViewModel,
                 isPremium = isPremium,
                 onShowPremiumGate = onShowPremiumGate,
                 onRequestVpnPermission = onRequestVpnPermissionWithCallback,

@@ -34,11 +34,17 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,17 +75,50 @@ fun DnsPickerDialog(
     onAddCustomDns: () -> Unit,
     onDeleteCustomDns: (String) -> Unit,
     onDismiss: () -> Unit,
+    onFindFastest: () -> Unit,
     initialCategory: DnsCategory? = null
 ) {
     var selectedCategory by remember(initialCategory) { mutableStateOf(initialCategory) }
+    var searchQuery by remember { mutableStateOf("") }
     val isDarkTheme = isAppInDarkTheme()
 
-    // Filter servers by selected category
-    val filteredServers = remember(servers, selectedCategory) {
-        if (selectedCategory == null) {
+    // Filter servers by selected category and search query
+    val filteredServers = remember(servers, selectedCategory, searchQuery) {
+        val categoryFiltered = if (selectedCategory == null) {
             servers.values.flatten()
         } else {
             servers[selectedCategory] ?: emptyList()
+        }
+
+        if (searchQuery.isBlank()) {
+            categoryFiltered
+        } else {
+            val query = searchQuery.lowercase().trim()
+            categoryFiltered.filter { server ->
+                server.name.lowercase().contains(query) ||
+                server.description.lowercase().contains(query) ||
+                server.primaryDns.lowercase().contains(query) ||
+                server.secondaryDns.lowercase().contains(query) ||
+                (server.dohUrl?.lowercase()?.contains(query) == true)
+            }
+        }
+    }
+
+    // Filter servers map for grouped view
+    val filteredServersMap = remember(servers, searchQuery) {
+        if (searchQuery.isBlank()) {
+            servers
+        } else {
+            val query = searchQuery.lowercase().trim()
+            servers.mapValues { (_, serverList) ->
+                serverList.filter { server ->
+                    server.name.lowercase().contains(query) ||
+                    server.description.lowercase().contains(query) ||
+                    server.primaryDns.lowercase().contains(query) ||
+                    server.secondaryDns.lowercase().contains(query) ||
+                    (server.dohUrl?.lowercase()?.contains(query) == true)
+                }
+            }.filterValues { it.isNotEmpty() }
         }
     }
 
@@ -138,6 +177,35 @@ fun DnsPickerDialog(
                             )
                         }
                     }
+                }
+
+                // Find Fastest Button
+                Button(
+                    onClick = {
+                        onDismiss()
+                        onFindFastest()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Speed,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.find_fastest),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
 
                 // Category Filter Chips
@@ -204,9 +272,10 @@ fun DnsPickerDialog(
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     if (selectedCategory == null) {
-                        // Show all with group headers
-                        DnsCategory.entries.forEach { category ->
-                            val serversInCategory = servers[category] ?: emptyList()
+                        // Show all with group headers (Custom first, then others)
+                        val orderedCategories = listOf(DnsCategory.CUSTOM) + DnsCategory.entries.filter { it != DnsCategory.CUSTOM }
+                        orderedCategories.forEach { category ->
+                            val serversInCategory = filteredServersMap[category] ?: emptyList()
                             if (serversInCategory.isNotEmpty()) {
                                 // Category Header
                                 item(key = "header_${category.name}") {
@@ -253,6 +322,47 @@ fun DnsPickerDialog(
                         }
                     }
                 }
+
+                // Search Box at bottom
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.search_dns),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else null,
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary
+                    )
+                )
             }
         }
     }

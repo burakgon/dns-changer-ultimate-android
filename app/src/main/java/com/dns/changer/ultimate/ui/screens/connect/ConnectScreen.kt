@@ -12,6 +12,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,7 +70,8 @@ fun ConnectScreen(
     onRequestVpnPermission: (android.content.Intent) -> Unit,
     adaptiveConfig: AdaptiveLayoutConfig,
     isPremium: Boolean = false,
-    onShowPremiumGate: (() -> Unit) -> Unit = {}
+    onShowPremiumGate: (() -> Unit) -> Unit = {},
+    onNavigateToSpeedTest: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
@@ -128,7 +130,17 @@ fun ConnectScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    StatusText(connectionState = connectionState)
+                    StatusText(
+                        connectionState = connectionState,
+                        onConnect = {
+                            val vpnIntent = uiState.vpnPermissionIntent
+                            if (vpnIntent != null) {
+                                onRequestVpnPermission(vpnIntent)
+                            } else {
+                                viewModel.connect()
+                            }
+                        }
+                    )
                 }
 
                 // Right side: Server Selection Card
@@ -188,7 +200,17 @@ fun ConnectScreen(
                     Spacer(modifier = Modifier.height(28.dp))
 
                     // Status Text
-                    StatusText(connectionState = connectionState)
+                    StatusText(
+                        connectionState = connectionState,
+                        onConnect = {
+                            val vpnIntent = uiState.vpnPermissionIntent
+                            if (vpnIntent != null) {
+                                onRequestVpnPermission(vpnIntent)
+                            } else {
+                                viewModel.connect()
+                            }
+                        }
+                    )
 
                     Spacer(modifier = Modifier.height(40.dp))
 
@@ -223,6 +245,7 @@ fun ConnectScreen(
                 showServerPicker = false
                 showCustomCategory = false
             },
+            onFindFastest = onNavigateToSpeedTest,
             initialCategory = if (showCustomCategory) DnsCategory.CUSTOM else null
         )
     }
@@ -376,7 +399,10 @@ private fun PowerButton(
 
 
 @Composable
-private fun StatusText(connectionState: ConnectionState) {
+private fun StatusText(
+    connectionState: ConnectionState,
+    onConnect: (() -> Unit)? = null
+) {
     val statusText = when (connectionState) {
         is ConnectionState.Connected -> "Connected"
         is ConnectionState.Connecting -> "Connecting..."
@@ -400,12 +426,19 @@ private fun StatusText(connectionState: ConnectionState) {
         label = "statusColor"
     )
 
+    val isClickable = connectionState is ConnectionState.Disconnected && onConnect != null
+
     Text(
         text = statusText,
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Medium,
         color = statusColor,
-        textAlign = TextAlign.Center
+        textAlign = TextAlign.Center,
+        modifier = if (isClickable) {
+            Modifier.clickable(onClick = onConnect!!)
+        } else {
+            Modifier
+        }
     )
 }
 

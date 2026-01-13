@@ -1,8 +1,11 @@
 package com.dns.changer.ultimate.ui.screens.speedtest
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -14,8 +17,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -59,10 +62,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -132,11 +139,31 @@ fun SpeedTestScreen(
     val vpnPermissionIntent by viewModel.vpnPermissionIntent.collectAsState()
     val totalServerCount by viewModel.totalServerCount.collectAsState()
     val sessionUnlocked by viewModel.resultsUnlockedForSession.collectAsState()
+    val shouldAutoStart by viewModel.shouldAutoStart.collectAsState()
 
     val isInitialState = speedTestState.results.isEmpty() && !speedTestState.isRunning
 
+    // Auto-start test if requested (from Find Fastest button)
+    LaunchedEffect(shouldAutoStart) {
+        if (shouldAutoStart && isInitialState) {
+            viewModel.clearAutoStart()
+            viewModel.startSpeedTest(isPremium = isPremium)
+        }
+    }
+
     // Results are unlocked if premium OR unlocked for current session (via ad watch)
     val resultsUnlocked = isPremium || sessionUnlocked
+
+    // Clear ViewModel state when app is closed (activity finishing), not on config changes
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        onDispose {
+            val activity = context as? Activity
+            if (activity?.isFinishing == true) {
+                viewModel.stopAndClearTest()
+            }
+        }
+    }
 
     // Speed test always runs freely - no pre-gate
     val onStartTest = {
@@ -193,7 +220,7 @@ fun SpeedTestScreen(
                 // Testing status
                 if (speedTestState.isRunning) {
                     Text(
-                        text = "Testing ${speedTestState.results.size + 1} of $totalServerCount servers...",
+                        text = "Testing ${speedTestState.results.size + 1} of ${speedTestState.totalServers} servers...",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -308,7 +335,7 @@ fun SpeedTestScreen(
                 // Testing status
                 if (speedTestState.isRunning) {
                     Text(
-                        text = "Testing ${speedTestState.results.size + 1} of $totalServerCount servers...",
+                        text = "Testing ${speedTestState.results.size + 1} of ${speedTestState.totalServers} servers...",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -422,21 +449,21 @@ private fun SpeedTestResultsList(
                 items = remainingResults,
                 key = { _, result -> result.server.id }
             ) { index, result ->
-                AnimatedVisibility(
-                    visible = true,
-                    enter = slideInVertically(
-                        initialOffsetY = { 50 },
-                        animationSpec = spring()
-                    ) + fadeIn() + scaleIn(initialScale = 0.9f)
-                ) {
-                    SpeedTestResultItem(
-                        result = result,
-                        rank = index + 4, // Start from rank 4
-                        isFastest = false,
-                        isNew = speedTestState.isRunning && index == 0,
-                        onClick = { onConnectToServer(result.server) }
+                SpeedTestResultItem(
+                    result = result,
+                    rank = index + 4, // Start from rank 4
+                    isFastest = false,
+                    isNew = speedTestState.isRunning && index == 0,
+                    onClick = { onConnectToServer(result.server) },
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = tween(200, easing = FastOutSlowInEasing),
+                        fadeOutSpec = tween(150),
+                        placementSpec = spring(
+                            dampingRatio = 0.9f,
+                            stiffness = 400f
+                        )
                     )
-                }
+                )
             }
         } else if (resultsUnlocked) {
             // Premium/unlocked users see all results as list
@@ -444,21 +471,21 @@ private fun SpeedTestResultsList(
                 items = speedTestState.results,
                 key = { _, result -> result.server.id }
             ) { index, result ->
-                AnimatedVisibility(
-                    visible = true,
-                    enter = slideInVertically(
-                        initialOffsetY = { 50 },
-                        animationSpec = spring()
-                    ) + fadeIn() + scaleIn(initialScale = 0.9f)
-                ) {
-                    SpeedTestResultItem(
-                        result = result,
-                        rank = index + 1,
-                        isFastest = index == 0 && !speedTestState.isRunning,
-                        isNew = speedTestState.isRunning && index == 0,
-                        onClick = { onConnectToServer(result.server) }
+                SpeedTestResultItem(
+                    result = result,
+                    rank = index + 1,
+                    isFastest = index == 0 && !speedTestState.isRunning,
+                    isNew = speedTestState.isRunning && index == 0,
+                    onClick = { onConnectToServer(result.server) },
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = tween(200, easing = FastOutSlowInEasing),
+                        fadeOutSpec = tween(150),
+                        placementSpec = spring(
+                            dampingRatio = 0.9f,
+                            stiffness = 400f
+                        )
                     )
-                }
+                )
             }
         } else {
             // Not unlocked but less than 3 results - show nothing (still collecting)
@@ -1100,75 +1127,84 @@ private fun LockedTop3ResultsCard(
                 .fillMaxWidth()
                 .height(280.dp)
         ) {
-            // Blurred result rows - simple Material You style
-            // Reduced blur for better visibility of underlying content
+            // Blurred result rows with animation
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .blur(6.dp),
                 verticalArrangement = Arrangement.Top
             ) {
+                // Animate each position when the server at that position changes
                 top3Results.forEachIndexed { index, result ->
-                    val ratingColor = RatingColors.forRating(result.rating, isDarkTheme)
-                    val categoryColor = CategoryColors.forCategory(result.server.category, isDarkTheme)
+                    AnimatedContent(
+                        targetState = result,
+                        transitionSpec = {
+                            // New item slides in from bottom, old slides out to top
+                            (slideInVertically { height -> height } + fadeIn(tween(200))) togetherWith
+                                (slideOutVertically { height -> -height } + fadeOut(tween(150)))
+                        },
+                        label = "blurredItem$index"
+                    ) { animatedResult ->
+                        val ratingColor = RatingColors.forRating(animatedResult.rating, isDarkTheme)
+                        val categoryColor = CategoryColors.forCategory(animatedResult.server.category, isDarkTheme)
 
-                    // Simple Material You row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Rank number
-                        Text(
-                            text = "${index + 1}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.width(28.dp)
-                        )
-
-                        // Category Icon
-                        Box(
+                        Row(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(categoryColor.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = result.server.category.icon,
-                                contentDescription = null,
-                                tint = categoryColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Server name and rating
-                        Column(modifier = Modifier.weight(1f)) {
+                            // Rank number
                             Text(
-                                text = result.server.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
+                                text = "${index + 1}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(28.dp)
+                            )
+
+                            // Category Icon
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(categoryColor.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = animatedResult.server.category.icon,
+                                    contentDescription = null,
+                                    tint = categoryColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            // Server name and rating
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = animatedResult.server.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = animatedResult.rating.displayName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = ratingColor
+                                )
+                            }
+
+                            // Latency
+                            Text(
+                                text = "${animatedResult.latencyMs} ms",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
-                                text = result.rating.displayName,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = ratingColor
-                            )
                         }
-
-                        // Latency
-                        Text(
-                            text = "${result.latencyMs} ms",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
                     }
                 }
             }

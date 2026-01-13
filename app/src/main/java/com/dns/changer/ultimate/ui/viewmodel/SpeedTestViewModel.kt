@@ -52,6 +52,18 @@ class SpeedTestViewModel @Inject constructor(
 
     private var pendingConnectionServer: DnsServer? = null
 
+    // Auto-start flag - set when navigating from "Find Fastest" button
+    private val _shouldAutoStart = MutableStateFlow(false)
+    val shouldAutoStart: StateFlow<Boolean> = _shouldAutoStart.asStateFlow()
+
+    fun requestAutoStart() {
+        _shouldAutoStart.value = true
+    }
+
+    fun clearAutoStart() {
+        _shouldAutoStart.value = false
+    }
+
     fun startSpeedTest(isPremium: Boolean) {
         // Reset session unlock when starting a new test (non-premium users need to watch ad again)
         if (!isPremium) {

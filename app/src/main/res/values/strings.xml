@@ -16,6 +16,8 @@
     <string name="tap_to_disconnect">Tap to disconnect</string>
     <string name="current_dns">Current DNS</string>
     <string name="select_server">Select Server</string>
+    <string name="search_dns">Search DNS servers…</string>
+    <string name="find_fastest">Find Fastest DNS</string>
     <string name="add_custom_dns">Add Custom DNS</string>
     <string name="dns_primary">Primary DNS</string>
     <string name="dns_secondary">Secondary DNS</string>
