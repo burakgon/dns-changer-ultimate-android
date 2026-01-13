@@ -8,12 +8,12 @@ plugins {
 
 android {
     namespace = "com.dns.changer.ultimate"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.dns.changer.ultimate"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
@@ -39,8 +39,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     buildFeatures {
@@ -92,7 +94,7 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")
-    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
 
     // Compose UI Testing
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -100,9 +102,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // Hilt Testing
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.54")
-    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.54")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.57.1")
+    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.57.1")
 
-    // UI Automator for API 36 compatibility
+    // UI Automator
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 }
