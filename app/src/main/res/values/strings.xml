@@ -155,4 +155,12 @@
     <string name="feedback_ready">Ready to send</string>
     <string name="skip">Skip</string>
     <string name="send">Send</string>
+
+    <!-- Quick Settings Tile -->
+    <string name="tile_label">DNS Changer</string>
+    <string name="tile_disconnected">Tap to connect</string>
+    <string name="tile_connecting">Connecting…</string>
+    <string name="tile_disconnecting">Disconnecting…</string>
+    <string name="tile_switching">Switching…</string>
+    <string name="tile_error">Error</string>
 </resources>

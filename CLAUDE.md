@@ -56,7 +56,8 @@ app/src/main/java/com/dns/changer/ultimate/
 │   ├── DnsConnectionManager.kt # Manages VPN connection state
 │   ├── DnsSpeedTestService.kt  # Speed test functionality
 │   ├── DohClient.kt            # DNS-over-HTTPS client
-│   └── BootReceiver.kt         # Handles Start on Boot
+│   ├── BootReceiver.kt         # Handles Start on Boot
+│   └── DnsQuickSettingsTile.kt # Quick Settings tile for toggling DNS
 ├── ui/
 │   ├── components/     # Reusable UI components
 │   ├── navigation/     # Navigation setup (DnsNavHost, Screen)
