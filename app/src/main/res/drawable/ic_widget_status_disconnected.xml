@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Red circle background -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#F44336" />
+            <size android:width="40dp" android:height="40dp" />
+        </shape>
+    </item>
+    <!-- White X -->
+    <item
+        android:drawable="@drawable/ic_widget_off"
+        android:left="10dp"
+        android:top="10dp"
+        android:right="10dp"
+        android:bottom="10dp" />
+</layer-list>

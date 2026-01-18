@@ -97,6 +97,11 @@ dependencies {
     // OkHttp for DNS over HTTPS
     implementation(libs.okhttp)
 
+    // Glance for AppWidgets
+    implementation(libs.glance)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
+
     // Play In-App Review
     implementation(libs.play.review)
     implementation(libs.play.review.ktx)

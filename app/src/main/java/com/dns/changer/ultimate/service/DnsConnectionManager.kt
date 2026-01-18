@@ -10,6 +10,7 @@ import android.provider.Settings
 import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.repository.DnsRepository
+import com.dns.changer.ultimate.widget.WidgetUpdater
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -128,6 +129,7 @@ class DnsConnectionManager @Inject constructor(
     fun connect(server: DnsServer) {
         _connectionState.value = ConnectionState.Connecting
         currentServer = server
+        WidgetUpdater.update(context)
 
         try {
             connectViaVpn(server)
@@ -138,13 +140,16 @@ class DnsConnectionManager @Inject constructor(
                 dnsRepository.selectServer(server)
                 dnsRepository.setConnected(true)
             }
+            WidgetUpdater.update(context)
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.Error(e.message ?: "Connection failed")
+            WidgetUpdater.update(context)
         }
     }
 
     fun disconnect() {
         _connectionState.value = ConnectionState.Disconnecting
+        WidgetUpdater.update(context)
 
         try {
             stopVpnService()
@@ -155,16 +160,19 @@ class DnsConnectionManager @Inject constructor(
             scope.launch {
                 dnsRepository.setConnected(false)
             }
+            WidgetUpdater.update(context)
         } catch (e: Exception) {
             // Even on error, try to stop and reset
             stopVpnService()
             _connectionState.value = ConnectionState.Disconnected
             currentServer = null
+            WidgetUpdater.update(context)
         }
     }
 
     fun switchServer(newServer: DnsServer) {
         _connectionState.value = ConnectionState.Switching(newServer)
+        WidgetUpdater.update(context)
 
         try {
             // Just send new config to running service - no stop/start needed
@@ -177,8 +185,10 @@ class DnsConnectionManager @Inject constructor(
                 dnsRepository.selectServer(newServer)
                 dnsRepository.setConnected(true)
             }
+            WidgetUpdater.update(context)
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.Error(e.message ?: "Switch failed")
+            WidgetUpdater.update(context)
         }
     }
 

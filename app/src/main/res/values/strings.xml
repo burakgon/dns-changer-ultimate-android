@@ -165,4 +165,14 @@
     <string name="tile_disconnecting">Disconnecting…</string>
     <string name="tile_switching">Switching…</string>
     <string name="tile_error">Error</string>
+
+    <!-- Widget -->
+    <string name="widget_name">DNS Status</string>
+    <string name="widget_description">Toggle DNS protection with one tap</string>
+    <string name="widget_protected">Protected</string>
+    <string name="widget_not_protected">Not Protected</string>
+    <string name="widget_tap_to_connect">Tap to connect</string>
+    <string name="widget_tap_to_disconnect">Tap to disconnect</string>
+    <string name="widget_connecting">Connecting…</string>
+    <string name="widget_switching">Switching…</string>
 </resources>

@@ -56,6 +56,7 @@ import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import com.dns.changer.ultimate.ui.viewmodel.RatingViewModel
 import com.dns.changer.ultimate.service.DnsQuickSettingsTile
+import com.dns.changer.ultimate.widget.ToggleDnsAction
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -100,6 +101,9 @@ class MainActivity : ComponentActivity() {
         // Check if launched from Quick Settings tile for paywall
         val showTilePaywall = intent?.getBooleanExtra(DnsQuickSettingsTile.EXTRA_SHOW_TILE_PAYWALL, false) ?: false
 
+        // Check if launched from widget with action
+        val widgetAction = intent?.getStringExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION)
+
         setContent {
             val savedTheme by dnsPreferences.themeMode.collectAsState(initial = "SYSTEM")
             var currentTheme by remember { mutableStateOf(ThemeMode.SYSTEM) }
@@ -131,7 +135,8 @@ class MainActivity : ComponentActivity() {
                     onThemeChanged = { theme ->
                         currentTheme = theme
                     },
-                    showTilePaywallOnLaunch = showTilePaywall
+                    showTilePaywallOnLaunch = showTilePaywall,
+                    widgetAction = widgetAction
                 )
             }
         }
@@ -154,6 +159,7 @@ fun DnsChangerApp(
     preferences: DnsPreferences,
     onThemeChanged: (ThemeMode) -> Unit,
     showTilePaywallOnLaunch: Boolean = false,
+    widgetAction: String? = null,
     mainViewModel: MainViewModel = hiltViewModel(),
     premiumViewModel: PremiumViewModel = hiltViewModel(),
     ratingViewModel: RatingViewModel = hiltViewModel()
@@ -181,6 +187,18 @@ fun DnsChangerApp(
     LaunchedEffect(showTilePaywallOnLaunch) {
         if (showTilePaywallOnLaunch && !isPremium) {
             showPaywall = true
+        }
+    }
+
+    // Handle widget action - connect or disconnect
+    LaunchedEffect(widgetAction) {
+        when (widgetAction) {
+            ToggleDnsAction.ACTION_CONNECT -> {
+                mainViewModel.connect()
+            }
+            ToggleDnsAction.ACTION_DISCONNECT -> {
+                mainViewModel.disconnect()
+            }
         }
     }
 
