@@ -174,6 +174,7 @@ class DnsVpnService : VpnService() {
     private fun startWorker() {
         workerThread = Thread {
             android.util.Log.d("DnsVpnService", "Worker thread starting...")
+            // Cache vpnInterface locally to prevent race conditions
             val vpnFd = vpnInterface ?: run {
                 android.util.Log.e("DnsVpnService", "VPN interface is null!")
                 return@Thread
@@ -184,7 +185,8 @@ class DnsVpnService : VpnService() {
 
             android.util.Log.d("DnsVpnService", "Worker thread ready, waiting for packets...")
 
-            while (isRunning && vpnInterface != null) {
+            // Use only isRunning for loop control - vpnFd is cached locally
+            while (isRunning) {
                 try {
                     val length = inputStream.read(buffer)
                     if (length > 0) {
@@ -417,8 +419,18 @@ class DnsVpnService : VpnService() {
     }
 
     private fun stopWorker() {
-        workerThread?.interrupt()
+        val thread = workerThread
         workerThread = null
+        // Note: Thread is blocked on I/O read, so interrupt alone won't work.
+        // The VPN interface must be closed first (done in stopVpn/closeVpnInterface)
+        // which causes the read to fail and the thread to exit naturally.
+        thread?.interrupt()
+        // Wait briefly for thread to finish (with timeout to prevent blocking)
+        try {
+            thread?.join(1000)
+        } catch (e: InterruptedException) {
+            android.util.Log.w("DnsVpnService", "Interrupted while waiting for worker thread")
+        }
     }
 
     private fun closeVpnInterface() {
@@ -435,8 +447,10 @@ class DnsVpnService : VpnService() {
         isRunning = false
         isVpnRunning = false
         currentServerName = null
-        stopWorker()
+        // Close VPN interface BEFORE stopping worker - this causes read() to fail
+        // and allows the worker thread to exit cleanly
         closeVpnInterface()
+        stopWorker()
         dohClient?.shutdown()
         dohClient = null
         stopForeground(STOP_FOREGROUND_REMOVE)

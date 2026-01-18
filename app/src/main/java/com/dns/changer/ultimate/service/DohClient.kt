@@ -84,18 +84,19 @@ class DohClient(
     }
 
     /**
-     * Shutdown the client and release resources
-     * This runs on a background thread to avoid NetworkOnMainThreadException
+     * Shutdown the client and release resources synchronously.
+     * Call this from a background thread or coroutine to avoid blocking the main thread.
      */
     fun shutdown() {
-        Thread {
-            try {
-                client.dispatcher.executorService.shutdown()
-                client.connectionPool.evictAll()
-                client.cache?.close()
-            } catch (e: Exception) {
-                android.util.Log.w("DohClient", "Shutdown error: ${e.message}")
-            }
-        }.start()
+        try {
+            // Shutdown dispatcher to stop accepting new requests
+            client.dispatcher.executorService.shutdown()
+            // Evict idle connections from the pool
+            client.connectionPool.evictAll()
+            // Close cache if present
+            client.cache?.close()
+        } catch (e: Exception) {
+            android.util.Log.w("DohClient", "Shutdown error: ${e.message}")
+        }
     }
 }

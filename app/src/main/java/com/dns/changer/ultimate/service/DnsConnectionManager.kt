@@ -11,9 +11,9 @@ import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.repository.DnsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +26,8 @@ class DnsConnectionManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dnsRepository: DnsRepository
 ) {
+    // Structured concurrency: Use SupervisorJob so child failures don't cancel siblings
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
@@ -131,8 +133,8 @@ class DnsConnectionManager @Inject constructor(
             connectViaVpn(server)
             // Update state immediately - VPN service will handle actual connection
             _connectionState.value = ConnectionState.Connected(server)
-            // Fire-and-forget DataStore updates
-            GlobalScope.launch(Dispatchers.IO) {
+            // Fire-and-forget DataStore updates using structured concurrency
+            scope.launch {
                 dnsRepository.selectServer(server)
                 dnsRepository.setConnected(true)
             }
@@ -149,8 +151,8 @@ class DnsConnectionManager @Inject constructor(
             // Update state immediately - don't wait for DataStore
             _connectionState.value = ConnectionState.Disconnected
             currentServer = null
-            // Fire-and-forget DataStore update
-            GlobalScope.launch(Dispatchers.IO) {
+            // Fire-and-forget DataStore update using structured concurrency
+            scope.launch {
                 dnsRepository.setConnected(false)
             }
         } catch (e: Exception) {
@@ -170,8 +172,8 @@ class DnsConnectionManager @Inject constructor(
             connectViaVpn(newServer)
             // Update state immediately
             _connectionState.value = ConnectionState.Connected(newServer)
-            // Fire-and-forget DataStore updates
-            GlobalScope.launch(Dispatchers.IO) {
+            // Fire-and-forget DataStore updates using structured concurrency
+            scope.launch {
                 dnsRepository.selectServer(newServer)
                 dnsRepository.setConnected(true)
             }

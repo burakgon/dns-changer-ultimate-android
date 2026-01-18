@@ -60,6 +60,12 @@ class LeakTestViewModel @Inject constructor(
 
     val connectionState: StateFlow<ConnectionState> = connectionManager.connectionState
 
+    // Reuse OkHttpClient to leverage connection pooling and reduce resource overhead
+    private val httpClient = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
     fun startTest() {
         viewModelScope.launch {
             _state.value = LeakTestState(status = LeakTestStatus.RUNNING)
@@ -95,10 +101,8 @@ class LeakTestViewModel @Inject constructor(
         val results = mutableListOf<DnsLeakResult>()
         var userPublicIp: String? = null
 
-        val client = okhttp3.OkHttpClient.Builder()
-            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
+        // Use class-level httpClient for connection pooling
+        val client = httpClient
 
         try {
             // Step 1: Get unique test ID from bash.ws

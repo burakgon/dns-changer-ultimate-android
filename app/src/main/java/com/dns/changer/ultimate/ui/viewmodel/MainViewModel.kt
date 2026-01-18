@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -61,17 +62,17 @@ class MainViewModel @Inject constructor(
 
     /**
      * Set Cloudflare as default DNS server if no server is selected (first launch)
+     * Uses first() instead of collect to avoid endless collection
      */
     private fun setDefaultServerIfNeeded() {
         viewModelScope.launch {
-            dnsRepository.selectedDnsId.collect { id ->
-                if (id == null && _uiState.value.selectedServer == null) {
-                    // First launch - set Cloudflare as default
-                    val defaultServer = PresetDnsServers.all.first() // Cloudflare
-                    _uiState.update { it.copy(selectedServer = defaultServer) }
-                    dnsRepository.selectServer(defaultServer)
-                    android.util.Log.d("MainViewModel", "Set default server: ${defaultServer.name}")
-                }
+            val id = dnsRepository.selectedDnsId.first()
+            if (id == null && _uiState.value.selectedServer == null) {
+                // First launch - set Cloudflare as default
+                val defaultServer = PresetDnsServers.all.first() // Cloudflare
+                _uiState.update { it.copy(selectedServer = defaultServer) }
+                dnsRepository.selectServer(defaultServer)
+                android.util.Log.d("MainViewModel", "Set default server: ${defaultServer.name}")
             }
         }
     }

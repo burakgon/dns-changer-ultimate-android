@@ -109,8 +109,9 @@ class DnsSpeedTestService @Inject constructor() {
     }
 
     private fun measureDnsLatency(dnsServer: String): Long {
+        var socket: DatagramSocket? = null
         return try {
-            val socket = DatagramSocket()
+            socket = DatagramSocket()
             socket.soTimeout = 3000 // 3 second timeout for faster testing
 
             // Simple DNS query for google.com
@@ -127,11 +128,12 @@ class DnsSpeedTestService @Inject constructor() {
             socket.receive(responsePacket)
 
             val endTime = System.currentTimeMillis()
-            socket.close()
-
             endTime - startTime
         } catch (e: Exception) {
             -1L // Return -1 for failed tests
+        } finally {
+            // Always close socket to prevent resource leaks
+            socket?.close()
         }
     }
 

@@ -53,7 +53,7 @@ import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import com.dns.changer.ultimate.ui.viewmodel.RatingViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -88,8 +88,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Increment launch count for rating prompt
-        CoroutineScope(Dispatchers.IO).launch {
+        // Increment launch count for rating prompt using lifecycle-aware scope
+        lifecycleScope.launch(Dispatchers.IO) {
             ratingPreferences.incrementLaunchCount()
         }
 
