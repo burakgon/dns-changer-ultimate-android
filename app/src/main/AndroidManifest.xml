@@ -14,6 +14,9 @@
     <!-- AdMob permission -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
+    <!-- Boot completed permission for start on boot feature -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:name=".DnsChangerApp"
         android:allowBackup="true"
@@ -52,6 +55,16 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="dns_routing" />
         </service>
+
+        <!-- Boot Receiver for start on boot feature (Premium) -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

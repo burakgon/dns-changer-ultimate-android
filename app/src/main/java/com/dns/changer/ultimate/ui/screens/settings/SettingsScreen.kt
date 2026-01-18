@@ -23,17 +23,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.SettingsSuggest
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,7 +57,9 @@ import androidx.compose.ui.unit.dp
 import com.dns.changer.ultimate.BuildConfig
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
+import com.dns.changer.ultimate.ui.screens.paywall.PaywallScreen
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
+import com.revenuecat.purchases.models.StoreProduct
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 import kotlinx.coroutines.launch
 
@@ -56,11 +71,18 @@ enum class ThemeMode {
 fun SettingsScreen(
     preferences: DnsPreferences,
     onThemeChanged: (ThemeMode) -> Unit = {},
+    products: Map<String, StoreProduct> = emptyMap(),
+    isLoadingPurchase: Boolean = false,
+    onPurchase: (StoreProduct) -> Unit = {},
+    onRestorePurchases: () -> Unit = {},
     adaptiveConfig: AdaptiveLayoutConfig
 ) {
     val scope = rememberCoroutineScope()
     val savedTheme by preferences.themeMode.collectAsState(initial = "SYSTEM")
     val selectedTheme = ThemeMode.valueOf(savedTheme)
+    val isPremium by preferences.isPremium.collectAsState(initial = false)
+    val startOnBoot by preferences.startOnBoot.collectAsState(initial = false)
+    var showPaywall by remember { mutableStateOf(false) }
 
     // Center content on larger screens
     Box(
@@ -154,6 +176,82 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Features Section (Premium)
+            SectionHeader(title = stringResource(R.string.features))
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = DnsShapes.Card,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (isPremium) {
+                                scope.launch { preferences.setStartOnBoot(!startOnBoot) }
+                            } else {
+                                showPaywall = true
+                            }
+                        }
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PowerSettingsNew,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(R.string.start_on_boot),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (!isPremium) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    PremiumBadge()
+                                }
+                            }
+                            Text(
+                                text = stringResource(R.string.start_on_boot_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = startOnBoot && isPremium,
+                        onCheckedChange = { enabled ->
+                            if (isPremium) {
+                                scope.launch { preferences.setStartOnBoot(enabled) }
+                            } else {
+                                showPaywall = true
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             // About Section
             SectionHeader(title = stringResource(R.string.about))
 
@@ -187,6 +285,56 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        // Full-screen Paywall
+        if (showPaywall) {
+            Dialog(
+                onDismissRequest = { showPaywall = false },
+                properties = DialogProperties(
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false
+                )
+            ) {
+                PaywallScreen(
+                    products = products,
+                    isLoading = isLoadingPurchase,
+                    onPurchase = { product ->
+                        onPurchase(product)
+                    },
+                    onRestore = onRestorePurchases,
+                    onDismiss = { showPaywall = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumBadge() {
+    Box(
+        modifier = Modifier
+            .background(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = RoundedCornerShape(4.dp)
+            )
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.WorkspacePremium,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(12.dp)
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+                text = "PRO",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
         }
     }
 }

@@ -22,6 +22,7 @@ import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
 import com.dns.changer.ultimate.ui.screens.speedtest.SpeedTestScreen
 import com.dns.changer.ultimate.ui.theme.rememberAdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.viewmodel.SpeedTestViewModel
+import com.revenuecat.purchases.models.StoreProduct
 
 @Composable
 fun DnsNavHost(
@@ -32,7 +33,13 @@ fun DnsNavHost(
     onRequestVpnPermission: (Intent) -> Unit,
     onRequestVpnPermissionWithCallback: (Intent, (Boolean) -> Unit) -> Unit,
     onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
-    onThemeChanged: (ThemeMode) -> Unit
+    onThemeChanged: (ThemeMode) -> Unit,
+    // Paywall parameters
+    products: Map<String, StoreProduct> = emptyMap(),
+    isLoadingPurchase: Boolean = false,
+    onPurchase: (StoreProduct) -> Unit = {},
+    onRestorePurchases: () -> Unit = {},
+    onShowPaywall: () -> Unit = {}
 ) {
     // Get adaptive layout configuration for tablets/foldables
     val adaptiveConfig = rememberAdaptiveLayoutConfig()
@@ -65,6 +72,7 @@ fun DnsNavHost(
                 adaptiveConfig = adaptiveConfig,
                 isPremium = isPremium,
                 onShowPremiumGate = onShowPremiumGate,
+                onShowPaywall = onShowPaywall,
                 onNavigateToSpeedTest = {
                     speedTestViewModel.requestAutoStart()
                     navController.navigate(Screen.SpeedTest.route) {
@@ -98,6 +106,10 @@ fun DnsNavHost(
             SettingsScreen(
                 preferences = preferences,
                 onThemeChanged = onThemeChanged,
+                products = products,
+                isLoadingPurchase = isLoadingPurchase,
+                onPurchase = onPurchase,
+                onRestorePurchases = onRestorePurchases,
                 adaptiveConfig = adaptiveConfig
             )
         }

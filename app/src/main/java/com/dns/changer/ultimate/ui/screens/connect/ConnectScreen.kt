@@ -72,6 +72,7 @@ fun ConnectScreen(
     adaptiveConfig: AdaptiveLayoutConfig,
     isPremium: Boolean = false,
     onShowPremiumGate: (() -> Unit) -> Unit = {},
+    onShowPaywall: () -> Unit = {},
     onNavigateToSpeedTest: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -262,9 +263,9 @@ fun ConnectScreen(
             },
             isPremium = isPremium,
             onShowPremiumGate = {
-                // When DoH toggle is tapped without premium, show premium gate
-                // The callback will be called after user unlocks premium (via ad or subscription)
-                onShowPremiumGate { /* DoH access granted via session unlock */ }
+                // DoH is a premium-only feature (no watch ad option)
+                // Show paywall directly
+                onShowPaywall()
             }
         )
     }

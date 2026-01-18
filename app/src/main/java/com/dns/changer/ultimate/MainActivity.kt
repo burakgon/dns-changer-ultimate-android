@@ -47,7 +47,10 @@ import com.dns.changer.ultimate.ui.components.PremiumGatePopup
 import com.dns.changer.ultimate.ui.components.RatingDialog
 import com.dns.changer.ultimate.ui.navigation.DnsNavHost
 import com.dns.changer.ultimate.ui.navigation.Screen
+import com.dns.changer.ultimate.ui.screens.paywall.PaywallScreen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
@@ -154,6 +157,8 @@ fun DnsChangerApp(
     val currentDestination = navBackStackEntry?.destination
 
     val isPremium by premiumViewModel.isPremium.collectAsState()
+    val premiumState by premiumViewModel.premiumState.collectAsState()
+    val products by premiumViewModel.products.collectAsState()
     val mainUiState by mainViewModel.uiState.collectAsState()
 
     // Rating state
@@ -162,6 +167,7 @@ fun DnsChangerApp(
 
     var showPremiumGate by remember { mutableStateOf(false) }
     var onPremiumUnlock by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var showPaywall by remember { mutableStateOf(false) }
 
     // Rating prompt is automatically checked via Flow observation in RatingViewModel
 
@@ -243,7 +249,19 @@ fun DnsChangerApp(
                     onPremiumUnlock = unlockCallback
                     showPremiumGate = true
                 },
-                onThemeChanged = onThemeChanged
+                onThemeChanged = onThemeChanged,
+                // Paywall parameters
+                products = products,
+                isLoadingPurchase = premiumState.isLoading,
+                onPurchase = { product ->
+                    premiumViewModel.purchaseProduct(activity, product)
+                },
+                onRestorePurchases = {
+                    premiumViewModel.restorePurchases()
+                },
+                onShowPaywall = {
+                    showPaywall = true
+                }
             )
         }
 
@@ -313,5 +331,29 @@ fun DnsChangerApp(
             },
             onFeedbackSkip = { ratingViewModel.onFeedbackSkipped() }
         )
+
+        // Full-screen Paywall (for premium-only features like DoH)
+        if (showPaywall) {
+            Dialog(
+                onDismissRequest = { showPaywall = false },
+                properties = DialogProperties(
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false
+                )
+            ) {
+                PaywallScreen(
+                    products = products,
+                    isLoading = premiumState.isLoading,
+                    onPurchase = { product ->
+                        premiumViewModel.purchaseProduct(activity, product)
+                    },
+                    onRestore = {
+                        premiumViewModel.restorePurchases()
+                    },
+                    onDismiss = { showPaywall = false }
+                )
+            }
+        }
     }
 }
