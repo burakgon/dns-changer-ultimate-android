@@ -55,6 +55,7 @@ import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import com.dns.changer.ultimate.ui.viewmodel.RatingViewModel
+import com.dns.changer.ultimate.service.DnsQuickSettingsTile
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +97,9 @@ class MainActivity : ComponentActivity() {
             ratingPreferences.incrementLaunchCount()
         }
 
+        // Check if launched from Quick Settings tile for paywall
+        val showTilePaywall = intent?.getBooleanExtra(DnsQuickSettingsTile.EXTRA_SHOW_TILE_PAYWALL, false) ?: false
+
         setContent {
             val savedTheme by dnsPreferences.themeMode.collectAsState(initial = "SYSTEM")
             var currentTheme by remember { mutableStateOf(ThemeMode.SYSTEM) }
@@ -126,7 +130,8 @@ class MainActivity : ComponentActivity() {
                     preferences = dnsPreferences,
                     onThemeChanged = { theme ->
                         currentTheme = theme
-                    }
+                    },
+                    showTilePaywallOnLaunch = showTilePaywall
                 )
             }
         }
@@ -148,6 +153,7 @@ fun DnsChangerApp(
     activity: Activity,
     preferences: DnsPreferences,
     onThemeChanged: (ThemeMode) -> Unit,
+    showTilePaywallOnLaunch: Boolean = false,
     mainViewModel: MainViewModel = hiltViewModel(),
     premiumViewModel: PremiumViewModel = hiltViewModel(),
     ratingViewModel: RatingViewModel = hiltViewModel()
@@ -170,6 +176,13 @@ fun DnsChangerApp(
     var premiumGateTitle by remember { mutableStateOf("") }
     var premiumGateDescription by remember { mutableStateOf("") }
     var showPaywall by remember { mutableStateOf(false) }
+
+    // Show paywall if launched from Quick Settings tile (premium feature)
+    LaunchedEffect(showTilePaywallOnLaunch) {
+        if (showTilePaywallOnLaunch && !isPremium) {
+            showPaywall = true
+        }
+    }
 
     // Rating prompt is automatically checked via Flow observation in RatingViewModel
 

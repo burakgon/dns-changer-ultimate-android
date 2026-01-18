@@ -8,6 +8,7 @@ import android.service.quicksettings.TileService
 import com.dns.changer.ultimate.MainActivity
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.ConnectionState
+import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.repository.DnsRepository
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.EntryPoint
@@ -22,27 +23,37 @@ import kotlinx.coroutines.launch
 
 class DnsQuickSettingsTile : TileService() {
 
+    companion object {
+        const val EXTRA_SHOW_TILE_PAYWALL = "show_tile_paywall"
+    }
+
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface QuickSettingsTileEntryPoint {
         fun dnsConnectionManager(): DnsConnectionManager
         fun dnsRepository(): DnsRepository
+        fun dnsPreferences(): DnsPreferences
     }
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    private val connectionManager: DnsConnectionManager by lazy {
+    private val entryPoint: QuickSettingsTileEntryPoint by lazy {
         EntryPointAccessors.fromApplication(
             applicationContext,
             QuickSettingsTileEntryPoint::class.java
-        ).dnsConnectionManager()
+        )
+    }
+
+    private val connectionManager: DnsConnectionManager by lazy {
+        entryPoint.dnsConnectionManager()
     }
 
     private val dnsRepository: DnsRepository by lazy {
-        EntryPointAccessors.fromApplication(
-            applicationContext,
-            QuickSettingsTileEntryPoint::class.java
-        ).dnsRepository()
+        entryPoint.dnsRepository()
+    }
+
+    private val dnsPreferences: DnsPreferences by lazy {
+        entryPoint.dnsPreferences()
     }
 
     override fun onStartListening() {
@@ -58,6 +69,14 @@ class DnsQuickSettingsTile : TileService() {
         super.onClick()
 
         scope.launch {
+            // Check if user is premium - Quick Settings tile is a premium feature
+            val isPremium = dnsPreferences.isPremium.first()
+            if (!isPremium) {
+                // Not premium - open app and show paywall
+                openAppWithPaywall()
+                return@launch
+            }
+
             val currentState = connectionManager.connectionState.value
 
             when (currentState) {
@@ -102,6 +121,18 @@ class DnsQuickSettingsTile : TileService() {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
+        launchActivity(intent)
+    }
+
+    private fun openAppWithPaywall() {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(EXTRA_SHOW_TILE_PAYWALL, true)
+        }
+        launchActivity(intent)
+    }
+
+    private fun launchActivity(intent: Intent) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startActivityAndCollapse(intent)
         } else {

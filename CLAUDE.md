@@ -87,6 +87,7 @@ app/src/main/java/com/dns/changer/ultimate/
 ### Premium-Only Features (No Watch Ad Option)
 1. **Start on Boot** - Auto-connect VPN on device boot (SettingsScreen)
 2. **DNS over HTTPS (DoH)** - Encrypted DNS queries (AddCustomDnsDialog)
+3. **Quick Settings Tile** - Toggle DNS from notification shade (DnsQuickSettingsTile)
 
 ### Premium-Gated Features (Watch Ad to Unlock)
 - **Multiple Custom DNS** - Free users limited to 1 custom DNS (ConnectScreen)
