@@ -49,6 +49,21 @@ class DnsConnectionManager @Inject constructor(
     }
 
     /**
+     * Check if internet connection is available (WiFi, Cellular, or Ethernet)
+     * Returns true if device has an active internet connection
+     */
+    fun isInternetAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+               capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) &&
+               (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))
+    }
+
+    /**
      * Check actual VPN state and sync our state with it
      * This checks the real system VPN state, not internal variables
      * Returns true if VPN is active, false otherwise

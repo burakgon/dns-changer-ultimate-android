@@ -42,6 +42,7 @@
     <string name="notification_channel_description">Shows DNS connection status</string>
     <string name="notification_title">DNS Changer Active</string>
     <string name="notification_text">Connected to %s</string>
+    <string name="no_internet_connection">No internet connection</string>
 
     <!-- Connection Success/Disconnection -->
     <string name="dns_protected">Your DNS is now protected</string>

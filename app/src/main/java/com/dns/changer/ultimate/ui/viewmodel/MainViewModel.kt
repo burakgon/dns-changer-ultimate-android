@@ -331,6 +331,13 @@ class MainViewModel @Inject constructor(
     }
 
     /**
+     * Check if internet connection is available
+     */
+    fun isInternetAvailable(): Boolean {
+        return connectionManager.isInternetAvailable()
+    }
+
+    /**
      * Set visual Connecting state without actually connecting
      * Used to show "Connecting..." while ad is loading
      */

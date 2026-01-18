@@ -39,6 +39,7 @@ class AdMobManager @Inject constructor(
         private const val MAX_RETRY_ATTEMPTS = 3
         private const val INITIAL_RETRY_DELAY_MS = 1000L
         private const val INTERSTITIAL_LOAD_TIMEOUT_MS = 6000L // 6 second max load time
+        private const val INTERSTITIAL_SHOW_TIMEOUT_MS = 45000L // 45 second max show time (failsafe)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -223,6 +224,8 @@ class AdMobManager @Inject constructor(
 
     private var interstitialTimeoutJob: Job? = null
     private var interstitialCallbackInvoked = AtomicBoolean(false)
+    private var showTimeoutJob: Job? = null
+    private var showCallbackInvoked = AtomicBoolean(false)
 
     /**
      * Load interstitial ad with a 6-second timeout.
@@ -306,26 +309,45 @@ class AdMobManager @Inject constructor(
         activity: Activity,
         onDismissed: () -> Unit
     ) {
+        // Reset show callback flag
+        showCallbackInvoked.set(false)
+
         val ad = interstitialAd
         if (ad == null) {
             Log.e(TAG, "Interstitial ad not ready, proceeding without ad")
-            onDismissed()
+            invokeShowCallback(onDismissed)
             return
+        }
+
+        // Cancel any existing show timeout
+        showTimeoutJob?.cancel()
+
+        // Start show timeout as failsafe (in case ad gets stuck)
+        showTimeoutJob = scope.launch {
+            delay(INTERSTITIAL_SHOW_TIMEOUT_MS)
+            if (!showCallbackInvoked.get()) {
+                Log.w(TAG, "Interstitial ad show timeout (${INTERSTITIAL_SHOW_TIMEOUT_MS}ms). Force proceeding.")
+                interstitialAd = null
+                _isInterstitialLoaded.value = false
+                invokeShowCallback(onDismissed)
+            }
         }
 
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
                 Log.d(TAG, "Interstitial ad dismissed")
+                showTimeoutJob?.cancel()
                 interstitialAd = null
                 _isInterstitialLoaded.value = false
-                onDismissed()
+                invokeShowCallback(onDismissed)
             }
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
                 Log.e(TAG, "Interstitial ad failed to show: ${adError.message}")
+                showTimeoutJob?.cancel()
                 interstitialAd = null
                 _isInterstitialLoaded.value = false
-                onDismissed()
+                invokeShowCallback(onDismissed)
             }
 
             override fun onAdShowedFullScreenContent() {
@@ -335,6 +357,15 @@ class AdMobManager @Inject constructor(
 
         Log.d(TAG, "Showing interstitial ad")
         ad.show(activity)
+    }
+
+    /**
+     * Thread-safe show callback invocation - ensures callback is only called once
+     */
+    private fun invokeShowCallback(callback: () -> Unit) {
+        if (showCallbackInvoked.compareAndSet(false, true)) {
+            callback.invoke()
+        }
     }
 
     fun isInterstitialReady(): Boolean {

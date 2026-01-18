@@ -52,6 +52,8 @@ import com.dns.changer.ultimate.ui.screens.paywall.PaywallScreen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PendingAction
@@ -224,6 +226,9 @@ fun DnsChangerApp(
     var premiumGateDescription by remember { mutableStateOf("") }
     var showPaywall by remember { mutableStateOf(false) }
 
+    // Context for showing toasts
+    val context = LocalContext.current
+
     // Show paywall if launched from Quick Settings tile (premium feature)
     LaunchedEffect(showTilePaywallOnLaunch) {
         if (showTilePaywallOnLaunch && !isPremium) {
@@ -236,6 +241,12 @@ fun DnsChangerApp(
 
     // Callback: set visual state first, wait 1 sec, show ad, then actually connect/disconnect
     val handleConnectWithAd: () -> Unit = handleConnectWithAd@{
+        // Check internet connection first
+        if (!mainViewModel.isInternetAvailable()) {
+            Toast.makeText(context, context.getString(R.string.no_internet_connection), Toast.LENGTH_SHORT).show()
+            return@handleConnectWithAd
+        }
+
         // Check VPN permission first
         val vpnIntent = mainViewModel.checkVpnPermission()
         if (vpnIntent != null) {
