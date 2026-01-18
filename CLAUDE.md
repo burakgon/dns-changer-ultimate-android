@@ -88,6 +88,7 @@ app/src/main/java/com/dns/changer/ultimate/
 2. **DNS over HTTPS (DoH)** - Encrypted DNS queries (AddCustomDnsDialog)
 
 ### Premium-Gated Features (Watch Ad to Unlock)
+- **Multiple Custom DNS** - Free users limited to 1 custom DNS (ConnectScreen)
 - Speed test (more than basic usage)
 - Other features use `onShowPremiumGate` callback with rewarded ads
 

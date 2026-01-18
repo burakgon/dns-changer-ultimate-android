@@ -238,7 +238,16 @@ fun ConnectScreen(
                 viewModel.selectServer(server)
             },
             onAddCustomDns = {
-                viewModel.showAddCustomDns()
+                // Check if free user already has 1 custom DNS
+                val customDnsCount = uiState.servers[DnsCategory.CUSTOM]?.size ?: 0
+                if (!isPremium && customDnsCount >= 1) {
+                    // Show premium gate with ads option
+                    onShowPremiumGate {
+                        viewModel.showAddCustomDns()
+                    }
+                } else {
+                    viewModel.showAddCustomDns()
+                }
             },
             onDeleteCustomDns = { serverId ->
                 viewModel.removeCustomDns(serverId)
