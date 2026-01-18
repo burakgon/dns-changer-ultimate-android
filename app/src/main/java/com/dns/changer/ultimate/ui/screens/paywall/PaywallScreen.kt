@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Https
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Rocket
@@ -95,6 +96,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.luminance
 import com.revenuecat.purchases.models.StoreProduct
+import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
@@ -349,21 +351,6 @@ private fun LandscapePaywallLayout(
     val rightScrollState = rememberScrollState()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Close button - top right
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-                .alpha(0.7f)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Close",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -434,6 +421,21 @@ private fun LandscapePaywallLayout(
                     )
                 }
             }
+        }
+
+        // Close button - top right (placed after Row so it's on top and receives touches)
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .alpha(0.7f)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Close",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -1216,8 +1218,10 @@ private fun BenefitsSection(isCompact: Boolean = false) {
         Triple(Icons.Default.Https, "DNS over HTTPS", "Encrypted & Private"),
         Triple(Icons.Default.PowerSettingsNew, "Auto-Connect", "Start on Boot"),
         Triple(Icons.Default.Widgets, "Quick Toggle", "One-Tap Access"),
-        Triple(Icons.Default.Speed, "Speed Tests", "Find Fastest DNS"),
+        Triple(Icons.Default.Star, "Home Widget", "Quick Access"),
         Triple(Icons.Default.Add, "Unlimited DNS", "Custom Servers"),
+        Triple(Icons.Default.Speed, "Speed Tests", "Find Fastest DNS"),
+        Triple(Icons.Default.Lightbulb, "Feature Requests", "Shape the App"),
         Triple(Icons.Default.Block, "Zero Ads", "100% Ad-Free")
     )
 
@@ -1250,8 +1254,10 @@ private fun BenefitsSectionLandscape() {
         Triple(Icons.Default.Https, "DNS over HTTPS", "Encrypted"),
         Triple(Icons.Default.PowerSettingsNew, "Auto-Connect", "Boot"),
         Triple(Icons.Default.Widgets, "Quick Toggle", "Access"),
-        Triple(Icons.Default.Speed, "Speed Tests", "Fast DNS"),
+        Triple(Icons.Default.Star, "Home Widget", "Quick"),
         Triple(Icons.Default.Add, "Unlimited DNS", "Custom"),
+        Triple(Icons.Default.Speed, "Speed Tests", "Fast"),
+        Triple(Icons.Default.Lightbulb, "Feature Requests", "Ideas"),
         Triple(Icons.Default.Block, "Zero Ads", "Ad-Free")
     )
 
@@ -2005,17 +2011,43 @@ private fun PurchaseCTAButton(
 }
 
 private fun buildPlansList(products: Map<String, StoreProduct>): List<PlanDetails> {
-    val monthlyProduct = products["dc_sub_1_month_7.50try"]
-    val yearlyProduct = products["dc_sub_1_year_32.00try"]
-    val yearlyTrialProduct = products["dc_sub_trial_1_year_32.00try"]
+    val monthlyProduct = products[PremiumViewModel.PACKAGE_ID_MONTHLY]
+    val yearlyProduct = products[PremiumViewModel.PACKAGE_ID_YEARLY]
+    val yearlyTrialProduct = products[PremiumViewModel.PACKAGE_ID_YEARLY_TRIAL]
 
-    val monthlyPrice = monthlyProduct?.price?.formatted ?: "₺7.50"
-    val yearlyPrice = yearlyProduct?.price?.formatted ?: "₺32.00"
-    val yearlyTrialPrice = yearlyTrialProduct?.price?.formatted ?: "₺32.00"
+    // Get formatted prices from RevenueCat (already localized)
+    val monthlyPrice = monthlyProduct?.price?.formatted ?: "---"
+    val yearlyPrice = yearlyProduct?.price?.formatted ?: "---"
+    val yearlyTrialPrice = yearlyTrialProduct?.price?.formatted ?: "---"
 
-    val monthlyAmount = 7.50
-    val yearlyAmount = 32.00
-    val savingsPercent = ((monthlyAmount * 12 - yearlyAmount) / (monthlyAmount * 12) * 100).toInt()
+    // Get actual amounts for calculations (in micros, divide by 1,000,000)
+    val monthlyAmountMicros = monthlyProduct?.price?.amountMicros ?: 0L
+    val yearlyAmountMicros = yearlyProduct?.price?.amountMicros ?: 0L
+    val yearlyTrialAmountMicros = yearlyTrialProduct?.price?.amountMicros ?: 0L
+
+    val monthlyAmount = monthlyAmountMicros / 1_000_000.0
+    val yearlyAmount = yearlyAmountMicros / 1_000_000.0
+
+    // Calculate savings dynamically
+    val savingsPercent = if (monthlyAmount > 0 && yearlyAmount > 0) {
+        ((monthlyAmount * 12 - yearlyAmount) / (monthlyAmount * 12) * 100).toInt()
+    } else {
+        0
+    }
+
+    // Calculate price per month for yearly plans
+    val yearlyPerMonth = if (yearlyAmount > 0) {
+        val perMonth = yearlyAmount / 12
+        // Format with currency symbol from the product
+        val currencySymbol = yearlyProduct?.price?.formatted?.firstOrNull { !it.isDigit() && it != '.' && it != ',' } ?: ""
+        "$currencySymbol${String.format("%.2f", perMonth)}"
+    } else null
+
+    val yearlyTrialPerMonth = if (yearlyTrialAmountMicros > 0) {
+        val perMonth = (yearlyTrialAmountMicros / 1_000_000.0) / 12
+        val currencySymbol = yearlyTrialProduct?.price?.formatted?.firstOrNull { !it.isDigit() && it != '.' && it != ',' } ?: ""
+        "$currencySymbol${String.format("%.2f", perMonth)}"
+    } else null
 
     return listOf(
         PlanDetails(
@@ -2034,8 +2066,8 @@ private fun buildPlansList(products: Map<String, StoreProduct>): List<PlanDetail
             period = "year",
             price = yearlyTrialPrice,
             originalPrice = null,
-            pricePerMonth = null,
-            savings = null,
+            pricePerMonth = yearlyTrialPerMonth,
+            savings = if (savingsPercent > 0) savingsPercent else null,
             isBestValue = true,
             hasFreeTrial = true,
             trialDays = 3,
@@ -2047,8 +2079,8 @@ private fun buildPlansList(products: Map<String, StoreProduct>): List<PlanDetail
             period = "year",
             price = yearlyPrice,
             originalPrice = null,
-            pricePerMonth = null,
-            savings = savingsPercent,
+            pricePerMonth = yearlyPerMonth,
+            savings = if (savingsPercent > 0) savingsPercent else null,
             storeProduct = yearlyProduct
         )
     )

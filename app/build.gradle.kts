@@ -11,7 +11,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.dns.changer.ultimate"
+        applicationId = "com.burakgon.dnschanger"
         minSdk = 24
         targetSdk = 36
         versionCode = 8
@@ -28,6 +28,15 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("MartianMode.jks")
+            storePassword = "Mahmuduniyisiniayilary3r"
+            keyAlias = "mahmut"
+            keyPassword = "Mahmuduniyisiniayilary3r"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -36,9 +45,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

@@ -13,7 +13,7 @@ class DnsChangerApp : Application() {
 
     companion object {
         // Replace with your actual RevenueCat API key
-        private const val REVENUECAT_API_KEY = "your_revenuecat_api_key"
+        private const val REVENUECAT_API_KEY = "goog_qryzFkHcohaglsKjuSNrNzVkrUc"
     }
 
     @Inject
