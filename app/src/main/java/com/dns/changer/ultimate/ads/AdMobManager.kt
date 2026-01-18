@@ -16,12 +16,14 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,6 +38,7 @@ class AdMobManager @Inject constructor(
         private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
         private const val MAX_RETRY_ATTEMPTS = 3
         private const val INITIAL_RETRY_DELAY_MS = 1000L
+        private const val INTERSTITIAL_LOAD_TIMEOUT_MS = 6000L // 6 second max load time
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -218,25 +221,46 @@ class AdMobManager @Inject constructor(
 
     // ============ Interstitial Ad Methods ============
 
-    fun loadInterstitialAd(onLoaded: (() -> Unit)? = null) {
-        if (_isInterstitialLoading.value) {
-            Log.d(TAG, "Interstitial ad is already loading, skipping")
-            return
-        }
+    private var interstitialTimeoutJob: Job? = null
+    private var interstitialCallbackInvoked = AtomicBoolean(false)
 
+    /**
+     * Load interstitial ad with a 6-second timeout.
+     * If ad doesn't load within timeout, proceeds without showing ad.
+     * This prevents users from getting stuck on "Connecting..." or "Disconnecting..." states.
+     */
+    fun loadInterstitialAd(onLoaded: (() -> Unit)? = null) {
+        // Reset callback flag for this load attempt
+        interstitialCallbackInvoked.set(false)
+
+        // If already loaded, invoke callback immediately
         if (_isInterstitialLoaded.value && interstitialAd != null) {
-            Log.d(TAG, "Interstitial ad already loaded")
-            onLoaded?.invoke()
+            Log.d(TAG, "Interstitial ad already loaded, proceeding immediately")
+            invokeInterstitialCallback(onLoaded)
             return
         }
 
         if (!isInitialized) {
-            Log.w(TAG, "AdMob not initialized yet for interstitial")
+            Log.w(TAG, "AdMob not initialized yet for interstitial, skipping ad")
+            invokeInterstitialCallback(onLoaded)
             return
         }
 
+        // Cancel any existing timeout
+        interstitialTimeoutJob?.cancel()
+
         _isInterstitialLoading.value = true
-        Log.d(TAG, "Loading interstitial ad (attempt ${interstitialRetryAttempt + 1}/$MAX_RETRY_ATTEMPTS)")
+        Log.d(TAG, "Loading interstitial ad with ${INTERSTITIAL_LOAD_TIMEOUT_MS}ms timeout")
+
+        // Start timeout timer
+        interstitialTimeoutJob = scope.launch {
+            delay(INTERSTITIAL_LOAD_TIMEOUT_MS)
+            if (!interstitialCallbackInvoked.get()) {
+                Log.w(TAG, "Interstitial ad load timeout (${INTERSTITIAL_LOAD_TIMEOUT_MS}ms). Skipping ad.")
+                _isInterstitialLoading.value = false
+                invokeInterstitialCallback(onLoaded)
+            }
+        }
 
         val adRequest = AdRequest.Builder().build()
 
@@ -247,37 +271,35 @@ class AdMobManager @Inject constructor(
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
                     Log.d(TAG, "Interstitial ad loaded successfully!")
+                    interstitialTimeoutJob?.cancel()
                     interstitialAd = ad
                     _isInterstitialLoaded.value = true
                     _isInterstitialLoading.value = false
                     interstitialRetryAttempt = 0
-                    onLoaded?.invoke()
+                    invokeInterstitialCallback(onLoaded)
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     Log.e(TAG, "Interstitial ad failed to load: ${error.message} (code: ${error.code})")
+                    interstitialTimeoutJob?.cancel()
                     interstitialAd = null
                     _isInterstitialLoaded.value = false
                     _isInterstitialLoading.value = false
-
-                    // Retry with exponential backoff
-                    if (interstitialRetryAttempt < MAX_RETRY_ATTEMPTS) {
-                        interstitialRetryAttempt++
-                        val delayMs = INITIAL_RETRY_DELAY_MS * (1 shl (interstitialRetryAttempt - 1))
-                        Log.d(TAG, "Retrying interstitial ad load in ${delayMs}ms")
-                        scope.launch {
-                            delay(delayMs)
-                            loadInterstitialAd(onLoaded)
-                        }
-                    } else {
-                        Log.e(TAG, "Max retry attempts reached for interstitial. Proceeding without ad.")
-                        interstitialRetryAttempt = 0
-                        // Call onLoaded anyway so the flow continues
-                        onLoaded?.invoke()
-                    }
+                    // Don't retry - just proceed without ad to not block user
+                    Log.d(TAG, "Proceeding without interstitial ad due to load failure")
+                    invokeInterstitialCallback(onLoaded)
                 }
             }
         )
+    }
+
+    /**
+     * Thread-safe callback invocation - ensures callback is only called once
+     */
+    private fun invokeInterstitialCallback(callback: (() -> Unit)?) {
+        if (interstitialCallbackInvoked.compareAndSet(false, true)) {
+            callback?.invoke()
+        }
     }
 
     fun showInterstitialAd(
