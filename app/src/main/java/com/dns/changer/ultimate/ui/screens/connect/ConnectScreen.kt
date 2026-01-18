@@ -73,13 +73,20 @@ fun ConnectScreen(
     isPremium: Boolean = false,
     onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit = { _, _, _ -> },
     onShowPaywall: () -> Unit = {},
-    onNavigateToSpeedTest: () -> Unit = {}
+    onNavigateToSpeedTest: () -> Unit = {},
+    onConnectWithAd: () -> Unit = {},
+    onDisconnectWithAd: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
 
     var showServerPicker by remember { mutableStateOf(false) }
     var showCustomCategory by remember { mutableStateOf(false) }
+
+    // Check if we're in a transitioning state where we should hide some UI
+    val isTransitioning = connectionState is ConnectionState.Connecting ||
+        connectionState is ConnectionState.Disconnecting ||
+        connectionState is ConnectionState.Switching
 
     // Determine power button size based on window size
     val powerButtonSize = when (adaptiveConfig.windowSize) {
@@ -113,18 +120,12 @@ fun ConnectScreen(
                 ) {
                     PowerButton(
                         connectionState = connectionState,
+                        isPreparing = false,
                         size = powerButtonSize,
                         onClick = {
                             when (connectionState) {
-                                is ConnectionState.Connected -> viewModel.disconnect()
-                                is ConnectionState.Disconnected -> {
-                                    val vpnIntent = uiState.vpnPermissionIntent
-                                    if (vpnIntent != null) {
-                                        onRequestVpnPermission(vpnIntent)
-                                    } else {
-                                        viewModel.connect()
-                                    }
-                                }
+                                is ConnectionState.Connected -> onDisconnectWithAd()
+                                is ConnectionState.Disconnected -> onConnectWithAd()
                                 else -> {}
                             }
                         }
@@ -134,32 +135,31 @@ fun ConnectScreen(
 
                     StatusText(
                         connectionState = connectionState,
-                        onConnect = {
-                            val vpnIntent = uiState.vpnPermissionIntent
-                            if (vpnIntent != null) {
-                                onRequestVpnPermission(vpnIntent)
-                            } else {
-                                viewModel.connect()
-                            }
-                        }
+                        isPreparing = false,
+                        onConnect = null // Disable click during expanded layout
                     )
                 }
 
-                // Right side: Server Selection Card
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(start = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    ServerSelectionCard(
-                        server = uiState.selectedServer,
-                        isConnected = connectionState is ConnectionState.Connected,
-                        onClick = { showServerPicker = true },
-                        maxWidth = 400.dp
-                    )
+                // Right side: Server Selection Card - hide during preparing/transitioning
+                if (!isTransitioning) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(start = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        ServerSelectionCard(
+                            server = uiState.selectedServer,
+                            isConnected = connectionState is ConnectionState.Connected,
+                            onClick = { showServerPicker = true },
+                            maxWidth = 400.dp
+                        )
+                    }
+                } else {
+                    // Empty space to maintain layout
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         } else {
@@ -182,18 +182,12 @@ fun ConnectScreen(
                     // Power Button
                     PowerButton(
                         connectionState = connectionState,
+                        isPreparing = false,
                         size = powerButtonSize,
                         onClick = {
                             when (connectionState) {
-                                is ConnectionState.Connected -> viewModel.disconnect()
-                                is ConnectionState.Disconnected -> {
-                                    val vpnIntent = uiState.vpnPermissionIntent
-                                    if (vpnIntent != null) {
-                                        onRequestVpnPermission(vpnIntent)
-                                    } else {
-                                        viewModel.connect()
-                                    }
-                                }
+                                is ConnectionState.Connected -> onDisconnectWithAd()
+                                is ConnectionState.Disconnected -> onConnectWithAd()
                                 else -> {}
                             }
                         }
@@ -204,24 +198,22 @@ fun ConnectScreen(
                     // Status Text
                     StatusText(
                         connectionState = connectionState,
-                        onConnect = {
-                            val vpnIntent = uiState.vpnPermissionIntent
-                            if (vpnIntent != null) {
-                                onRequestVpnPermission(vpnIntent)
-                            } else {
-                                viewModel.connect()
-                            }
-                        }
+                        isPreparing = false,
+                        onConnect = if (!isTransitioning) {
+                            { onConnectWithAd() }
+                        } else null
                     )
 
-                    Spacer(modifier = Modifier.height(40.dp))
+                    // Server Selection Card - hide during preparing/transitioning
+                    if (!isTransitioning) {
+                        Spacer(modifier = Modifier.height(40.dp))
 
-                    // Server Selection Card
-                    ServerSelectionCard(
-                        server = uiState.selectedServer,
-                        isConnected = connectionState is ConnectionState.Connected,
-                        onClick = { showServerPicker = true }
-                    )
+                        ServerSelectionCard(
+                            server = uiState.selectedServer,
+                            isConnected = connectionState is ConnectionState.Connected,
+                            onClick = { showServerPicker = true }
+                        )
+                    }
 
                     Spacer(modifier = Modifier.weight(1f))
                 }
@@ -287,6 +279,7 @@ fun ConnectScreen(
 @Composable
 private fun PowerButton(
     connectionState: ConnectionState,
+    isPreparing: Boolean = false,
     onClick: () -> Unit,
     size: Dp = 200.dp
 ) {
@@ -295,7 +288,7 @@ private fun PowerButton(
     val isDisconnecting = connectionState is ConnectionState.Disconnecting
     val isSwitching = connectionState is ConnectionState.Switching
     val isError = connectionState is ConnectionState.Error
-    val isTransitioning = isConnecting || isDisconnecting || isSwitching
+    val isTransitioning = isConnecting || isDisconnecting || isSwitching || isPreparing
 
     val infiniteTransition = rememberInfiniteTransition(label = "powerButton")
 
@@ -422,32 +415,39 @@ private fun PowerButton(
 @Composable
 private fun StatusText(
     connectionState: ConnectionState,
+    isPreparing: Boolean = false,
     onConnect: (() -> Unit)? = null
 ) {
-    val statusText = when (connectionState) {
-        is ConnectionState.Connected -> "Connected"
-        is ConnectionState.Connecting -> "Connecting..."
-        is ConnectionState.Disconnecting -> "Disconnecting..."
-        is ConnectionState.Switching -> "Switching..."
-        is ConnectionState.Error -> connectionState.message
-        is ConnectionState.Disconnected -> "Tap to connect"
+    val statusText = when {
+        isPreparing -> "Preparing..."
+        connectionState is ConnectionState.Connected -> "Connected"
+        connectionState is ConnectionState.Connecting -> "Connecting..."
+        connectionState is ConnectionState.Disconnecting -> "Disconnecting..."
+        connectionState is ConnectionState.Switching -> "Switching..."
+        connectionState is ConnectionState.Error -> connectionState.message
+        connectionState is ConnectionState.Disconnected -> "Tap to connect"
+        else -> ""
     }
 
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val secondaryColor = MaterialTheme.colorScheme.secondary
 
     val statusColor by animateColorAsState(
-        targetValue = when (connectionState) {
-            is ConnectionState.Connected -> tertiaryColor
-            is ConnectionState.Error -> MaterialTheme.colorScheme.error
-            is ConnectionState.Connecting, is ConnectionState.Disconnecting, is ConnectionState.Switching -> secondaryColor
-            is ConnectionState.Disconnected -> MaterialTheme.colorScheme.onSurfaceVariant
+        targetValue = when {
+            isPreparing -> secondaryColor
+            connectionState is ConnectionState.Connected -> tertiaryColor
+            connectionState is ConnectionState.Error -> MaterialTheme.colorScheme.error
+            connectionState is ConnectionState.Connecting ||
+            connectionState is ConnectionState.Disconnecting ||
+            connectionState is ConnectionState.Switching -> secondaryColor
+            connectionState is ConnectionState.Disconnected -> MaterialTheme.colorScheme.onSurfaceVariant
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "statusColor"
     )
 
-    val isClickable = connectionState is ConnectionState.Disconnected && onConnect != null
+    val isClickable = connectionState is ConnectionState.Disconnected && onConnect != null && !isPreparing
 
     Text(
         text = statusText,

@@ -9,8 +9,8 @@ import android.service.quicksettings.TileService
 import com.dns.changer.ultimate.MainActivity
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.ConnectionState
-import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.repository.DnsRepository
+import com.dns.changer.ultimate.widget.ToggleDnsAction
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 class DnsQuickSettingsTile : TileService() {
 
     companion object {
+        // Keep for backwards compatibility with MainActivity
         const val EXTRA_SHOW_TILE_PAYWALL = "show_tile_paywall"
     }
 
@@ -33,7 +34,6 @@ class DnsQuickSettingsTile : TileService() {
     interface QuickSettingsTileEntryPoint {
         fun dnsConnectionManager(): DnsConnectionManager
         fun dnsRepository(): DnsRepository
-        fun dnsPreferences(): DnsPreferences
     }
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -53,10 +53,6 @@ class DnsQuickSettingsTile : TileService() {
         entryPoint.dnsRepository()
     }
 
-    private val dnsPreferences: DnsPreferences by lazy {
-        entryPoint.dnsPreferences()
-    }
-
     override fun onStartListening() {
         super.onStartListening()
         updateTileState()
@@ -70,51 +66,35 @@ class DnsQuickSettingsTile : TileService() {
         super.onClick()
 
         scope.launch {
-            // Check if user is premium - Quick Settings tile is a premium feature
-            val isPremium = dnsPreferences.isPremium.first()
-            if (!isPremium) {
-                // Not premium - open app and show paywall
-                openAppWithPaywall()
-                return@launch
-            }
-
             val currentState = connectionManager.connectionState.value
 
             when (currentState) {
                 is ConnectionState.Connected -> {
-                    // Disconnect
-                    connectionManager.disconnect()
+                    // Open app with disconnect action (same flow as widget/button - shows ad)
+                    openAppWithAction(ToggleDnsAction.ACTION_DISCONNECT)
                 }
                 is ConnectionState.Disconnected -> {
-                    // Connect - need VPN permission check
-                    val permissionIntent = connectionManager.checkVpnPermission()
-                    if (permissionIntent != null) {
-                        // Need VPN permission - open app
+                    // Check if server is selected
+                    val server = dnsRepository.selectedServer.first()
+                    if (server == null) {
+                        // No server selected - open app normally
                         openApp()
                         return@launch
                     }
-
-                    // Get selected server
-                    val server = dnsRepository.selectedServer.first()
-                    if (server != null) {
-                        connectionManager.connect(server)
-                    } else {
-                        // No server selected - open app
-                        openApp()
-                    }
+                    // Open app with connect action (same flow as widget/button - shows ad)
+                    openAppWithAction(ToggleDnsAction.ACTION_CONNECT)
                 }
                 is ConnectionState.Connecting,
                 is ConnectionState.Disconnecting,
                 is ConnectionState.Switching -> {
-                    // In transition state - do nothing
+                    // In transition state - just open app
+                    openApp()
                 }
                 is ConnectionState.Error -> {
                     // On error, open app
                     openApp()
                 }
             }
-
-            updateTileState()
         }
     }
 
@@ -125,10 +105,10 @@ class DnsQuickSettingsTile : TileService() {
         launchActivity(intent)
     }
 
-    private fun openAppWithPaywall() {
+    private fun openAppWithAction(action: String) {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtra(EXTRA_SHOW_TILE_PAYWALL, true)
+            putExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION, action)
         }
         launchActivity(intent)
     }

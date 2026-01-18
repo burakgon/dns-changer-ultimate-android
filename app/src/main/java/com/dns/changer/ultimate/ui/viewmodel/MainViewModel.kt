@@ -19,6 +19,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class PendingAction {
+    NONE, CONNECT, DISCONNECT
+}
+
 data class MainUiState(
     val servers: Map<DnsCategory, List<DnsServer>> = emptyMap(),
     val selectedServer: DnsServer? = null,
@@ -30,7 +34,10 @@ data class MainUiState(
     val showDisconnectionOverlay: Boolean = false,
     val lastConnectedServer: DnsServer? = null,
     // Track server switch state atomically with UI state
-    val pendingSwitchToServer: DnsServer? = null
+    val pendingSwitchToServer: DnsServer? = null,
+    // Track pending action while loading interstitial ad
+    val pendingAction: PendingAction = PendingAction.NONE,
+    val isPreparingAction: Boolean = false
 )
 
 @HiltViewModel
@@ -241,8 +248,63 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun connect() {
+    fun prepareConnect() {
         // Use selected server or fall back to default (Cloudflare)
+        val server = _uiState.value.selectedServer ?: PresetDnsServers.all.first().also {
+            _uiState.update { state -> state.copy(selectedServer = it) }
+        }
+
+        // Check VPN permission first
+        val vpnIntent = connectionManager.checkVpnPermission()
+        if (vpnIntent != null) {
+            _uiState.value = _uiState.value.copy(
+                showVpnPermissionDialog = true,
+                vpnPermissionIntent = vpnIntent
+            )
+            return
+        }
+
+        // Set preparing state - this will trigger ad loading in UI
+        _uiState.update { it.copy(
+            pendingAction = PendingAction.CONNECT,
+            isPreparingAction = true
+        ) }
+    }
+
+    fun prepareDisconnect() {
+        // Set preparing state - this will trigger ad loading in UI
+        _uiState.update { it.copy(
+            pendingAction = PendingAction.DISCONNECT,
+            isPreparingAction = true
+        ) }
+    }
+
+    fun executeConnect() {
+        val server = _uiState.value.selectedServer ?: PresetDnsServers.all.first()
+        _uiState.update { it.copy(
+            pendingAction = PendingAction.NONE,
+            isPreparingAction = false
+        ) }
+        connectionManager.connect(server)
+    }
+
+    fun executeDisconnect() {
+        _uiState.update { it.copy(
+            pendingAction = PendingAction.NONE,
+            isPreparingAction = false
+        ) }
+        connectionManager.disconnect()
+    }
+
+    fun cancelPendingAction() {
+        _uiState.update { it.copy(
+            pendingAction = PendingAction.NONE,
+            isPreparingAction = false
+        ) }
+    }
+
+    fun connect() {
+        // Direct connect without ad (used for permission callback)
         val server = _uiState.value.selectedServer ?: PresetDnsServers.all.first().also {
             _uiState.update { state -> state.copy(selectedServer = it) }
         }
@@ -262,6 +324,26 @@ class MainViewModel @Inject constructor(
 
     fun disconnect() {
         connectionManager.disconnect()
+    }
+
+    fun checkVpnPermission(): android.content.Intent? {
+        return connectionManager.checkVpnPermission()
+    }
+
+    /**
+     * Set visual Connecting state without actually connecting
+     * Used to show "Connecting..." while ad is loading
+     */
+    fun setConnectingState() {
+        connectionManager.setConnectingState()
+    }
+
+    /**
+     * Set visual Disconnecting state without actually disconnecting
+     * Used to show "Disconnecting..." while ad is loading
+     */
+    fun setDisconnectingState() {
+        connectionManager.setDisconnectingState()
     }
 
     fun onVpnPermissionResult(granted: Boolean) {

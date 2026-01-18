@@ -26,6 +26,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -53,6 +54,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
+import com.dns.changer.ultimate.ui.viewmodel.PendingAction
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import com.dns.changer.ultimate.ui.viewmodel.RatingViewModel
 import com.dns.changer.ultimate.service.DnsQuickSettingsTile
@@ -80,6 +82,9 @@ class MainActivity : ComponentActivity() {
 
     private var pendingVpnPermissionCallback: ((Boolean) -> Unit)? = null
 
+    // Widget action state flow to handle both onCreate and onNewIntent
+    private val _widgetAction = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -101,8 +106,13 @@ class MainActivity : ComponentActivity() {
         // Check if launched from Quick Settings tile for paywall
         val showTilePaywall = intent?.getBooleanExtra(DnsQuickSettingsTile.EXTRA_SHOW_TILE_PAYWALL, false) ?: false
 
-        // Check if launched from widget with action
-        val widgetAction = intent?.getStringExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION)
+        // Check if launched from widget with action and set it in the StateFlow
+        // Only process on fresh launch (savedInstanceState == null), not on recreation (resize, rotation)
+        if (savedInstanceState == null) {
+            intent?.getStringExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION)?.let { action ->
+                _widgetAction.value = action
+            }
+        }
 
         setContent {
             val savedTheme by dnsPreferences.themeMode.collectAsState(initial = "SYSTEM")
@@ -130,15 +140,33 @@ class MainActivity : ComponentActivity() {
                             onError = onError
                         )
                     },
+                    onLoadInterstitialAd = { onLoaded ->
+                        adMobManager.loadInterstitialAd(onLoaded)
+                    },
+                    onShowInterstitialAd = { onDismissed ->
+                        adMobManager.showInterstitialAd(
+                            activity = this,
+                            onDismissed = onDismissed
+                        )
+                    },
                     activity = this,
                     preferences = dnsPreferences,
                     onThemeChanged = { theme ->
                         currentTheme = theme
                     },
                     showTilePaywallOnLaunch = showTilePaywall,
-                    widgetAction = widgetAction
+                    widgetActionFlow = _widgetAction,
+                    onWidgetActionConsumed = { _widgetAction.value = null }
                 )
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Handle widget action when activity is already running
+        intent.getStringExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION)?.let { action ->
+            _widgetAction.value = action
         }
     }
 
@@ -155,11 +183,14 @@ class MainActivity : ComponentActivity() {
 fun DnsChangerApp(
     onRequestVpnPermission: (Intent, (Boolean) -> Unit) -> Unit,
     onShowRewardedAd: (() -> Unit, (String) -> Unit) -> Unit,
+    onLoadInterstitialAd: (onLoaded: () -> Unit) -> Unit,
+    onShowInterstitialAd: (onDismissed: () -> Unit) -> Unit,
     activity: Activity,
     preferences: DnsPreferences,
     onThemeChanged: (ThemeMode) -> Unit,
     showTilePaywallOnLaunch: Boolean = false,
-    widgetAction: String? = null,
+    widgetActionFlow: kotlinx.coroutines.flow.StateFlow<String?>,
+    onWidgetActionConsumed: () -> Unit,
     mainViewModel: MainViewModel = hiltViewModel(),
     premiumViewModel: PremiumViewModel = hiltViewModel(),
     ratingViewModel: RatingViewModel = hiltViewModel()
@@ -172,6 +203,16 @@ fun DnsChangerApp(
     val premiumState by premiumViewModel.premiumState.collectAsState()
     val products by premiumViewModel.products.collectAsState()
     val mainUiState by mainViewModel.uiState.collectAsState()
+    val connectionState by mainViewModel.connectionState.collectAsState()
+
+    // Local state to track if we're in ad flow (to hide navigation)
+    var showingAdFlow by remember { mutableStateOf(false) }
+
+    // Hide navigation during ad flow or connection transitions
+    val hideNavigation = showingAdFlow ||
+        connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Connecting ||
+        connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Disconnecting ||
+        connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Switching
 
     // Rating state
     val showRatingDialog by ratingViewModel.showRatingDialog.collectAsState()
@@ -190,14 +231,50 @@ fun DnsChangerApp(
         }
     }
 
-    // Handle widget action - connect or disconnect
-    LaunchedEffect(widgetAction) {
-        when (widgetAction) {
-            ToggleDnsAction.ACTION_CONNECT -> {
-                mainViewModel.connect()
+    // Coroutine scope for ad loading to ensure UI has time to update
+    val adCoroutineScope = rememberCoroutineScope()
+
+    // Callback: set visual state first, wait 1 sec, show ad, then actually connect/disconnect
+    val handleConnectWithAd: () -> Unit = handleConnectWithAd@{
+        // Check VPN permission first
+        val vpnIntent = mainViewModel.checkVpnPermission()
+        if (vpnIntent != null) {
+            // Need VPN permission - this will trigger the permission dialog
+            mainViewModel.connect()
+            return@handleConnectWithAd
+        }
+
+        adCoroutineScope.launch {
+            showingAdFlow = true
+            // Set visual "Connecting" state (doesn't actually start VPN yet)
+            mainViewModel.setConnectingState()
+            // Wait 1 sec so user sees "Connecting..."
+            kotlinx.coroutines.delay(1000)
+            // Load and show ad
+            onLoadInterstitialAd {
+                onShowInterstitialAd {
+                    // Ad dismissed - NOW actually connect
+                    mainViewModel.connect()
+                    showingAdFlow = false
+                }
             }
-            ToggleDnsAction.ACTION_DISCONNECT -> {
-                mainViewModel.disconnect()
+        }
+    }
+
+    val handleDisconnectWithAd: () -> Unit = {
+        adCoroutineScope.launch {
+            showingAdFlow = true
+            // Set visual "Disconnecting" state (doesn't actually stop VPN yet)
+            mainViewModel.setDisconnectingState()
+            // Wait 1 sec so user sees "Disconnecting..."
+            kotlinx.coroutines.delay(1000)
+            // Load and show ad
+            onLoadInterstitialAd {
+                onShowInterstitialAd {
+                    // Ad dismissed - NOW actually disconnect
+                    mainViewModel.disconnect()
+                    showingAdFlow = false
+                }
             }
         }
     }
@@ -220,53 +297,33 @@ fun DnsChangerApp(
         }
     }
 
+    // Handle widget action by observing the StateFlow
+    val widgetAction by widgetActionFlow.collectAsState()
+    LaunchedEffect(widgetAction) {
+        if (widgetAction != null) {
+            when (widgetAction) {
+                ToggleDnsAction.ACTION_CONNECT -> {
+                    handleConnectWithAd()
+                }
+                ToggleDnsAction.ACTION_DISCONNECT -> {
+                    handleDisconnectWithAd()
+                }
+            }
+            // Consume the action so it doesn't repeat
+            onWidgetActionConsumed()
+        }
+    }
+
+    // Callback for ConnectScreen - connect first, then show ad
+    val onConnectWithAd: () -> Unit = { handleConnectWithAd() }
+    val onDisconnectWithAd: () -> Unit = { handleDisconnectWithAd() }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        // Get the current navigation suite type (NavigationBar on phones, NavigationRail on tablets)
-        val layoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
-            androidx.compose.material3.adaptive.currentWindowAdaptiveInfo()
-        )
-
-        NavigationSuiteScaffold(
-            navigationSuiteItems = {
-                Screen.bottomNavItems.forEach { screen ->
-                    val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-
-                    item(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
-                                contentDescription = null
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = stringResource(screen.titleResId),
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                            )
-                        }
-                    )
-                }
-            },
-            layoutType = layoutType,
-            navigationSuiteColors = NavigationSuiteDefaults.colors(
-                navigationRailContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                navigationRailContentColor = MaterialTheme.colorScheme.onSurface
-            )
-        ) {
-            // Content area - no padding needed as NavigationSuiteScaffold handles it
+        // Common content composable to avoid duplication
+        val content: @Composable () -> Unit = {
             DnsNavHost(
                 navController = navController,
                 innerPadding = PaddingValues(0.dp),
@@ -296,8 +353,63 @@ fun DnsChangerApp(
                 },
                 onShowPaywall = {
                     showPaywall = true
-                }
+                },
+                onConnectWithAd = onConnectWithAd,
+                onDisconnectWithAd = onDisconnectWithAd
             )
+        }
+
+        // Hide navigation completely during transitions for ad policy compliance
+        if (hideNavigation) {
+            // Just show content without navigation during transitions
+            Box(modifier = Modifier.fillMaxSize()) {
+                content()
+            }
+        } else {
+            // Get the current navigation suite type (NavigationBar on phones, NavigationRail on tablets)
+            val layoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
+                androidx.compose.material3.adaptive.currentWindowAdaptiveInfo()
+            )
+
+            NavigationSuiteScaffold(
+                navigationSuiteItems = {
+                    Screen.bottomNavItems.forEach { screen ->
+                        val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+
+                        item(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
+                                    contentDescription = null
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = stringResource(screen.titleResId),
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            }
+                        )
+                    }
+                },
+                layoutType = layoutType,
+                navigationSuiteColors = NavigationSuiteDefaults.colors(
+                    navigationRailContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    navigationRailContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            ) {
+                content()
+            }
         }
 
         // Premium Gate Popup
@@ -327,13 +439,14 @@ fun DnsChangerApp(
         )
 
         // Overlay display logic:
+        // - If showing ad flow, suppress overlays (show AFTER ad closes)
         // - If switching servers (pendingSwitchToServer != null), don't show any overlays
         // - If both overlays are flagged (error state), show neither
         // - Otherwise show the appropriate overlay
         val isSwitchingServers = mainUiState.pendingSwitchToServer != null
         val bothOverlaysSet = mainUiState.showConnectionSuccessOverlay && mainUiState.showDisconnectionOverlay
-        val showSuccessOverlay = mainUiState.showConnectionSuccessOverlay && !isSwitchingServers && !bothOverlaysSet
-        val showDisconnectOverlay = mainUiState.showDisconnectionOverlay && !isSwitchingServers && !bothOverlaysSet
+        val showSuccessOverlay = mainUiState.showConnectionSuccessOverlay && !isSwitchingServers && !bothOverlaysSet && !showingAdFlow
+        val showDisconnectOverlay = mainUiState.showDisconnectionOverlay && !isSwitchingServers && !bothOverlaysSet && !showingAdFlow
 
         // Debug logging for overlay decisions
         if (mainUiState.showConnectionSuccessOverlay || mainUiState.showDisconnectionOverlay) {

@@ -113,6 +113,26 @@ class DnsConnectionManager @Inject constructor(
     }
 
     /**
+     * Set visual Connecting state without actually starting VPN
+     * Used to show "Connecting..." while ad is loading
+     */
+    fun setConnectingState() {
+        android.util.Log.d("DnsConnectionManager", "Setting visual Connecting state")
+        _connectionState.value = ConnectionState.Connecting
+        WidgetUpdater.update(context)
+    }
+
+    /**
+     * Set visual Disconnecting state without actually stopping VPN
+     * Used to show "Disconnecting..." while ad is loading
+     */
+    fun setDisconnectingState() {
+        android.util.Log.d("DnsConnectionManager", "Setting visual Disconnecting state")
+        _connectionState.value = ConnectionState.Disconnecting
+        WidgetUpdater.update(context)
+    }
+
+    /**
      * Force stop VPN and reset state - emergency recovery
      */
     fun forceReset() {

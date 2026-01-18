@@ -39,7 +39,9 @@ fun DnsNavHost(
     isLoadingPurchase: Boolean = false,
     onPurchase: (StoreProduct) -> Unit = {},
     onRestorePurchases: () -> Unit = {},
-    onShowPaywall: () -> Unit = {}
+    onShowPaywall: () -> Unit = {},
+    onConnectWithAd: () -> Unit = {},
+    onDisconnectWithAd: () -> Unit = {}
 ) {
     // Get adaptive layout configuration for tablets/foldables
     val adaptiveConfig = rememberAdaptiveLayoutConfig()
@@ -82,7 +84,9 @@ fun DnsNavHost(
                         launchSingleTop = true
                         restoreState = true
                     }
-                }
+                },
+                onConnectWithAd = onConnectWithAd,
+                onDisconnectWithAd = onDisconnectWithAd
             )
         }
 

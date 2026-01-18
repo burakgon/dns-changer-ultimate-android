@@ -9,6 +9,8 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.OnUserEarnedRewardListener
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -29,8 +31,9 @@ class AdMobManager @Inject constructor(
 ) {
     companion object {
         private const val TAG = "AdMobManager"
-        // Test ad unit ID - Replace with your actual ad unit ID in production
+        // Test ad unit IDs - Replace with your actual ad unit IDs in production
         private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
+        private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
         private const val MAX_RETRY_ATTEMPTS = 3
         private const val INITIAL_RETRY_DELAY_MS = 1000L
     }
@@ -38,7 +41,9 @@ class AdMobManager @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var rewardedAd: RewardedAd? = null
+    private var interstitialAd: InterstitialAd? = null
     private var retryAttempt = 0
+    private var interstitialRetryAttempt = 0
     private var isInitialized = false
 
     private val _isAdLoaded = MutableStateFlow(false)
@@ -46,6 +51,12 @@ class AdMobManager @Inject constructor(
 
     private val _isAdLoading = MutableStateFlow(false)
     val isAdLoading: StateFlow<Boolean> = _isAdLoading.asStateFlow()
+
+    private val _isInterstitialLoaded = MutableStateFlow(false)
+    val isInterstitialLoaded: StateFlow<Boolean> = _isInterstitialLoaded.asStateFlow()
+
+    private val _isInterstitialLoading = MutableStateFlow(false)
+    val isInterstitialLoading: StateFlow<Boolean> = _isInterstitialLoading.asStateFlow()
 
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
@@ -203,5 +214,108 @@ class AdMobManager @Inject constructor(
         _isAdLoaded.value = false
         _isAdLoading.value = false
         loadRewardedAd()
+    }
+
+    // ============ Interstitial Ad Methods ============
+
+    fun loadInterstitialAd(onLoaded: (() -> Unit)? = null) {
+        if (_isInterstitialLoading.value) {
+            Log.d(TAG, "Interstitial ad is already loading, skipping")
+            return
+        }
+
+        if (_isInterstitialLoaded.value && interstitialAd != null) {
+            Log.d(TAG, "Interstitial ad already loaded")
+            onLoaded?.invoke()
+            return
+        }
+
+        if (!isInitialized) {
+            Log.w(TAG, "AdMob not initialized yet for interstitial")
+            return
+        }
+
+        _isInterstitialLoading.value = true
+        Log.d(TAG, "Loading interstitial ad (attempt ${interstitialRetryAttempt + 1}/$MAX_RETRY_ATTEMPTS)")
+
+        val adRequest = AdRequest.Builder().build()
+
+        InterstitialAd.load(
+            context,
+            INTERSTITIAL_AD_UNIT_ID,
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    Log.d(TAG, "Interstitial ad loaded successfully!")
+                    interstitialAd = ad
+                    _isInterstitialLoaded.value = true
+                    _isInterstitialLoading.value = false
+                    interstitialRetryAttempt = 0
+                    onLoaded?.invoke()
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e(TAG, "Interstitial ad failed to load: ${error.message} (code: ${error.code})")
+                    interstitialAd = null
+                    _isInterstitialLoaded.value = false
+                    _isInterstitialLoading.value = false
+
+                    // Retry with exponential backoff
+                    if (interstitialRetryAttempt < MAX_RETRY_ATTEMPTS) {
+                        interstitialRetryAttempt++
+                        val delayMs = INITIAL_RETRY_DELAY_MS * (1 shl (interstitialRetryAttempt - 1))
+                        Log.d(TAG, "Retrying interstitial ad load in ${delayMs}ms")
+                        scope.launch {
+                            delay(delayMs)
+                            loadInterstitialAd(onLoaded)
+                        }
+                    } else {
+                        Log.e(TAG, "Max retry attempts reached for interstitial. Proceeding without ad.")
+                        interstitialRetryAttempt = 0
+                        // Call onLoaded anyway so the flow continues
+                        onLoaded?.invoke()
+                    }
+                }
+            }
+        )
+    }
+
+    fun showInterstitialAd(
+        activity: Activity,
+        onDismissed: () -> Unit
+    ) {
+        val ad = interstitialAd
+        if (ad == null) {
+            Log.e(TAG, "Interstitial ad not ready, proceeding without ad")
+            onDismissed()
+            return
+        }
+
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "Interstitial ad dismissed")
+                interstitialAd = null
+                _isInterstitialLoaded.value = false
+                onDismissed()
+            }
+
+            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                Log.e(TAG, "Interstitial ad failed to show: ${adError.message}")
+                interstitialAd = null
+                _isInterstitialLoaded.value = false
+                onDismissed()
+            }
+
+            override fun onAdShowedFullScreenContent() {
+                Log.d(TAG, "Interstitial ad showed fullscreen content")
+            }
+        }
+
+        Log.d(TAG, "Showing interstitial ad")
+        ad.show(activity)
+    }
+
+    fun isInterstitialReady(): Boolean {
+        return interstitialAd != null
     }
 }
