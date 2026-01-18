@@ -89,8 +89,8 @@
     <string name="premium_badge">PREMIUM</string>
     <string name="unlock_doh">Unlock DNS over HTTPS</string>
     <string name="doh_premium_description">Encrypt your DNS queries for enhanced privacy and security. DoH prevents ISPs and attackers from seeing your DNS lookups.</string>
-    <string name="unlock_custom_dns">Unlock Multiple Custom DNS</string>
-    <string name="custom_dns_premium_description">Add unlimited custom DNS servers to your collection. Free users are limited to 1 custom DNS server.</string>
+    <string name="unlock_custom_dns">Add More Custom DNS</string>
+    <string name="custom_dns_premium_description">Free users can save 1 custom DNS. Go Pro for unlimited.</string>
 
     <!-- DNS Leak Test -->
     <string name="leak_test_tab">Leak Test</string>
