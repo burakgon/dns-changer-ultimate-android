@@ -131,7 +131,7 @@ private object RatingColors {
 fun SpeedTestScreen(
     viewModel: SpeedTestViewModel = hiltViewModel(),
     isPremium: Boolean,
-    onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
+    onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit,
     onRequestVpnPermission: (android.content.Intent, (Boolean) -> Unit) -> Unit,
     adaptiveConfig: AdaptiveLayoutConfig
 ) {
@@ -153,6 +153,10 @@ fun SpeedTestScreen(
 
     // Results are unlocked if premium OR unlocked for current session (via ad watch)
     val resultsUnlocked = isPremium || sessionUnlocked
+
+    // Premium gate strings for speed test
+    val speedTestTitle = stringResource(R.string.unlock_feature)
+    val speedTestDescription = stringResource(R.string.premium_description)
 
     // Clear ViewModel state when app is closed (activity finishing), not on config changes
     val context = LocalContext.current
@@ -285,6 +289,8 @@ fun SpeedTestScreen(
                     speedTestState = speedTestState,
                     resultsUnlocked = resultsUnlocked,
                     onShowPremiumGate = onShowPremiumGate,
+                    premiumGateTitle = speedTestTitle,
+                    premiumGateDescription = speedTestDescription,
                     onAdWatched = { viewModel.onAdWatched() },
                     onConnectToServer = { viewModel.connectToServer(it) },
                     modifier = Modifier.weight(1f)
@@ -399,6 +405,8 @@ fun SpeedTestScreen(
                         speedTestState = speedTestState,
                         resultsUnlocked = resultsUnlocked,
                         onShowPremiumGate = onShowPremiumGate,
+                        premiumGateTitle = speedTestTitle,
+                        premiumGateDescription = speedTestDescription,
                         onAdWatched = { viewModel.onAdWatched() },
                         onConnectToServer = { viewModel.connectToServer(it) },
                         modifier = Modifier
@@ -418,7 +426,9 @@ fun SpeedTestScreen(
 private fun SpeedTestResultsList(
     speedTestState: SpeedTestState,
     resultsUnlocked: Boolean,
-    onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
+    onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit,
+    premiumGateTitle: String,
+    premiumGateDescription: String,
     onAdWatched: () -> Unit,
     onConnectToServer: (DnsServer) -> Unit,
     modifier: Modifier = Modifier
@@ -437,7 +447,7 @@ private fun SpeedTestResultsList(
                 LockedTop3ResultsCard(
                     top3Results = speedTestState.results.take(3),
                     onUnlockClick = {
-                        onShowPremiumGate { onAdWatched() }
+                        onShowPremiumGate(premiumGateTitle, premiumGateDescription) { onAdWatched() }
                     },
                     isRunning = speedTestState.isRunning
                 )

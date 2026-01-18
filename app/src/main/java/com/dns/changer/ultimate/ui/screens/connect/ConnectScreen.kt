@@ -71,7 +71,7 @@ fun ConnectScreen(
     onRequestVpnPermission: (android.content.Intent) -> Unit,
     adaptiveConfig: AdaptiveLayoutConfig,
     isPremium: Boolean = false,
-    onShowPremiumGate: (() -> Unit) -> Unit = {},
+    onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit = { _, _, _ -> },
     onShowPaywall: () -> Unit = {},
     onNavigateToSpeedTest: () -> Unit = {}
 ) {
@@ -229,6 +229,10 @@ fun ConnectScreen(
         }
     }
 
+    // Premium gate strings for custom DNS
+    val customDnsTitle = stringResource(R.string.unlock_custom_dns)
+    val customDnsDescription = stringResource(R.string.custom_dns_premium_description)
+
     // Server Picker Dialog
     if (showServerPicker) {
         DnsPickerDialog(
@@ -242,7 +246,7 @@ fun ConnectScreen(
                 val customDnsCount = uiState.servers[DnsCategory.CUSTOM]?.size ?: 0
                 if (!isPremium && customDnsCount >= 1) {
                     // Show premium gate with ads option
-                    onShowPremiumGate {
+                    onShowPremiumGate(customDnsTitle, customDnsDescription) {
                         viewModel.showAddCustomDns()
                     }
                 } else {

@@ -167,6 +167,8 @@ fun DnsChangerApp(
 
     var showPremiumGate by remember { mutableStateOf(false) }
     var onPremiumUnlock by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var premiumGateTitle by remember { mutableStateOf("") }
+    var premiumGateDescription by remember { mutableStateOf("") }
     var showPaywall by remember { mutableStateOf(false) }
 
     // Rating prompt is automatically checked via Flow observation in RatingViewModel
@@ -245,7 +247,9 @@ fun DnsChangerApp(
                     }
                 },
                 onRequestVpnPermissionWithCallback = onRequestVpnPermission,
-                onShowPremiumGate = { unlockCallback ->
+                onShowPremiumGate = { title, description, unlockCallback ->
+                    premiumGateTitle = title
+                    premiumGateDescription = description
                     onPremiumUnlock = unlockCallback
                     showPremiumGate = true
                 },
@@ -268,9 +272,8 @@ fun DnsChangerApp(
         // Premium Gate Popup
         PremiumGatePopup(
             visible = showPremiumGate,
-            featureIcon = Icons.Default.Speed,
-            featureTitle = stringResource(R.string.unlock_feature),
-            featureDescription = stringResource(R.string.premium_description),
+            featureTitle = premiumGateTitle.ifEmpty { stringResource(R.string.unlock_feature) },
+            featureDescription = premiumGateDescription.ifEmpty { stringResource(R.string.premium_description) },
             onDismiss = { showPremiumGate = false },
             onWatchAd = {
                 showPremiumGate = false

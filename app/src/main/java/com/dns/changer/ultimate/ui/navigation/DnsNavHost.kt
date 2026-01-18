@@ -32,7 +32,7 @@ fun DnsNavHost(
     preferences: DnsPreferences,
     onRequestVpnPermission: (Intent) -> Unit,
     onRequestVpnPermissionWithCallback: (Intent, (Boolean) -> Unit) -> Unit,
-    onShowPremiumGate: (onUnlock: () -> Unit) -> Unit,
+    onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit,
     onThemeChanged: (ThemeMode) -> Unit,
     // Paywall parameters
     products: Map<String, StoreProduct> = emptyMap(),
