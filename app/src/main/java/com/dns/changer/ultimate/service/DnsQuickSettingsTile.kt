@@ -1,5 +1,6 @@
 package com.dns.changer.ultimate.service
 
+import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
@@ -134,7 +135,14 @@ class DnsQuickSettingsTile : TileService() {
 
     private fun launchActivity(intent: Intent) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startActivityAndCollapse(intent)
+            // API 34+ requires PendingIntent
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            startActivityAndCollapse(pendingIntent)
         } else {
             @Suppress("DEPRECATION")
             startActivityAndCollapse(intent)

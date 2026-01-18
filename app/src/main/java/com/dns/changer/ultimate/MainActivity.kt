@@ -304,7 +304,7 @@ fun DnsChangerApp(
             },
             onGoPremium = {
                 showPremiumGate = false
-                premiumViewModel.purchasePremium(activity)
+                showPaywall = true
             }
         )
 

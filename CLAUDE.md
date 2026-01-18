@@ -19,7 +19,7 @@ export JAVA_HOME="$HOME/.local/share/JetBrains/Toolbox/apps/android-studio/jbr"
 To install to connected device:
 ```bash
 export JAVA_HOME="$HOME/.local/share/JetBrains/Toolbox/apps/android-studio/jbr"
-~/Android/Sdk/platform-tools/adb install -r ./app/build/outputs/apk/debug/DNSChanger-*.apk
+./gradlew installDebug
 ```
 
 To launch the app:
@@ -96,9 +96,19 @@ app/src/main/java/com/dns/changer/ultimate/
 
 ### Key Files for Premium
 - `PremiumViewModel.kt` - Manages premium state, products, purchases
-- `PaywallScreen.kt` - Beautiful Material 3 subscription screen
+- `PaywallScreen.kt` - High-converting paywall with animated crown, social proof, Material You support
+- `PremiumGatePopup.kt` - Popup for premium-gated features (Watch Ad / Go Premium options)
 - `DnsPreferences.kt` - Stores `isPremium`, `startOnBoot` preferences
 - `BootReceiver.kt` - Listens for BOOT_COMPLETED, starts VPN if premium
+
+### PaywallScreen Features
+- Animated crown icon with jewels, shimmer, floating animation, orbiting particles
+- Social proof banner (4.7 rating, 10M+ users from Play Store)
+- 6 benefit items in 2x3 grid
+- Plan selection cards (Monthly, Yearly with trial, Yearly)
+- Animated CTA button with shimmer effect
+- Full light/dark mode support with Material You dynamic colors
+- Theme detection via background luminance (works with manual theme switch)
 
 ---
 
