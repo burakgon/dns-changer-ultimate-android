@@ -24,9 +24,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,8 +37,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
@@ -82,6 +87,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -138,6 +144,13 @@ private object PremiumColors {
     val GoldDeepLightMode = Color(0xFFE65100)
 }
 
+// Screen size classification for adaptive layouts
+private enum class ScreenSizeClass {
+    COMPACT,    // Phone portrait, folded foldable
+    MEDIUM,     // Phone landscape, small tablet
+    EXPANDED    // Tablet, unfolded foldable
+}
+
 @Composable
 fun PaywallScreen(
     products: Map<String, StoreProduct>,
@@ -170,43 +183,115 @@ fun PaywallScreen(
     ) {
         PremiumBackground()
 
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // Close button
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .alpha(0.7f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+            val screenWidth = maxWidth
+            val screenHeight = maxHeight
+            val isLandscape = screenWidth > screenHeight
+
+            // Determine screen size class
+            val sizeClass = when {
+                screenWidth < 600.dp -> ScreenSizeClass.COMPACT
+                screenWidth < 840.dp -> ScreenSizeClass.MEDIUM
+                else -> ScreenSizeClass.EXPANDED
+            }
+
+            // Use different layouts based on screen size and orientation
+            when {
+                // Landscape or wide screen - use horizontal layout
+                isLandscape || sizeClass == ScreenSizeClass.EXPANDED -> {
+                    LandscapePaywallLayout(
+                        animationStep = animationStep,
+                        plans = plans,
+                        selectedPlan = selectedPlan,
+                        onPlanSelected = { selectedPlan = it },
+                        selectedPlanDetails = selectedPlanDetails,
+                        isLoading = isLoading,
+                        onPurchase = onPurchase,
+                        onRestore = onRestore,
+                        onDismiss = onDismiss,
+                        isCompactHeight = screenHeight < 500.dp
+                    )
+                }
+                // Portrait - use vertical scrollable layout
+                else -> {
+                    PortraitPaywallLayout(
+                        animationStep = animationStep,
+                        plans = plans,
+                        selectedPlan = selectedPlan,
+                        onPlanSelected = { selectedPlan = it },
+                        selectedPlanDetails = selectedPlanDetails,
+                        isLoading = isLoading,
+                        onPurchase = onPurchase,
+                        onRestore = onRestore,
+                        onDismiss = onDismiss,
+                        isCompactHeight = screenHeight < 700.dp
                     )
                 }
             }
+        }
+    }
+}
 
+@Composable
+private fun PortraitPaywallLayout(
+    animationStep: Int,
+    plans: List<PlanDetails>,
+    selectedPlan: SubscriptionPlan,
+    onPlanSelected: (SubscriptionPlan) -> Unit,
+    selectedPlanDetails: PlanDetails?,
+    isLoading: Boolean,
+    onPurchase: (StoreProduct) -> Unit,
+    onRestore: () -> Unit,
+    onDismiss: () -> Unit,
+    isCompactHeight: Boolean
+) {
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Close button - always visible at top
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .alpha(0.7f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Scrollable content area
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(scrollState)
+        ) {
             // HERO
             AnimatedVisibility(
                 visible = animationStep >= 1,
                 enter = fadeIn(tween(500)) + scaleIn(tween(600, easing = EaseOutBack), initialScale = 0.6f)
             ) {
-                HeroSection()
+                HeroSection(isCompact = isCompactHeight)
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(if (isCompactHeight) 10.dp else 14.dp))
 
-            // SOCIAL PROOF - Real stats
+            // SOCIAL PROOF
             AnimatedVisibility(
                 visible = animationStep >= 2,
                 enter = fadeIn(tween(400, delayMillis = 100)) +
@@ -215,32 +300,139 @@ fun PaywallScreen(
                 SocialProofBanner()
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(if (isCompactHeight) 12.dp else 16.dp))
 
             // FEATURES
             AnimatedVisibility(
                 visible = animationStep >= 3,
                 enter = fadeIn(tween(400)) + slideInVertically(tween(500)) { it / 2 }
             ) {
-                BenefitsSection()
+                BenefitsSection(isCompact = isCompactHeight)
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
-            // BOTTOM SECTION
-            AnimatedVisibility(
-                visible = animationStep >= 4,
-                enter = slideInVertically(tween(500, easing = EaseOutCubic)) { it }
+        // BOTTOM SECTION - Fixed at bottom
+        AnimatedVisibility(
+            visible = animationStep >= 4,
+            enter = slideInVertically(tween(500, easing = EaseOutCubic)) { it }
+        ) {
+            BottomPurchaseSection(
+                plans = plans,
+                selectedPlan = selectedPlan,
+                onPlanSelected = onPlanSelected,
+                selectedPlanDetails = selectedPlanDetails,
+                isLoading = isLoading,
+                onPurchase = onPurchase,
+                onRestore = onRestore,
+                isCompact = isCompactHeight
+            )
+        }
+    }
+}
+
+@Composable
+private fun LandscapePaywallLayout(
+    animationStep: Int,
+    plans: List<PlanDetails>,
+    selectedPlan: SubscriptionPlan,
+    onPlanSelected: (SubscriptionPlan) -> Unit,
+    selectedPlanDetails: PlanDetails?,
+    isLoading: Boolean,
+    onPurchase: (StoreProduct) -> Unit,
+    onRestore: () -> Unit,
+    onDismiss: () -> Unit,
+    isCompactHeight: Boolean
+) {
+    val leftScrollState = rememberScrollState()
+    val rightScrollState = rememberScrollState()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Close button - top right
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .alpha(0.7f)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Close",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 8.dp)
+        ) {
+            // Left side - Hero + Benefits (scrollable)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .verticalScroll(leftScrollState)
+                    .padding(start = 16.dp, end = 8.dp, top = 32.dp, bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                BottomPurchaseSection(
-                    plans = plans,
-                    selectedPlan = selectedPlan,
-                    onPlanSelected = { selectedPlan = it },
-                    selectedPlanDetails = selectedPlanDetails,
-                    isLoading = isLoading,
-                    onPurchase = onPurchase,
-                    onRestore = onRestore
-                )
+                // HERO - Smaller in landscape
+                AnimatedVisibility(
+                    visible = animationStep >= 1,
+                    enter = fadeIn(tween(500)) + scaleIn(tween(600, easing = EaseOutBack), initialScale = 0.6f)
+                ) {
+                    HeroSection(isCompact = true)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // SOCIAL PROOF
+                AnimatedVisibility(
+                    visible = animationStep >= 2,
+                    enter = fadeIn(tween(400, delayMillis = 100)) +
+                            slideInVertically(tween(400)) { it / 3 }
+                ) {
+                    SocialProofBannerCompact()
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // FEATURES - Horizontal layout for landscape
+                AnimatedVisibility(
+                    visible = animationStep >= 3,
+                    enter = fadeIn(tween(400)) + slideInVertically(tween(500)) { it / 2 }
+                ) {
+                    BenefitsSectionLandscape()
+                }
+            }
+
+            // Right side - Plans + CTA (scrollable)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .verticalScroll(rightScrollState)
+                    .padding(start = 8.dp, end = 16.dp, top = 32.dp, bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                AnimatedVisibility(
+                    visible = animationStep >= 4,
+                    enter = fadeIn(tween(400)) + slideInVertically(tween(500)) { it / 2 }
+                ) {
+                    LandscapePurchaseSection(
+                        plans = plans,
+                        selectedPlan = selectedPlan,
+                        onPlanSelected = onPlanSelected,
+                        selectedPlanDetails = selectedPlanDetails,
+                        isLoading = isLoading,
+                        onPurchase = onPurchase,
+                        onRestore = onRestore,
+                        isCompactHeight = isCompactHeight
+                    )
+                }
             }
         }
     }
@@ -313,21 +505,21 @@ private fun PremiumBackground() {
 }
 
 @Composable
-private fun HeroSection() {
+private fun HeroSection(isCompact: Boolean = false) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = if (isCompact) 16.dp else 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Epic animated badge
-        EpicPremiumBadge()
+        // Epic animated badge - smaller for compact
+        EpicPremiumBadge(isCompact = isCompact)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(if (isCompact) 10.dp else 16.dp))
 
         Text(
             text = "Unlock Premium",
-            style = MaterialTheme.typography.headlineMedium,
+            style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
@@ -336,17 +528,21 @@ private fun HeroSection() {
 
         Text(
             text = "Ultimate DNS Protection",
-            style = MaterialTheme.typography.bodyLarge,
+            style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
-private fun EpicPremiumBadge() {
+private fun EpicPremiumBadge(isCompact: Boolean = false) {
     // Use background luminance to detect actual theme (works with manual switch)
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val infiniteTransition = rememberInfiniteTransition(label = "epic")
+
+    // Scale factor for compact mode
+    val scaleFactor = if (isCompact) 0.7f else 1f
+    val badgeSize = if (isCompact) 98.dp else 140.dp
 
     // Multiple rotation speeds for layered effect
     val rotation1 by infiniteTransition.animateFloat(
@@ -440,11 +636,11 @@ private fun EpicPremiumBadge() {
     val sparkleColor = if (isDark) Color.White else goldPrimary
 
     Box(
-        modifier = Modifier.size(140.dp),
+        modifier = Modifier.size(badgeSize),
         contentAlignment = Alignment.Center
     ) {
         // Layer 1: Outer pulsing glow
-        Canvas(modifier = Modifier.size(140.dp).scale(pulse)) {
+        Canvas(modifier = Modifier.size(badgeSize).scale(pulse)) {
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -458,7 +654,7 @@ private fun EpicPremiumBadge() {
         }
 
         // Layer 2: Outer spinning dashed ring
-        Canvas(modifier = Modifier.size(125.dp).rotate(rotation1)) {
+        Canvas(modifier = Modifier.size(badgeSize * 0.89f).rotate(rotation1)) {
             val strokeWidth = 2.dp.toPx()
             val radius = (size.minDimension - strokeWidth) / 2
             val ringAlpha = if (isDark) 0.6f else 0.8f
@@ -477,7 +673,7 @@ private fun EpicPremiumBadge() {
         }
 
         // Layer 3: Middle gradient ring (opposite direction)
-        Canvas(modifier = Modifier.size(110.dp).rotate(rotation2)) {
+        Canvas(modifier = Modifier.size(badgeSize * 0.79f).rotate(rotation2)) {
             val ringAlpha = if (isDark) 0.8f else 0.9f
             drawArc(
                 brush = Brush.sweepGradient(
@@ -497,7 +693,7 @@ private fun EpicPremiumBadge() {
         }
 
         // Layer 4: Inner fast ring
-        Canvas(modifier = Modifier.size(95.dp).rotate(rotation3)) {
+        Canvas(modifier = Modifier.size(badgeSize * 0.68f).rotate(rotation3)) {
             drawArc(
                 brush = Brush.sweepGradient(
                     colors = listOf(
@@ -516,7 +712,7 @@ private fun EpicPremiumBadge() {
         }
 
         // Layer 5: Orbiting particles
-        Canvas(modifier = Modifier.size(120.dp)) {
+        Canvas(modifier = Modifier.size(badgeSize * 0.86f)) {
             val center = Offset(size.width / 2, size.height / 2)
             val orbitRadius = size.width / 2 - 8.dp.toPx()
             val particleCore = if (isDark) Color.White else goldLight
@@ -541,9 +737,9 @@ private fun EpicPremiumBadge() {
         // Layer 6: Epic Crown with floating animation
         Canvas(
             modifier = Modifier
-                .size(72.dp)
+                .size(badgeSize * 0.51f)
                 .scale(innerPulse)
-                .graphicsLayer { translationY = crownFloat }
+                .graphicsLayer { translationY = crownFloat * scaleFactor }
         ) {
             val w = size.width
             val h = size.height
@@ -775,7 +971,7 @@ private fun EpicPremiumBadge() {
         }
 
         // Layer 7: Floating sparkles around crown
-        Canvas(modifier = Modifier.size(120.dp)) {
+        Canvas(modifier = Modifier.size(badgeSize * 0.86f)) {
             val sparklePositions = listOf(
                 Triple(Offset(size.width * 0.15f, size.height * 0.25f), sparkle1, 4.dp.toPx()),
                 Triple(Offset(size.width * 0.85f, size.height * 0.3f), sparkle2, 3.dp.toPx()),
@@ -923,7 +1119,99 @@ private fun SocialProofBanner() {
 }
 
 @Composable
-private fun BenefitsSection() {
+private fun SocialProofBannerCompact() {
+    // Use background luminance to detect actual theme
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val goldColor = if (isDark) PremiumColors.GoldPrimary else PremiumColors.GoldLightMode
+    val greenColor = if (isDark) PremiumColors.SuccessGreen else PremiumColors.SuccessGreenLight
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = if (isDark) 0.5f else 0.7f),
+                shape = RoundedCornerShape(10.dp)
+            )
+            .border(
+                width = if (isDark) 0.dp else 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(10.dp)
+            )
+            .padding(vertical = 8.dp, horizontal = 12.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Rating
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = goldColor,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = "4.7",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        // Divider
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .height(16.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
+
+        // Downloads
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Download,
+                contentDescription = null,
+                tint = greenColor,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = "10M+",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        // Divider
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .height(16.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
+
+        // Secure
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Shield,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = "Secure",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+@Composable
+private fun BenefitsSection(isCompact: Boolean = false) {
     val benefits = listOf(
         Triple(Icons.Default.Https, "DNS over HTTPS", "Encrypted & Private"),
         Triple(Icons.Default.PowerSettingsNew, "Auto-Connect", "Start on Boot"),
@@ -934,19 +1222,53 @@ private fun BenefitsSection() {
     )
 
     Column(
-        modifier = Modifier.padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        modifier = Modifier.padding(horizontal = if (isCompact) 12.dp else 20.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isCompact) 4.dp else 6.dp)
     ) {
         benefits.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 8.dp)
             ) {
                 rowItems.forEach { (icon, title, subtitle) ->
                     BenefitItem(
                         icon = icon,
                         title = title,
                         subtitle = subtitle,
+                        modifier = Modifier.weight(1f),
+                        isCompact = isCompact
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BenefitsSectionLandscape() {
+    val benefits = listOf(
+        Triple(Icons.Default.Https, "DNS over HTTPS", "Encrypted"),
+        Triple(Icons.Default.PowerSettingsNew, "Auto-Connect", "Boot"),
+        Triple(Icons.Default.Widgets, "Quick Toggle", "Access"),
+        Triple(Icons.Default.Speed, "Speed Tests", "Fast DNS"),
+        Triple(Icons.Default.Add, "Unlimited DNS", "Custom"),
+        Triple(Icons.Default.Block, "Zero Ads", "Ad-Free")
+    )
+
+    // 3 rows of 2 items each for landscape
+    Column(
+        modifier = Modifier.padding(horizontal = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        benefits.chunked(2).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                rowItems.forEach { (icon, title, subtitle) ->
+                    BenefitItemCompact(
+                        icon = icon,
+                        title = title,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -960,6 +1282,68 @@ private fun BenefitItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
+    modifier: Modifier = Modifier,
+    isCompact: Boolean = false
+) {
+    // Use background luminance to detect actual theme
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    Row(
+        modifier = modifier
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (isDark) 0.4f else 0.6f),
+                shape = RoundedCornerShape(if (isCompact) 8.dp else 10.dp)
+            )
+            .then(
+                if (!isDark) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(if (isCompact) 8.dp else 10.dp)
+                    )
+                } else Modifier
+            )
+            .padding(if (isCompact) 8.dp else 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(if (isCompact) 30.dp else 36.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isDark) 0.3f else 0.5f),
+                    shape = RoundedCornerShape(if (isCompact) 8.dp else 10.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(if (isCompact) 16.dp else 20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(if (isCompact) 8.dp else 10.dp))
+        Column {
+            Text(
+                text = title,
+                style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = if (isCompact) 10.sp else 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun BenefitItemCompact(
+    icon: ImageVector,
+    title: String,
     modifier: Modifier = Modifier
 ) {
     // Use background luminance to detect actual theme
@@ -969,50 +1353,34 @@ private fun BenefitItem(
         modifier = modifier
             .background(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (isDark) 0.4f else 0.6f),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(8.dp)
             )
             .then(
                 if (!isDark) {
                     Modifier.border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(8.dp)
                     )
                 } else Modifier
             )
-            .padding(10.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isDark) 0.3f else 0.5f),
-                    shape = RoundedCornerShape(10.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(10.dp))
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
     }
 }
 
@@ -1024,7 +1392,8 @@ private fun BottomPurchaseSection(
     selectedPlanDetails: PlanDetails?,
     isLoading: Boolean,
     onPurchase: (StoreProduct) -> Unit,
-    onRestore: () -> Unit
+    onRestore: () -> Unit,
+    isCompact: Boolean = false
 ) {
     // Use background luminance to detect actual theme
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -1032,40 +1401,42 @@ private fun BottomPurchaseSection(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        shape = RoundedCornerShape(topStart = if (isCompact) 24.dp else 32.dp, topEnd = if (isCompact) 24.dp else 32.dp),
         shadowElevation = if (isDark) 24.dp else 12.dp,
         tonalElevation = if (isDark) 2.dp else 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 20.dp)
+                .padding(horizontal = if (isCompact) 12.dp else 20.dp, vertical = if (isCompact) 12.dp else 20.dp)
         ) {
             // Plan selector
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 8.dp)
             ) {
                 plans.forEach { plan ->
                     PlanOptionCard(
                         plan = plan,
                         isSelected = selectedPlan == plan.id,
                         onClick = { onPlanSelected(plan.id) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        isCompact = isCompact
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
 
             // Main CTA
             PurchaseCTAButton(
                 selectedPlanDetails = selectedPlanDetails,
                 isLoading = isLoading,
-                onPurchase = onPurchase
+                onPurchase = onPurchase,
+                isCompact = isCompact
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(if (isCompact) 6.dp else 10.dp))
 
             // Transparency text
             Text(
@@ -1080,7 +1451,7 @@ private fun BottomPurchaseSection(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(if (isCompact) 4.dp else 8.dp))
 
             // Footer
             Row(
@@ -1116,11 +1487,125 @@ private fun BottomPurchaseSection(
 }
 
 @Composable
+private fun LandscapePurchaseSection(
+    plans: List<PlanDetails>,
+    selectedPlan: SubscriptionPlan,
+    onPlanSelected: (SubscriptionPlan) -> Unit,
+    selectedPlanDetails: PlanDetails?,
+    isLoading: Boolean,
+    onPurchase: (StoreProduct) -> Unit,
+    onRestore: () -> Unit,
+    isCompactHeight: Boolean
+) {
+    // Use background luminance to detect actual theme
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 400.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(24.dp),
+        shadowElevation = if (isDark) 16.dp else 8.dp,
+        tonalElevation = if (isDark) 2.dp else 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = if (isCompactHeight) 12.dp else 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Choose Your Plan",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(if (isCompactHeight) 8.dp else 12.dp))
+
+            // Plan selector - vertical for landscape
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                plans.forEach { plan ->
+                    PlanOptionCardHorizontal(
+                        plan = plan,
+                        isSelected = selectedPlan == plan.id,
+                        onClick = { onPlanSelected(plan.id) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(if (isCompactHeight) 10.dp else 14.dp))
+
+            // Main CTA
+            PurchaseCTAButton(
+                selectedPlanDetails = selectedPlanDetails,
+                isLoading = isLoading,
+                onPurchase = onPurchase,
+                isCompact = true
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Transparency text
+            Text(
+                text = if (selectedPlanDetails?.hasFreeTrial == true) {
+                    "${selectedPlanDetails.trialDays}-day free trial, then ${selectedPlanDetails.price}/year"
+                } else {
+                    "Cancel anytime"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Footer
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(10.dp)
+                )
+                Text(
+                    text = " Secure",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = " • ",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    fontSize = 10.sp
+                )
+                Text(
+                    text = "Restore",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onRestore() }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun PlanOptionCard(
     plan: PlanDetails,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCompact: Boolean = false
 ) {
     // Use background luminance to detect actual theme
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -1282,10 +1767,143 @@ private fun PlanOptionCard(
 }
 
 @Composable
+private fun PlanOptionCardHorizontal(
+    plan: PlanDetails,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    // Use background luminance to detect actual theme
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val goldPrimary = if (isDark) PremiumColors.GoldPrimary else PremiumColors.GoldLightMode
+    val goldDeep = if (isDark) PremiumColors.GoldDeep else PremiumColors.GoldDeepLightMode
+    val goldDark = PremiumColors.GoldDark
+    val successGreen = if (isDark) PremiumColors.SuccessGreen else PremiumColors.SuccessGreenLight
+
+    val backgroundColor = when {
+        plan.isBestValue && isSelected -> if (isDark) goldPrimary.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerHighest
+        plan.isBestValue -> if (isDark) goldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceContainerHigh
+        isSelected -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+
+    val borderColor = when {
+        plan.isBestValue && isSelected -> goldDeep
+        plan.isBestValue -> goldPrimary
+        isSelected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.outlineVariant
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Radio button
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .border(
+                    width = 2.dp,
+                    color = if (isSelected) {
+                        if (plan.isBestValue) goldDeep else MaterialTheme.colorScheme.primary
+                    } else MaterialTheme.colorScheme.outline,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(
+                            color = if (plan.isBestValue) goldDeep else MaterialTheme.colorScheme.primary,
+                            shape = CircleShape
+                        )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        // Plan info
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = plan.title,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (plan.isBestValue) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                brush = Brush.linearGradient(listOf(goldPrimary, goldDeep)),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "BEST",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 7.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+            if (plan.hasFreeTrial) {
+                Text(
+                    text = "${plan.trialDays}-day free trial",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = successGreen,
+                    fontWeight = FontWeight.Medium
+                )
+            } else if (plan.savings != null && plan.savings > 0) {
+                Text(
+                    text = "Save ${plan.savings}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        // Price
+        Text(
+            text = plan.price,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = "/${plan.period.take(2)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
 private fun PurchaseCTAButton(
     selectedPlanDetails: PlanDetails?,
     isLoading: Boolean,
-    onPurchase: (StoreProduct) -> Unit
+    onPurchase: (StoreProduct) -> Unit,
+    isCompact: Boolean = false
 ) {
     // Use background luminance to detect actual theme
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -1316,16 +1934,16 @@ private fun PurchaseCTAButton(
         onClick = { selectedPlanDetails?.storeProduct?.let { onPurchase(it) } },
         modifier = Modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .height(if (isCompact) 48.dp else 58.dp)
             .scale(pulse)
             .shadow(
                 elevation = if (isDark) 16.dp else 8.dp,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(if (isCompact) 12.dp else 16.dp),
                 ambientColor = PremiumColors.ButtonEnd.copy(alpha = glowAlpha),
                 spotColor = PremiumColors.ButtonEnd.copy(alpha = glowAlpha)
             ),
         enabled = !isLoading && selectedPlanDetails?.storeProduct != null,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(if (isCompact) 12.dp else 16.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
     ) {
