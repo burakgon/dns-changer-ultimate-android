@@ -23,9 +23,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.SettingsSuggest
 import androidx.compose.material.icons.filled.WorkspacePremium
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -77,6 +81,7 @@ fun SettingsScreen(
     onRestorePurchases: () -> Unit = {},
     adaptiveConfig: AdaptiveLayoutConfig
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val savedTheme by preferences.themeMode.collectAsState(initial = "SYSTEM")
     val selectedTheme = ThemeMode.valueOf(savedTheme)
@@ -188,35 +193,110 @@ fun SettingsScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (isPremium) {
-                                scope.launch { preferences.setStartOnBoot(!startOnBoot) }
-                            } else {
-                                showPaywall = true
+                Column {
+                    // Start on Boot
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (isPremium) {
+                                    scope.launch { preferences.setStartOnBoot(!startOnBoot) }
+                                } else {
+                                    showPaywall = true
+                                }
+                            }
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PowerSettingsNew,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stringResource(R.string.start_on_boot),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (!isPremium) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        PremiumBadge()
+                                    }
+                                }
+                                Text(
+                                    text = stringResource(R.string.start_on_boot_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                        Switch(
+                            checked = startOnBoot && isPremium,
+                            onCheckedChange = { enabled ->
+                                if (isPremium) {
+                                    scope.launch { preferences.setStartOnBoot(enabled) }
+                                } else {
+                                    showPaywall = true
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
+
+                    // Request Feature (Premium only can use, but visible to all)
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (isPremium) {
+                                    val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                        data = Uri.parse("mailto:")
+                                        putExtra(Intent.EXTRA_EMAIL, arrayOf("burakgon1@gmail.com"))
+                                        putExtra(Intent.EXTRA_SUBJECT, "DNS Changer Feature Request")
+                                        putExtra(
+                                            Intent.EXTRA_TEXT,
+                                            "Hi,\n\nI'd like to request the following feature:\n\n[Describe your feature idea here]\n\n---\nApp Version: ${BuildConfig.VERSION_NAME}\nPremium User: Yes"
+                                        )
+                                    }
+                                    context.startActivity(
+                                        Intent.createChooser(emailIntent, "Send Feature Request")
+                                    )
+                                } else {
+                                    showPaywall = true
+                                }
+                            }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.PowerSettingsNew,
+                            imageVector = Icons.Default.Lightbulb,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = stringResource(R.string.start_on_boot),
+                                    text = stringResource(R.string.request_feature),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -227,26 +307,12 @@ fun SettingsScreen(
                                 }
                             }
                             Text(
-                                text = stringResource(R.string.start_on_boot_description),
+                                text = stringResource(R.string.request_feature_description),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                    Switch(
-                        checked = startOnBoot && isPremium,
-                        onCheckedChange = { enabled ->
-                            if (isPremium) {
-                                scope.launch { preferences.setStartOnBoot(enabled) }
-                            } else {
-                                showPaywall = true
-                            }
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.primary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    )
                 }
             }
 

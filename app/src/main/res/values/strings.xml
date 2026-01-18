@@ -64,6 +64,8 @@
     <string name="start_on_boot">Start on Boot</string>
     <string name="start_on_boot_description">Automatically connect to DNS when device starts</string>
     <string name="start_on_boot_premium_description">Auto-connect to your selected DNS server every time your device boots up. Never browse unprotected again.</string>
+    <string name="request_feature">Request a Feature</string>
+    <string name="request_feature_description">We\'ll do our best to implement your ideas</string>
     <string name="about">About</string>
     <string name="version">Version</string>
     <string name="restore_purchases">Restore Purchases</string>
