@@ -20,7 +20,6 @@ import com.revenuecat.purchases.interfaces.UpdatedCustomerInfoListener
 import com.revenuecat.purchases.models.StoreProduct
 import com.revenuecat.purchases.models.StoreTransaction
 import com.revenuecat.purchases.Offerings
-import com.dns.changer.ultimate.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
@@ -81,20 +81,15 @@ class PremiumViewModel @Inject constructor(
 
     /**
      * Set up listener for real-time customer info updates (e.g., after purchase completes)
-     * NOTE: In debug builds, we skip this to respect local DataStore testing values
+     * This listener is CRITICAL - it updates state when purchases complete, subscriptions renew, etc.
      */
     private fun setupCustomerInfoListener() {
-        // In debug builds, don't set up listener - use local DataStore values instead
-        if (BuildConfig.DEBUG) {
-            android.util.Log.d("PremiumViewModel", "Debug build: skipping CustomerInfo listener to respect local test values")
-            return
-        }
-
         try {
             Purchases.sharedInstance.updatedCustomerInfoListener = UpdatedCustomerInfoListener { customerInfo ->
                 android.util.Log.d("PremiumViewModel", "CustomerInfo updated via listener")
                 updatePremiumStateFromCustomerInfo(customerInfo)
             }
+            android.util.Log.d("PremiumViewModel", "CustomerInfo listener set up successfully")
         } catch (e: Exception) {
             android.util.Log.e("PremiumViewModel", "Failed to set up customer info listener", e)
         }
@@ -102,17 +97,20 @@ class PremiumViewModel @Inject constructor(
 
     /**
      * Update premium state from CustomerInfo - used by purchase callbacks and listener
-     * NOTE: In debug builds, we update UI state but don't persist to DataStore to respect local test values
+     * RevenueCat's entitlement.isActive is the SOURCE OF TRUTH for premium access.
+     * It already handles grace periods, cancellations, billing issues, etc.
      */
     private fun updatePremiumStateFromCustomerInfo(customerInfo: CustomerInfo) {
         val entitlement = customerInfo.entitlements[ENTITLEMENT_ID]
-        val isPremium = entitlement?.isActive == true
+        // isActive is the ONLY check needed - RevenueCat handles all subscription states internally
+        val hasPremiumAccess = entitlement?.isActive == true
         val (status, details) = parseSubscriptionInfo(entitlement, customerInfo)
 
-        android.util.Log.d("PremiumViewModel", "Updating premium state: isPremium=$isPremium, status=$status")
+        android.util.Log.d("PremiumViewModel", "Updating premium state: hasPremiumAccess=$hasPremiumAccess, status=$status, " +
+            "willRenew=${entitlement?.willRenew}, billingIssue=${entitlement?.billingIssueDetectedAt != null}")
 
         _premiumState.value = _premiumState.value.copy(
-            isPremium = isPremium,
+            isPremium = hasPremiumAccess,
             isLoading = false,
             subscriptionStatus = status,
             subscriptionDetails = details,
@@ -120,13 +118,9 @@ class PremiumViewModel @Inject constructor(
             isPurchasePending = false
         )
 
-        // In debug builds, don't persist to DataStore - let local debug flow control premium status
-        if (!BuildConfig.DEBUG) {
-            viewModelScope.launch {
-                preferences.setPremium(isPremium)
-            }
-        } else {
-            android.util.Log.d("PremiumViewModel", "Debug build: skipping DataStore update to respect local test values")
+        // Always persist to DataStore for offline access and boot receiver
+        viewModelScope.launch {
+            preferences.setPremium(hasPremiumAccess)
         }
     }
 
@@ -226,123 +220,36 @@ class PremiumViewModel @Inject constructor(
 
     fun checkPremiumStatus() {
         _premiumState.value = _premiumState.value.copy(isLoading = true)
-
-        // In debug builds, respect the local DataStore value for testing
-        // Don't overwrite it with RevenueCat status
-        if (BuildConfig.DEBUG) {
-            viewModelScope.launch {
-                // Combine premium status and debug subscription status
-                kotlinx.coroutines.flow.combine(
-                    preferences.isPremium,
-                    preferences.debugSubscriptionStatus
-                ) { localPremium, debugStatus ->
-                    Pair(localPremium, debugStatus)
-                }.collect { (localPremium, debugStatus) ->
-                    val status = if (localPremium) {
-                        try {
-                            SubscriptionStatus.valueOf(debugStatus)
-                        } catch (e: Exception) {
-                            SubscriptionStatus.ACTIVE
-                        }
-                    } else {
-                        SubscriptionStatus.NONE
-                    }
-
-                    // Determine if user has premium ACCESS based on status
-                    // According to Google Play Billing:
-                    // - ACTIVE: has access
-                    // - GRACE_PERIOD: has access (billing failing but grace period active)
-                    // - CANCELLED: has access (until period ends)
-                    // - PAUSED: NO access (user paused)
-                    // - BILLING_ISSUE: NO access (account on hold)
-                    // - EXPIRED: NO access
-                    // - NONE: NO access
-                    val hasAccess = when (status) {
-                        SubscriptionStatus.ACTIVE,
-                        SubscriptionStatus.GRACE_PERIOD,
-                        SubscriptionStatus.CANCELLED -> true
-                        SubscriptionStatus.PAUSED,
-                        SubscriptionStatus.BILLING_ISSUE,
-                        SubscriptionStatus.EXPIRED,
-                        SubscriptionStatus.NONE -> false
-                    }
-
-                    // Create appropriate subscription details based on status
-                    val details = if (localPremium) {
-                        val now = Date()
-                        val futureDate = Date(now.time + 30L * 24 * 60 * 60 * 1000) // 30 days from now
-                        val pastDate = Date(now.time - 7L * 24 * 60 * 60 * 1000) // 7 days ago
-
-                        // willRenew logic per Google Play:
-                        // - ACTIVE: true (will auto-renew)
-                        // - GRACE_PERIOD: true (still attempting to renew)
-                        // - PAUSED: true (will auto-resume)
-                        // - BILLING_ISSUE: true (still trying to collect payment)
-                        // - CANCELLED: false (user cancelled auto-renewal)
-                        // - EXPIRED: false (subscription ended)
-                        val willRenew = when (status) {
-                            SubscriptionStatus.ACTIVE,
-                            SubscriptionStatus.GRACE_PERIOD,
-                            SubscriptionStatus.PAUSED,
-                            SubscriptionStatus.BILLING_ISSUE -> true
-                            SubscriptionStatus.CANCELLED,
-                            SubscriptionStatus.EXPIRED,
-                            SubscriptionStatus.NONE -> false
-                        }
-
-                        SubscriptionDetails(
-                            productId = "debug_premium",
-                            planName = "Debug Premium (${status.name})",
-                            expirationDate = when (status) {
-                                SubscriptionStatus.EXPIRED -> pastDate
-                                SubscriptionStatus.PAUSED -> pastDate // Paused has past expiry
-                                SubscriptionStatus.BILLING_ISSUE -> pastDate // Account hold has past expiry
-                                SubscriptionStatus.CANCELLED -> futureDate // Access until this date
-                                else -> futureDate
-                            },
-                            gracePeriodExpirationDate = if (status == SubscriptionStatus.GRACE_PERIOD) futureDate else null,
-                            willRenew = willRenew,
-                            billingIssueDetectedAt = if (status == SubscriptionStatus.GRACE_PERIOD || status == SubscriptionStatus.BILLING_ISSUE) pastDate else null,
-                            unsubscribeDetectedAt = if (status == SubscriptionStatus.CANCELLED) pastDate else null,
-                            periodType = "yearly",
-                            managementUrl = "https://play.google.com/store/account/subscriptions"
-                        )
-                    } else null
-
-                    _premiumState.value = _premiumState.value.copy(
-                        isPremium = hasAccess,
-                        isLoading = false,
-                        subscriptionStatus = status,
-                        subscriptionDetails = details
-                    )
-                }
-            }
-            return
-        }
+        android.util.Log.d("PremiumViewModel", "checkPremiumStatus() called - fetching from RevenueCat")
 
         try {
             Purchases.sharedInstance.getCustomerInfo(object : ReceiveCustomerInfoCallback {
                 override fun onReceived(customerInfo: CustomerInfo) {
-                    val entitlement = customerInfo.entitlements[ENTITLEMENT_ID]
-                    val isPremium = entitlement?.isActive == true
-                    val (status, details) = parseSubscriptionInfo(entitlement, customerInfo)
-
-                    _premiumState.value = _premiumState.value.copy(
-                        isPremium = isPremium,
-                        isLoading = false,
-                        subscriptionStatus = status,
-                        subscriptionDetails = details
-                    )
-                    viewModelScope.launch {
-                        preferences.setPremium(isPremium)
-                    }
+                    android.util.Log.d("PremiumViewModel", "CustomerInfo received from RevenueCat")
+                    updatePremiumStateFromCustomerInfo(customerInfo)
                 }
 
                 override fun onError(error: PurchasesError) {
-                    _premiumState.value = _premiumState.value.copy(isLoading = false)
+                    android.util.Log.e("PremiumViewModel", "Error fetching CustomerInfo: ${error.code} - ${error.message}")
+                    // On error, fall back to cached DataStore value for offline support
+                    viewModelScope.launch {
+                        try {
+                            val cachedPremium = preferences.isPremium.first()
+                            android.util.Log.d("PremiumViewModel", "Using cached premium status: $cachedPremium")
+                            _premiumState.value = _premiumState.value.copy(
+                                isPremium = cachedPremium,
+                                isLoading = false,
+                                subscriptionStatus = if (cachedPremium) SubscriptionStatus.ACTIVE else SubscriptionStatus.NONE
+                            )
+                        } catch (e: Exception) {
+                            android.util.Log.e("PremiumViewModel", "Failed to read cached premium status", e)
+                            _premiumState.value = _premiumState.value.copy(isLoading = false)
+                        }
+                    }
                 }
             })
         } catch (e: Exception) {
+            android.util.Log.e("PremiumViewModel", "Exception in checkPremiumStatus", e)
             _premiumState.value = _premiumState.value.copy(isLoading = false)
         }
     }

@@ -18,6 +18,17 @@ echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${YELLOW}🔨 DNS Changer - Build & Deploy${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
+# Auto-increment version
+echo -e "\n${YELLOW}📈 Bumping version...${NC}"
+CURRENT_VERSION=$(grep "versionCode = " app/build.gradle.kts | head -1 | sed 's/[^0-9]*//g')
+NEW_VERSION=$((CURRENT_VERSION + 1))
+
+# Update versionCode and versionName in build.gradle.kts
+sed -i '' "s/versionCode = ${CURRENT_VERSION}/versionCode = ${NEW_VERSION}/" app/build.gradle.kts
+sed -i '' "s/versionName = \"${CURRENT_VERSION}\"/versionName = \"${NEW_VERSION}\"/" app/build.gradle.kts
+
+echo -e "${GREEN}✅ Version bumped: ${CURRENT_VERSION} → ${NEW_VERSION}${NC}"
+
 # Build the APK
 echo -e "\n${YELLOW}📦 Building APK...${NC}"
 ./gradlew assembleDebug --quiet
