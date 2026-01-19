@@ -308,15 +308,15 @@ fun SubscriptionStatusCard(
 @Composable
 private fun StatusIcon(status: SubscriptionStatus, isPremium: Boolean) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val (icon, color) = when {
-        !isPremium -> Icons.Default.WorkspacePremium to MaterialTheme.colorScheme.onSurfaceVariant
-        status == SubscriptionStatus.ACTIVE -> Icons.Default.CheckCircle to SubscriptionColors.SuccessGreen
-        status == SubscriptionStatus.GRACE_PERIOD -> Icons.Default.Warning to SubscriptionColors.WarningOrange
-        status == SubscriptionStatus.PAUSED -> Icons.Default.Pause to SubscriptionColors.WarningOrange
-        status == SubscriptionStatus.BILLING_ISSUE -> Icons.Default.CreditCardOff to SubscriptionColors.ErrorRed
-        status == SubscriptionStatus.CANCELLED -> Icons.Default.Cancel to SubscriptionColors.WarningOrange
-        status == SubscriptionStatus.EXPIRED -> Icons.Default.Error to SubscriptionColors.ErrorRed
-        else -> Icons.Default.WorkspacePremium to MaterialTheme.colorScheme.primary
+    // Icon should reflect the SUBSCRIPTION STATUS, not access level
+    val (icon, color) = when (status) {
+        SubscriptionStatus.ACTIVE -> Icons.Default.CheckCircle to SubscriptionColors.SuccessGreen
+        SubscriptionStatus.GRACE_PERIOD -> Icons.Default.Warning to SubscriptionColors.WarningOrange
+        SubscriptionStatus.PAUSED -> Icons.Default.Pause to SubscriptionColors.WarningOrange
+        SubscriptionStatus.BILLING_ISSUE -> Icons.Default.CreditCardOff to SubscriptionColors.ErrorRed
+        SubscriptionStatus.CANCELLED -> Icons.Default.Cancel to SubscriptionColors.WarningOrange
+        SubscriptionStatus.EXPIRED -> Icons.Default.Error to SubscriptionColors.ErrorRed
+        SubscriptionStatus.NONE -> Icons.Default.WorkspacePremium to MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Box(
@@ -339,43 +339,41 @@ private fun StatusIcon(status: SubscriptionStatus, isPremium: Boolean) {
 
 @Composable
 private fun StatusBadge(status: SubscriptionStatus, isPremium: Boolean, isDark: Boolean) {
-    val (text, backgroundColor, textColor) = when {
-        !isPremium -> Triple(
-            stringResource(R.string.status_free),
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-            MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        status == SubscriptionStatus.ACTIVE -> Triple(
+    // Status badge should reflect the SUBSCRIPTION STATUS, not access level
+    // A user with PAUSED subscription should see "Paused", not "Free"
+    // isPremium is only used for NONE status to show "Free"
+    val (text, backgroundColor, textColor) = when (status) {
+        SubscriptionStatus.ACTIVE -> Triple(
             stringResource(R.string.status_active),
             SubscriptionColors.SuccessGreen.copy(alpha = if (isDark) 0.2f else 0.15f),
             SubscriptionColors.SuccessGreen
         )
-        status == SubscriptionStatus.GRACE_PERIOD -> Triple(
+        SubscriptionStatus.GRACE_PERIOD -> Triple(
             stringResource(R.string.status_grace_period),
             SubscriptionColors.WarningOrange.copy(alpha = if (isDark) 0.2f else 0.15f),
             SubscriptionColors.WarningOrange
         )
-        status == SubscriptionStatus.PAUSED -> Triple(
+        SubscriptionStatus.PAUSED -> Triple(
             stringResource(R.string.status_paused),
             SubscriptionColors.WarningOrange.copy(alpha = if (isDark) 0.2f else 0.15f),
             SubscriptionColors.WarningOrange
         )
-        status == SubscriptionStatus.BILLING_ISSUE -> Triple(
+        SubscriptionStatus.BILLING_ISSUE -> Triple(
             stringResource(R.string.status_billing_issue),
             SubscriptionColors.ErrorRed.copy(alpha = if (isDark) 0.2f else 0.15f),
             SubscriptionColors.ErrorRed
         )
-        status == SubscriptionStatus.CANCELLED -> Triple(
+        SubscriptionStatus.CANCELLED -> Triple(
             stringResource(R.string.status_cancelled),
             SubscriptionColors.WarningOrange.copy(alpha = if (isDark) 0.2f else 0.15f),
             SubscriptionColors.WarningOrange
         )
-        status == SubscriptionStatus.EXPIRED -> Triple(
+        SubscriptionStatus.EXPIRED -> Triple(
             stringResource(R.string.status_expired),
             SubscriptionColors.ErrorRed.copy(alpha = if (isDark) 0.2f else 0.15f),
             SubscriptionColors.ErrorRed
         )
-        else -> Triple(
+        SubscriptionStatus.NONE -> Triple(
             stringResource(R.string.status_free),
             MaterialTheme.colorScheme.surfaceContainerHighest,
             MaterialTheme.colorScheme.onSurfaceVariant
@@ -467,29 +465,30 @@ private fun StatusInfoBox(
 
 @Composable
 private fun getStatusDisplayText(status: SubscriptionStatus, isPremium: Boolean): String {
-    return when {
-        !isPremium -> stringResource(R.string.subscription_status_free)
-        status == SubscriptionStatus.ACTIVE -> stringResource(R.string.subscription_status_active)
-        status == SubscriptionStatus.GRACE_PERIOD -> stringResource(R.string.subscription_status_grace)
-        status == SubscriptionStatus.PAUSED -> stringResource(R.string.subscription_status_paused)
-        status == SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.subscription_status_billing)
-        status == SubscriptionStatus.CANCELLED -> stringResource(R.string.subscription_status_cancelled)
-        status == SubscriptionStatus.EXPIRED -> stringResource(R.string.subscription_status_expired)
-        else -> stringResource(R.string.subscription_status_free)
+    // Status text should reflect the SUBSCRIPTION STATUS, not access level
+    // A user with PAUSED subscription should see "Subscription paused", not "Upgrade to unlock"
+    return when (status) {
+        SubscriptionStatus.ACTIVE -> stringResource(R.string.subscription_status_active)
+        SubscriptionStatus.GRACE_PERIOD -> stringResource(R.string.subscription_status_grace)
+        SubscriptionStatus.PAUSED -> stringResource(R.string.subscription_status_paused)
+        SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.subscription_status_billing)
+        SubscriptionStatus.CANCELLED -> stringResource(R.string.subscription_status_cancelled)
+        SubscriptionStatus.EXPIRED -> stringResource(R.string.subscription_status_expired)
+        SubscriptionStatus.NONE -> stringResource(R.string.subscription_status_free)
     }
 }
 
 @Composable
 private fun getStatusColor(status: SubscriptionStatus, isPremium: Boolean, isDark: Boolean): Color {
-    return when {
-        !isPremium -> MaterialTheme.colorScheme.onSurfaceVariant
-        status == SubscriptionStatus.ACTIVE -> SubscriptionColors.SuccessGreen
-        status == SubscriptionStatus.GRACE_PERIOD -> SubscriptionColors.WarningOrange
-        status == SubscriptionStatus.PAUSED -> SubscriptionColors.WarningOrange
-        status == SubscriptionStatus.BILLING_ISSUE -> SubscriptionColors.ErrorRed
-        status == SubscriptionStatus.CANCELLED -> SubscriptionColors.WarningOrange
-        status == SubscriptionStatus.EXPIRED -> SubscriptionColors.ErrorRed
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    // Status color should reflect the SUBSCRIPTION STATUS, not access level
+    return when (status) {
+        SubscriptionStatus.ACTIVE -> SubscriptionColors.SuccessGreen
+        SubscriptionStatus.GRACE_PERIOD -> SubscriptionColors.WarningOrange
+        SubscriptionStatus.PAUSED -> SubscriptionColors.WarningOrange
+        SubscriptionStatus.BILLING_ISSUE -> SubscriptionColors.ErrorRed
+        SubscriptionStatus.CANCELLED -> SubscriptionColors.WarningOrange
+        SubscriptionStatus.EXPIRED -> SubscriptionColors.ErrorRed
+        SubscriptionStatus.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 }
 
