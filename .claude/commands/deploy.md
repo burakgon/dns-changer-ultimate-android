@@ -24,7 +24,21 @@ Do NOT bundle unrelated changes into a single commit.
 ### 3. Push to GitHub
 Run `git push origin main` to push all commits.
 
-### 4. Run the build and deploy script
+### 4. Generate build summary
+Create a file `build/summary.txt` with a brief summary for testers:
+
+```
+📦 What's New:
+- [List main changes in 2-3 bullet points]
+
+🧪 What to Test:
+- [List specific things to test based on changes]
+- [Include any edge cases or specific flows to verify]
+```
+
+Keep it concise and actionable. Focus on user-facing changes and what testers should verify.
+
+### 5. Run the build and deploy script
 ```bash
 ./build-and-send.sh
 ```
@@ -33,10 +47,10 @@ This script will:
 - Auto-increment the version number
 - Build the debug APK
 - Generate HTML changelog with commits since last build tag
-- Send APK and changelog to Telegram
+- Send APK, changelog, and summary to Telegram
 - Create a git tag for the build
 
-### 5. Report results
+### 6. Report results
 After completion, report:
 - Version number
 - Number of commits in changelog

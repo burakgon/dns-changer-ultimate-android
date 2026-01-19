@@ -442,6 +442,24 @@ else
     exit 1
 fi
 
+# Send summary if exists
+SUMMARY_PATH="build/summary.txt"
+if [ -f "$SUMMARY_PATH" ]; then
+    SUMMARY_CONTENT=$(cat "$SUMMARY_PATH")
+    RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+        -F chat_id="$CHAT_ID" \
+        -F text="$SUMMARY_CONTENT" \
+        -F parse_mode="Markdown")
+
+    if echo "$RESPONSE" | grep -q '"ok":true'; then
+        echo -e "${GREEN}✅ Summary sent!${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Failed to send summary (continuing...)${NC}"
+    fi
+else
+    echo -e "${CYAN}ℹ️  No summary file found (build/summary.txt)${NC}"
+fi
+
 # Send changelog
 RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
     -F chat_id="$CHAT_ID" \
