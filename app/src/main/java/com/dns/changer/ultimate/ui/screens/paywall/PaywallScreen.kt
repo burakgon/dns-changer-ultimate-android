@@ -354,71 +354,79 @@ private fun LandscapePaywallLayout(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left side - Hero + Benefits (scrollable)
-            Column(
+            // Left side - Hero + Benefits (scrollable, vertically centered)
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    .verticalScroll(leftScrollState)
-                    .padding(start = 16.dp, end = 8.dp, top = 32.dp, bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
             ) {
-                // HERO - Smaller in landscape
-                AnimatedVisibility(
-                    visible = animationStep >= 1,
-                    enter = fadeIn(tween(500)) + scaleIn(tween(600, easing = EaseOutBack), initialScale = 0.6f)
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(leftScrollState)
+                        .padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    HeroSection(isCompact = true)
-                }
+                    // HERO - Smaller in landscape
+                    AnimatedVisibility(
+                        visible = animationStep >= 1,
+                        enter = fadeIn(tween(500)) + scaleIn(tween(600, easing = EaseOutBack), initialScale = 0.6f)
+                    ) {
+                        HeroSection(isCompact = true)
+                    }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    // SOCIAL PROOF
+                    AnimatedVisibility(
+                        visible = animationStep >= 2,
+                        enter = fadeIn(tween(400, delayMillis = 100)) +
+                                slideInVertically(tween(400)) { it / 3 }
+                    ) {
+                        SocialProofBannerCompact()
+                    }
 
-                // SOCIAL PROOF
-                AnimatedVisibility(
-                    visible = animationStep >= 2,
-                    enter = fadeIn(tween(400, delayMillis = 100)) +
-                            slideInVertically(tween(400)) { it / 3 }
-                ) {
-                    SocialProofBannerCompact()
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // FEATURES - Horizontal layout for landscape
-                AnimatedVisibility(
-                    visible = animationStep >= 3,
-                    enter = fadeIn(tween(400)) + slideInVertically(tween(500)) { it / 2 }
-                ) {
-                    BenefitsSectionLandscape()
+                    // FEATURES - Horizontal layout for landscape
+                    AnimatedVisibility(
+                        visible = animationStep >= 3,
+                        enter = fadeIn(tween(400)) + slideInVertically(tween(500)) { it / 2 }
+                    ) {
+                        BenefitsSectionLandscape()
+                    }
                 }
             }
 
-            // Right side - Plans + CTA (scrollable)
-            Column(
+            // Right side - Plans + CTA (scrollable, vertically centered)
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    .verticalScroll(rightScrollState)
-                    .padding(start = 8.dp, end = 16.dp, top = 32.dp, bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
             ) {
-                AnimatedVisibility(
-                    visible = animationStep >= 4,
-                    enter = fadeIn(tween(400)) + slideInVertically(tween(500)) { it / 2 }
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rightScrollState)
+                        .padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    LandscapePurchaseSection(
-                        plans = plans,
-                        selectedPlan = selectedPlan,
-                        onPlanSelected = onPlanSelected,
-                        selectedPlanDetails = selectedPlanDetails,
-                        isLoading = isLoading,
-                        onPurchase = onPurchase,
-                        onRestore = onRestore,
-                        isCompactHeight = isCompactHeight
-                    )
+                    AnimatedVisibility(
+                        visible = animationStep >= 4,
+                        enter = fadeIn(tween(400)) + slideInVertically(tween(500)) { it / 2 }
+                    ) {
+                        LandscapePurchaseSection(
+                            plans = plans,
+                            selectedPlan = selectedPlan,
+                            onPlanSelected = onPlanSelected,
+                            selectedPlanDetails = selectedPlanDetails,
+                            isLoading = isLoading,
+                            onPurchase = onPurchase,
+                            onRestore = onRestore,
+                            isCompactHeight = isCompactHeight
+                        )
+                    }
                 }
             }
         }
