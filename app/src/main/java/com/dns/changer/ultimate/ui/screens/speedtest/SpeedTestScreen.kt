@@ -190,15 +190,16 @@ fun SpeedTestScreen(
         }
     }
 
-    // Gauge size based on window size
-    val gaugeSize = when (adaptiveConfig.windowSize) {
-        WindowSize.COMPACT -> if (speedTestState.isRunning) 200.dp else 180.dp
-        WindowSize.MEDIUM -> if (speedTestState.isRunning) 220.dp else 200.dp
-        WindowSize.EXPANDED -> if (speedTestState.isRunning) 260.dp else 240.dp
+    // Gauge size based on window size and orientation
+    val gaugeSize = when {
+        adaptiveConfig.isCompactLandscape -> if (speedTestState.isRunning) 160.dp else 150.dp
+        adaptiveConfig.windowSize == WindowSize.COMPACT -> if (speedTestState.isRunning) 200.dp else 180.dp
+        adaptiveConfig.windowSize == WindowSize.MEDIUM -> if (speedTestState.isRunning) 220.dp else 200.dp
+        else -> if (speedTestState.isRunning) 260.dp else 240.dp
     }
 
-    // Use horizontal layout for expanded screens with results
-    if (adaptiveConfig.windowSize == WindowSize.EXPANDED && !isInitialState) {
+    // Use horizontal layout for tablets/foldables (EXPANDED) or phone landscape with results
+    if (adaptiveConfig.useHorizontalLayout && !isInitialState) {
         // Two-pane layout for tablets: gauge on left, results on right
         Row(
             modifier = Modifier

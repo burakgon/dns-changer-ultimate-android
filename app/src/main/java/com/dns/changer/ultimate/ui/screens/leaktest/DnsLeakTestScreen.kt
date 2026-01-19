@@ -147,31 +147,35 @@ fun DnsLeakTestScreen(
         leakTestViewModel.startTest()
     }
 
-    // Size based on window size
-    val gaugeSize = when (adaptiveConfig.windowSize) {
-        WindowSize.COMPACT -> 180.dp
-        WindowSize.MEDIUM -> 200.dp
-        WindowSize.EXPANDED -> 220.dp
+    // Size based on window size and orientation
+    val gaugeSize = when {
+        adaptiveConfig.isCompactLandscape -> 140.dp // Smaller for phone landscape
+        adaptiveConfig.windowSize == WindowSize.COMPACT -> 180.dp
+        adaptiveConfig.windowSize == WindowSize.MEDIUM -> 200.dp
+        else -> 220.dp
     }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        // Use different layout for expanded screens (tablets)
-        if (adaptiveConfig.windowSize == WindowSize.EXPANDED) {
+        // Use horizontal layout for tablets/foldables (EXPANDED) or phone landscape
+        if (adaptiveConfig.useHorizontalLayout) {
             // Two-pane horizontal layout for tablets
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
-                    .padding(horizontal = adaptiveConfig.horizontalPadding, vertical = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(32.dp)
+                    .padding(
+                        horizontal = adaptiveConfig.horizontalPadding,
+                        vertical = if (adaptiveConfig.isCompactLandscape) 8.dp else 24.dp
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(if (adaptiveConfig.isCompactLandscape) 16.dp else 32.dp)
             ) {
                 // Left pane: Test gauge and button
                 Column(
                     modifier = Modifier
-                        .weight(0.45f)
+                        .weight(if (adaptiveConfig.isCompactLandscape) 0.4f else 0.45f)
                         .fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -183,16 +187,20 @@ fun DnsLeakTestScreen(
                         onStartTest = onStartTest
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(if (adaptiveConfig.isCompactLandscape) 8.dp else 24.dp))
 
-                    StatusText(status = testStatus)
+                    StatusText(
+                        status = testStatus,
+                        compact = adaptiveConfig.isCompactLandscape
+                    )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(if (adaptiveConfig.isCompactLandscape) 8.dp else 20.dp))
 
                     ActionButton(
                         status = testStatus,
                         onStartTest = onStartTest,
-                        modifier = Modifier.widthIn(max = 280.dp)
+                        modifier = Modifier.widthIn(max = 280.dp),
+                        compact = adaptiveConfig.isCompactLandscape
                     )
                 }
 
@@ -672,7 +680,7 @@ private fun LeakTestGauge(
 }
 
 @Composable
-private fun StatusText(status: LeakTestStatus) {
+private fun StatusText(status: LeakTestStatus, compact: Boolean = false) {
     val semanticColors = rememberSemanticColors()
     val successColor = semanticColors.success
     val warningColor = semanticColors.warning
@@ -695,7 +703,7 @@ private fun StatusText(status: LeakTestStatus) {
                     LeakTestStatus.COMPLETED_NOT_PROTECTED -> stringResource(R.string.leak_test_not_protected_title)
                     LeakTestStatus.COMPLETED_LEAK_DETECTED -> stringResource(R.string.leak_test_leak_detected)
                 },
-                style = MaterialTheme.typography.titleLarge,
+                style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = when (currentStatus) {
                     LeakTestStatus.COMPLETED -> MaterialTheme.colorScheme.primary
@@ -707,21 +715,24 @@ private fun StatusText(status: LeakTestStatus) {
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            // Hide description in compact mode to save vertical space
+            if (!compact) {
+                Spacer(modifier = Modifier.height(6.dp))
 
-            Text(
-                text = when (currentStatus) {
-                    LeakTestStatus.IDLE -> stringResource(R.string.leak_test_subtitle)
-                    LeakTestStatus.RUNNING -> stringResource(R.string.leak_test_checking)
-                    LeakTestStatus.COMPLETED -> stringResource(R.string.leak_test_servers_single_desc)
-                    LeakTestStatus.COMPLETED_SECURE -> stringResource(R.string.leak_test_secure_desc)
-                    LeakTestStatus.COMPLETED_NOT_PROTECTED -> stringResource(R.string.leak_test_not_protected_desc)
-                    LeakTestStatus.COMPLETED_LEAK_DETECTED -> stringResource(R.string.leak_test_leak_desc)
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
+                Text(
+                    text = when (currentStatus) {
+                        LeakTestStatus.IDLE -> stringResource(R.string.leak_test_subtitle)
+                        LeakTestStatus.RUNNING -> stringResource(R.string.leak_test_checking)
+                        LeakTestStatus.COMPLETED -> stringResource(R.string.leak_test_servers_single_desc)
+                        LeakTestStatus.COMPLETED_SECURE -> stringResource(R.string.leak_test_secure_desc)
+                        LeakTestStatus.COMPLETED_NOT_PROTECTED -> stringResource(R.string.leak_test_not_protected_desc)
+                        LeakTestStatus.COMPLETED_LEAK_DETECTED -> stringResource(R.string.leak_test_leak_desc)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -730,7 +741,8 @@ private fun StatusText(status: LeakTestStatus) {
 private fun ActionButton(
     status: LeakTestStatus,
     onStartTest: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     // Use Material theme colors for backgrounds
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -754,8 +766,8 @@ private fun ActionButton(
         enabled = status != LeakTestStatus.RUNNING,
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp),
-        shape = RoundedCornerShape(16.dp),
+            .height(if (compact) 44.dp else 56.dp),
+        shape = RoundedCornerShape(if (compact) 12.dp else 16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor,
@@ -769,14 +781,14 @@ private fun ActionButton(
     ) {
         if (status == LeakTestStatus.RUNNING) {
             CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(if (compact) 18.dp else 24.dp),
                 color = contentColor,
                 strokeWidth = 2.dp
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(if (compact) 8.dp else 12.dp))
             Text(
                 text = stringResource(R.string.testing),
-                style = MaterialTheme.typography.titleMedium,
+                style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = contentColor
             )
@@ -785,12 +797,12 @@ private fun ActionButton(
                 imageVector = if (status == LeakTestStatus.IDLE) Icons.Rounded.PlayArrow else Icons.Rounded.Refresh,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(if (compact) 18.dp else 24.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(if (compact) 4.dp else 8.dp))
             Text(
                 text = if (status == LeakTestStatus.IDLE) stringResource(R.string.start_test) else stringResource(R.string.test_again),
-                style = MaterialTheme.typography.titleMedium,
+                style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = contentColor
             )

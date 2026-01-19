@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -116,20 +117,21 @@ fun ConnectScreen(
         connectionState is ConnectionState.Disconnecting ||
         connectionState is ConnectionState.Switching
 
-    // Determine power button size based on window size
-    val powerButtonSize = when (adaptiveConfig.windowSize) {
-        WindowSize.COMPACT -> 200.dp
-        WindowSize.MEDIUM -> 220.dp
-        WindowSize.EXPANDED -> 240.dp
+    // Determine power button size based on window size and orientation
+    val powerButtonSize = when {
+        adaptiveConfig.isCompactLandscape -> 140.dp // Smaller for phone landscape
+        adaptiveConfig.windowSize == WindowSize.COMPACT -> 200.dp
+        adaptiveConfig.windowSize == WindowSize.MEDIUM -> 220.dp
+        else -> 240.dp
     }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        // Use different layout for expanded screens (tablets in landscape)
-        if (adaptiveConfig.windowSize == WindowSize.EXPANDED) {
-            // Horizontal layout for large tablets
+        // Use horizontal layout for tablets/foldables (EXPANDED) or phone landscape
+        if (adaptiveConfig.useHorizontalLayout) {
+            // Horizontal layout for large tablets and phone landscape
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -649,8 +651,8 @@ private fun ServerSelectionCard(
                 )
                 if (server != null) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         if (server.isDoH && !server.dohUrl.isNullOrBlank()) {
                             DnsChip(server.dohUrl, isConnected)
@@ -689,7 +691,7 @@ private fun DnsChip(
     isConnected: Boolean
 ) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         color = if (isConnected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
         } else {
@@ -704,7 +706,9 @@ private fun DnsChip(
             } else {
                 MaterialTheme.colorScheme.outline
             },
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

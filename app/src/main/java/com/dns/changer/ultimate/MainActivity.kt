@@ -66,6 +66,7 @@ import androidx.compose.ui.window.DialogProperties
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
+import com.dns.changer.ultimate.ui.theme.rememberAdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PendingAction
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
@@ -467,13 +468,16 @@ fun DnsChangerApp(
                 content()
             }
         } else {
-            // Get the current navigation suite type (NavigationBar on phones, NavigationRail on tablets)
-            val layoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
+            // Get adaptive layout configuration (includes phone landscape detection)
+            val adaptiveConfig = rememberAdaptiveLayoutConfig()
+
+            // Get the default navigation suite type (NavigationBar on phones, NavigationRail on tablets)
+            val defaultLayoutType = NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
                 androidx.compose.material3.adaptive.currentWindowAdaptiveInfo()
             )
 
-            // Use custom layout for NavigationRail to center items vertically
-            val useRail = layoutType == NavigationSuiteType.NavigationRail
+            // Use NavigationRail when: default says so (tablets) OR phone landscape mode
+            val useRail = defaultLayoutType == NavigationSuiteType.NavigationRail || adaptiveConfig.showNavigationRail
 
             if (useRail) {
                 // Custom layout with centered NavigationRail
@@ -555,7 +559,7 @@ fun DnsChangerApp(
                             )
                         }
                     },
-                    layoutType = layoutType,
+                    layoutType = defaultLayoutType,
                     navigationSuiteColors = NavigationSuiteDefaults.colors(
                         navigationBarContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                         navigationBarContentColor = MaterialTheme.colorScheme.onSurface

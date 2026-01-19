@@ -22,6 +22,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
@@ -43,7 +44,10 @@ data class AdaptiveLayoutConfig(
     val contentMaxWidth: Dp,
     val horizontalPadding: Dp,
     val showNavigationRail: Boolean,
-    val useListDetailLayout: Boolean
+    val useListDetailLayout: Boolean,
+    val isLandscape: Boolean,
+    val isCompactLandscape: Boolean, // Phone in landscape - needs special handling
+    val useHorizontalLayout: Boolean // Use two-column layout (EXPANDED or phone landscape)
 )
 
 /**
@@ -52,14 +56,24 @@ data class AdaptiveLayoutConfig(
 @Composable
 fun rememberAdaptiveLayoutConfig(): AdaptiveLayoutConfig {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val configuration = LocalConfiguration.current
 
-    return remember(windowSizeClass) {
+    // Detect landscape orientation
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    return remember(windowSizeClass, isLandscape) {
         // Use the new isWidthAtLeastBreakpoint API
         val windowSize = when {
             windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND) -> WindowSize.EXPANDED
             windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) -> WindowSize.MEDIUM
             else -> WindowSize.COMPACT
         }
+
+        // Phone in landscape: COMPACT or MEDIUM width but landscape orientation
+        val isCompactLandscape = isLandscape && windowSize != WindowSize.EXPANDED
+
+        // Use horizontal layout for: tablets/foldables (EXPANDED) OR phone landscape
+        val useHorizontalLayout = windowSize == WindowSize.EXPANDED || isCompactLandscape
 
         AdaptiveLayoutConfig(
             windowSize = windowSize,
@@ -68,13 +82,17 @@ fun rememberAdaptiveLayoutConfig(): AdaptiveLayoutConfig {
                 WindowSize.MEDIUM -> 600.dp
                 WindowSize.EXPANDED -> 840.dp
             },
-            horizontalPadding = when (windowSize) {
-                WindowSize.COMPACT -> 16.dp
-                WindowSize.MEDIUM -> 24.dp
-                WindowSize.EXPANDED -> 32.dp
+            horizontalPadding = when {
+                isCompactLandscape -> 16.dp // Less padding in phone landscape
+                windowSize == WindowSize.COMPACT -> 16.dp
+                windowSize == WindowSize.MEDIUM -> 24.dp
+                else -> 32.dp
             },
-            showNavigationRail = windowSize != WindowSize.COMPACT,
-            useListDetailLayout = windowSize == WindowSize.EXPANDED
+            showNavigationRail = windowSize != WindowSize.COMPACT || isCompactLandscape,
+            useListDetailLayout = windowSize == WindowSize.EXPANDED,
+            isLandscape = isLandscape,
+            isCompactLandscape = isCompactLandscape,
+            useHorizontalLayout = useHorizontalLayout
         )
     }
 }

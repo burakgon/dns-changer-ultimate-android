@@ -162,6 +162,9 @@ fun DnsPickerDialog(
     val screenWidthDp = configuration.screenWidthDp
     val screenHeightDp = configuration.screenHeightDp
 
+    // Compact landscape for phones - need more aggressive space saving
+    val isCompactLandscape = isLandscape && screenHeightDp < 500
+
     // Adaptive sizing for different screen modes
     val isWideScreen = isLandscape || isTv || screenWidthDp >= 600
     val maxDialogWidth = when {
@@ -203,6 +206,26 @@ fun DnsPickerDialog(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp
         ) {
+            if (isCompactLandscape) {
+                // Two-column layout for compact landscape
+                DnsPickerCompactLandscapeContent(
+                    servers = servers,
+                    selectedServer = selectedServer,
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = { selectedCategory = it },
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { searchQuery = it },
+                    filteredServers = filteredServers,
+                    filteredServersMap = filteredServersMap,
+                    onServerSelected = onServerSelected,
+                    onAddCustomDns = onAddCustomDns,
+                    onDeleteCustomDns = onDeleteCustomDns,
+                    onDismiss = onDismiss,
+                    onFindFastest = onFindFastest,
+                    isTv = isTv,
+                    isDarkTheme = isDarkTheme
+                )
+            } else {
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -210,7 +233,12 @@ fun DnsPickerDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 24.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
+                        .padding(
+                            start = 24.dp,
+                            end = 8.dp,
+                            top = 16.dp,
+                            bottom = 8.dp
+                        ),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -250,8 +278,11 @@ fun DnsPickerDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                        .height(48.dp)
+                        .padding(
+                            horizontal = if (isCompactLandscape) 12.dp else 20.dp,
+                            vertical = if (isCompactLandscape) 4.dp else 8.dp
+                        )
+                        .height(if (isCompactLandscape) 36.dp else 48.dp)
                         .focusRequester(findFastestFocusRequester)
                         .focusable(interactionSource = findFastestInteraction)
                         .then(
@@ -259,13 +290,13 @@ fun DnsPickerDialog(
                                 Modifier.border(
                                     width = 3.dp,
                                     color = MaterialTheme.colorScheme.onTertiary,
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = RoundedCornerShape(if (isCompactLandscape) 8.dp else 12.dp)
                                 )
                             } else {
                                 Modifier
                             }
                         ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(if (isCompactLandscape) 8.dp else 12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.tertiary,
                         contentColor = MaterialTheme.colorScheme.onTertiary
@@ -274,12 +305,12 @@ fun DnsPickerDialog(
                     Icon(
                         imageVector = Icons.Rounded.Speed,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(if (isCompactLandscape) 16.dp else 20.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(if (isCompactLandscape) 4.dp else 8.dp))
                     Text(
                         text = stringResource(R.string.find_fastest),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = if (isCompactLandscape) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -288,9 +319,12 @@ fun DnsPickerDialog(
                 FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(
+                            horizontal = if (isCompactLandscape) 12.dp else 20.dp,
+                            vertical = if (isCompactLandscape) 4.dp else 8.dp
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 4.dp else 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 4.dp else 8.dp)
                 ) {
                     // "All" chip - use luminance-based content color
                     val allChipBgColor = MaterialTheme.colorScheme.primary
@@ -370,9 +404,12 @@ fun DnsPickerDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f, fill = false),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        contentPadding = PaddingValues(
+                            horizontal = if (isCompactLandscape) 8.dp else 12.dp,
+                            vertical = if (isCompactLandscape) 4.dp else 8.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 6.dp else 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 6.dp else 8.dp)
                     ) {
                         items(
                             items = allServers,
@@ -465,7 +502,10 @@ fun DnsPickerDialog(
                     onValueChange = { searchQuery = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .padding(
+                            horizontal = if (isCompactLandscape) 12.dp else 20.dp,
+                            vertical = if (isCompactLandscape) 6.dp else 12.dp
+                        ),
                     placeholder = {
                         Text(
                             text = stringResource(R.string.search_dns),
@@ -499,6 +539,7 @@ fun DnsPickerDialog(
                         focusedBorderColor = MaterialTheme.colorScheme.primary
                     )
                 )
+            }
             }
         }
     }
@@ -793,5 +834,276 @@ private fun DnsIpChip(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DnsPickerCompactLandscapeContent(
+    servers: Map<DnsCategory, List<DnsServer>>,
+    selectedServer: DnsServer?,
+    selectedCategory: DnsCategory?,
+    onCategorySelected: (DnsCategory?) -> Unit,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    filteredServers: List<DnsServer>,
+    filteredServersMap: Map<DnsCategory, List<DnsServer>>,
+    onServerSelected: (DnsServer) -> Unit,
+    onAddCustomDns: () -> Unit,
+    onDeleteCustomDns: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onFindFastest: () -> Unit,
+    isTv: Boolean,
+    isDarkTheme: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
+        // Left column: Title, Find Fastest, Category filters
+        Column(
+            modifier = Modifier
+                .weight(0.35f)
+                .fillMaxHeight()
+                .padding(end = 8.dp)
+        ) {
+            // Header with title and buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.select_server),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Row {
+                    IconButton(
+                        onClick = onAddCustomDns,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Add,
+                            contentDescription = "Add Custom DNS",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Find Fastest Button
+            Button(
+                onClick = {
+                    onDismiss()
+                    onFindFastest()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    contentColor = MaterialTheme.colorScheme.onTertiary
+                ),
+                contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Speed,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.find_fastest),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Category Filter Chips - vertical layout
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // "All" chip
+                item {
+                    val allChipBgColor = MaterialTheme.colorScheme.primary
+                    val allChipContentColor = if (allChipBgColor.luminance() > 0.5f) Color.Black else Color.White
+                    val isAllSelected = selectedCategory == null
+                    FilterChip(
+                        selected = isAllSelected,
+                        onClick = { onCategorySelected(null) },
+                        label = {
+                            Text(
+                                text = "All",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isAllSelected) allChipContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        leadingIcon = if (isAllSelected) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = allChipContentColor
+                                )
+                            }
+                        } else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = allChipBgColor,
+                            selectedLabelColor = allChipContentColor,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Category chips
+                items(DnsCategory.entries.size) { index ->
+                    val category = DnsCategory.entries[index]
+                    val categoryColor = CategoryColors.forCategory(category, isDarkTheme)
+                    val isThisCategorySelected = selectedCategory == category
+                    val selectedContentColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
+                    FilterChip(
+                        selected = isThisCategorySelected,
+                        onClick = {
+                            onCategorySelected(if (selectedCategory == category) null else category)
+                        },
+                        label = {
+                            Text(
+                                text = category.displayName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isThisCategorySelected) selectedContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = category.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = if (isThisCategorySelected) selectedContentColor else categoryColor
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = categoryColor,
+                            selectedLabelColor = selectedContentColor,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        // Right column: Server list and search
+        Column(
+            modifier = Modifier
+                .weight(0.65f)
+                .fillMaxHeight()
+        ) {
+            // Server Grid
+            val allServers = if (selectedCategory == null) {
+                filteredServersMap.values.flatten()
+            } else {
+                filteredServers
+            }
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(
+                    items = allServers,
+                    key = { it.id }
+                ) { server ->
+                    DnsServerCard(
+                        server = server,
+                        isSelected = selectedServer?.id == server.id,
+                        onClick = {
+                            onServerSelected(server)
+                            onDismiss()
+                        },
+                        onDelete = if (server.isCustom) {
+                            { onDeleteCustomDns(server.id) }
+                        } else null,
+                        isCompact = true,
+                        isTv = isTv,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            // Search Box at bottom
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.search_dns),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    {
+                        IconButton(
+                            onClick = { onSearchQueryChange("") },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Clear",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                } else null,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodySmall,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary
+                )
+            )
+        }
     }
 }

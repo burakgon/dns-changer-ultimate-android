@@ -158,9 +158,18 @@ private enum class HeightSizeClass {
     EXPANDED       // > 800dp - tablets, foldables unfolded
 }
 
+// Width size class for scaling on wider screens
+private enum class WidthSizeClass {
+    COMPACT,       // < 360dp - narrow phones
+    MEDIUM,        // 360-600dp - normal phones
+    EXPANDED,      // 600-840dp - large phones, small tablets
+    LARGE          // > 840dp - tablets, foldables unfolded
+}
+
 // Data class to hold layout configuration
 private data class PaywallLayoutConfig(
     val heightClass: HeightSizeClass,
+    val widthClass: WidthSizeClass,
     val crownSize: Dp,
     val showAllBenefits: Boolean,
     val benefitCount: Int,
@@ -168,7 +177,10 @@ private data class PaywallLayoutConfig(
     val verticalSpacing: Dp,
     val horizontalPadding: Dp,
     val planCardHeight: Dp,
-    val ctaHeight: Dp
+    val ctaHeight: Dp,
+    val maxContentWidth: Dp,
+    val planCardMinWidth: Dp,
+    val priceTextStyle: androidx.compose.ui.text.TextStyle
 )
 
 @Composable
@@ -233,17 +245,44 @@ fun PaywallScreen(
                 else -> HeightSizeClass.EXPANDED
             }
 
+            // Determine width size class
+            val widthClass = when {
+                screenWidth < 360.dp -> WidthSizeClass.COMPACT
+                screenWidth < 600.dp -> WidthSizeClass.MEDIUM
+                screenWidth < 840.dp -> WidthSizeClass.EXPANDED
+                else -> WidthSizeClass.LARGE
+            }
+
             // Read typography values before remember block (composable context)
             val titleMediumStyle = MaterialTheme.typography.titleMedium
             val titleLargeStyle = MaterialTheme.typography.titleLarge
             val headlineSmallStyle = MaterialTheme.typography.headlineSmall
             val headlineMediumStyle = MaterialTheme.typography.headlineMedium
+            val bodyLargeStyle = MaterialTheme.typography.bodyLarge
+            val bodyMediumStyle = MaterialTheme.typography.bodyMedium
+
+            // Calculate max content width based on screen size
+            val maxContentWidth = when (widthClass) {
+                WidthSizeClass.COMPACT -> screenWidth
+                WidthSizeClass.MEDIUM -> screenWidth
+                WidthSizeClass.EXPANDED -> 540.dp
+                WidthSizeClass.LARGE -> 600.dp
+            }
+
+            // Calculate plan card min width to prevent text wrapping
+            val planCardMinWidth = when (widthClass) {
+                WidthSizeClass.COMPACT -> 90.dp
+                WidthSizeClass.MEDIUM -> 105.dp
+                WidthSizeClass.EXPANDED -> 140.dp
+                WidthSizeClass.LARGE -> 160.dp
+            }
 
             // Create layout configuration based on size class
-            val layoutConfig = remember(heightClass, titleMediumStyle, titleLargeStyle, headlineSmallStyle, headlineMediumStyle) {
+            val layoutConfig = remember(heightClass, widthClass, titleMediumStyle, titleLargeStyle, headlineSmallStyle, headlineMediumStyle, bodyLargeStyle, bodyMediumStyle, maxContentWidth, planCardMinWidth) {
                 when (heightClass) {
                     HeightSizeClass.VERY_COMPACT -> PaywallLayoutConfig(
                         heightClass = heightClass,
+                        widthClass = widthClass,
                         crownSize = 70.dp,
                         showAllBenefits = false,
                         benefitCount = 4,
@@ -251,10 +290,14 @@ fun PaywallScreen(
                         verticalSpacing = 6.dp,
                         horizontalPadding = 12.dp,
                         planCardHeight = 100.dp,
-                        ctaHeight = 44.dp
+                        ctaHeight = 44.dp,
+                        maxContentWidth = maxContentWidth,
+                        planCardMinWidth = planCardMinWidth,
+                        priceTextStyle = bodyMediumStyle
                     )
                     HeightSizeClass.COMPACT -> PaywallLayoutConfig(
                         heightClass = heightClass,
+                        widthClass = widthClass,
                         crownSize = 90.dp,
                         showAllBenefits = false,
                         benefitCount = 6,
@@ -262,10 +305,14 @@ fun PaywallScreen(
                         verticalSpacing = 8.dp,
                         horizontalPadding = 14.dp,
                         planCardHeight = 110.dp,
-                        ctaHeight = 48.dp
+                        ctaHeight = 48.dp,
+                        maxContentWidth = maxContentWidth,
+                        planCardMinWidth = planCardMinWidth,
+                        priceTextStyle = bodyLargeStyle
                     )
                     HeightSizeClass.MEDIUM -> PaywallLayoutConfig(
                         heightClass = heightClass,
+                        widthClass = widthClass,
                         crownSize = 110.dp,
                         showAllBenefits = true,
                         benefitCount = 6,
@@ -273,10 +320,14 @@ fun PaywallScreen(
                         verticalSpacing = 12.dp,
                         horizontalPadding = 18.dp,
                         planCardHeight = 130.dp,
-                        ctaHeight = 52.dp
+                        ctaHeight = 52.dp,
+                        maxContentWidth = maxContentWidth,
+                        planCardMinWidth = planCardMinWidth,
+                        priceTextStyle = titleMediumStyle
                     )
                     HeightSizeClass.EXPANDED -> PaywallLayoutConfig(
                         heightClass = heightClass,
+                        widthClass = widthClass,
                         crownSize = 140.dp,
                         showAllBenefits = true,
                         benefitCount = 8,
@@ -284,7 +335,10 @@ fun PaywallScreen(
                         verticalSpacing = 16.dp,
                         horizontalPadding = 24.dp,
                         planCardHeight = 150.dp,
-                        ctaHeight = 58.dp
+                        ctaHeight = 58.dp,
+                        maxContentWidth = maxContentWidth,
+                        planCardMinWidth = planCardMinWidth,
+                        priceTextStyle = titleLargeStyle
                     )
                 }
             }
@@ -356,14 +410,36 @@ private fun PortraitPaywallLayout(
     val scrollState = rememberScrollState()
     val isVeryCompact = config.heightClass == HeightSizeClass.VERY_COMPACT
     val isCompact = config.heightClass == HeightSizeClass.COMPACT || isVeryCompact
+    val isWideScreen = config.widthClass == WidthSizeClass.EXPANDED || config.widthClass == WidthSizeClass.LARGE
+
+    // Auto-scroll hint animation - shows users the content is scrollable
+    LaunchedEffect(animationStep) {
+        if (animationStep >= 4) {
+            delay(800) // Wait for content to load
+            val scrollHintDistance = 80
+            // Scroll down
+            scrollState.animateScrollTo(
+                scrollHintDistance,
+                animationSpec = tween(400, easing = EaseOutCubic)
+            )
+            delay(200)
+            // Scroll back up
+            scrollState.animateScrollTo(
+                0,
+                animationSpec = tween(300, easing = EaseInOut)
+            )
+        }
+    }
 
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Close button - always visible at top
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .widthIn(max = config.maxContentWidth)
                 .padding(4.dp)
         ) {
             IconButton(
@@ -382,11 +458,13 @@ private fun PortraitPaywallLayout(
             }
         }
 
-        // Scrollable content area
+        // Scrollable content area - centered on wide screens
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(scrollState)
+                .widthIn(max = config.maxContentWidth)
+                .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // HERO
             AnimatedVisibility(
@@ -404,7 +482,7 @@ private fun PortraitPaywallLayout(
                 enter = fadeIn(tween(300, delayMillis = 50)) +
                         slideInVertically(tween(350)) { it / 4 }
             ) {
-                SocialProofBanner(isCompact = isCompact)
+                SocialProofBanner(isCompact = isCompact, isWideScreen = isWideScreen)
             }
 
             Spacer(modifier = Modifier.height(config.verticalSpacing))
@@ -420,7 +498,7 @@ private fun PortraitPaywallLayout(
             Spacer(modifier = Modifier.height(config.verticalSpacing))
         }
 
-        // BOTTOM SECTION - Fixed at bottom
+        // BOTTOM SECTION - Fixed at bottom, centered on wide screens
         AnimatedVisibility(
             visible = animationStep >= 4,
             enter = slideInVertically(tween(400, easing = EaseOutCubic)) { it }
@@ -455,12 +533,15 @@ private fun LandscapePaywallLayout(
     val leftScrollState = rememberScrollState()
     val rightScrollState = rememberScrollState()
 
+    // Determine if this is a large foldable/tablet (wide screen in landscape)
+    val isLargeLandscape = config.widthClass == WidthSizeClass.LARGE || config.widthClass == WidthSizeClass.EXPANDED
+
     Box(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = if (isLargeLandscape) 32.dp else 12.dp, vertical = if (isLargeLandscape) 16.dp else 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (isLargeLandscape) 32.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Left side - Hero + Benefits (scrollable, vertically centered)
@@ -472,17 +553,22 @@ private fun LandscapePaywallLayout(
             ) {
                 Column(
                     modifier = Modifier
+                        .widthIn(max = if (isLargeLandscape) 400.dp else 320.dp)
                         .verticalScroll(leftScrollState)
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = if (isLargeLandscape) 16.dp else 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (isLargeLandscape) 16.dp else 8.dp)
                 ) {
-                    // HERO - Smaller in landscape
+                    // HERO - Scaled for screen size
                     AnimatedVisibility(
                         visible = animationStep >= 1,
                         enter = fadeIn(tween(400)) + scaleIn(tween(500, easing = EaseOutBack), initialScale = 0.5f)
                     ) {
-                        HeroSectionLandscape()
+                        if (isLargeLandscape) {
+                            HeroSectionLargeLandscape()
+                        } else {
+                            HeroSectionLandscape()
+                        }
                     }
 
                     // SOCIAL PROOF
@@ -491,15 +577,23 @@ private fun LandscapePaywallLayout(
                         enter = fadeIn(tween(300, delayMillis = 50)) +
                                 slideInVertically(tween(350)) { it / 4 }
                     ) {
-                        SocialProofBannerCompact()
+                        if (isLargeLandscape) {
+                            SocialProofBanner(isCompact = false, isWideScreen = false)
+                        } else {
+                            SocialProofBannerCompact()
+                        }
                     }
 
-                    // FEATURES - Compact for landscape
+                    // FEATURES - Scaled for screen size
                     AnimatedVisibility(
                         visible = animationStep >= 3,
                         enter = fadeIn(tween(300)) + slideInVertically(tween(400)) { it / 3 }
                     ) {
-                        BenefitsSectionLandscape()
+                        if (isLargeLandscape) {
+                            BenefitsSectionLargeLandscape()
+                        } else {
+                            BenefitsSectionLandscape()
+                        }
                     }
                 }
             }
@@ -514,7 +608,7 @@ private fun LandscapePaywallLayout(
                 Column(
                     modifier = Modifier
                         .verticalScroll(rightScrollState)
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = if (isLargeLandscape) 16.dp else 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     AnimatedVisibility(
@@ -528,7 +622,8 @@ private fun LandscapePaywallLayout(
                             selectedPlanDetails = selectedPlanDetails,
                             isLoading = isLoading,
                             onPurchase = onPurchase,
-                            onRestore = onRestore
+                            onRestore = onRestore,
+                            isLarge = isLargeLandscape
                         )
                     }
                 }
@@ -540,15 +635,15 @@ private fun LandscapePaywallLayout(
             onClick = onDismiss,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(4.dp)
+                .padding(if (isLargeLandscape) 12.dp else 4.dp)
                 .alpha(0.7f)
-                .size(36.dp)
+                .size(if (isLargeLandscape) 44.dp else 36.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Close",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(if (isLargeLandscape) 24.dp else 20.dp)
             )
         }
     }
@@ -668,6 +763,35 @@ private fun HeroSectionLandscape() {
         Text(
             text = "Ultimate DNS Protection",
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun HeroSectionLargeLandscape() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        EpicPremiumBadge(size = 110.dp)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "Unlock Premium",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "Ultimate DNS Protection",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -1072,15 +1196,21 @@ private fun EpicPremiumBadge(size: Dp) {
 }
 
 @Composable
-private fun SocialProofBanner(isCompact: Boolean = false) {
+private fun SocialProofBanner(isCompact: Boolean = false, isWideScreen: Boolean = false) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val goldColor = if (isDark) PremiumColors.GoldPrimary else PremiumColors.GoldLightMode
     val greenColor = if (isDark) PremiumColors.SuccessGreen else PremiumColors.SuccessGreenLight
 
+    val horizontalPadding = when {
+        isWideScreen -> 24.dp
+        isCompact -> 14.dp
+        else -> 20.dp
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = if (isCompact) 14.dp else 20.dp)
+            .padding(horizontal = horizontalPadding)
             .background(
                 color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = if (isDark) 0.5f else 0.7f),
                 shape = RoundedCornerShape(10.dp)
@@ -1094,8 +1224,16 @@ private fun SocialProofBanner(isCompact: Boolean = false) {
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val iconSize = if (isCompact) 16.dp else 18.dp
-        val textStyle = if (isCompact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
+        val iconSize = when {
+            isWideScreen -> 20.dp
+            isCompact -> 16.dp
+            else -> 18.dp
+        }
+        val textStyle = when {
+            isWideScreen -> MaterialTheme.typography.titleSmall
+            isCompact -> MaterialTheme.typography.labelMedium
+            else -> MaterialTheme.typography.titleSmall
+        }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Star, null, tint = goldColor, modifier = Modifier.size(iconSize))
@@ -1235,6 +1373,40 @@ private fun BenefitsSectionLandscape() {
 }
 
 @Composable
+private fun BenefitsSectionLargeLandscape() {
+    val benefits = listOf(
+        Triple(Icons.Default.Https, "DNS over HTTPS", "Encrypted & Private"),
+        Triple(Icons.Default.PowerSettingsNew, "Auto-Connect", "Start on Boot"),
+        Triple(Icons.Default.Widgets, "Quick Toggle", "One-Tap Access"),
+        Triple(Icons.Default.Block, "Zero Ads", "100% Ad-Free"),
+        Triple(Icons.Default.Add, "Unlimited DNS", "Custom Servers"),
+        Triple(Icons.Default.Speed, "Speed Tests", "Find Fastest DNS")
+    )
+
+    Column(
+        modifier = Modifier.padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        benefits.chunked(2).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { (icon, title, subtitle) ->
+                    BenefitItem(
+                        icon = icon,
+                        title = title,
+                        subtitle = subtitle,
+                        modifier = Modifier.weight(1f),
+                        isCompact = false
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun BenefitItem(
     icon: ImageVector,
     title: String,
@@ -1344,6 +1516,7 @@ private fun BottomPurchaseSection(
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val isCompact = config.heightClass == HeightSizeClass.VERY_COMPACT ||
                    config.heightClass == HeightSizeClass.COMPACT
+    val isWideScreen = config.widthClass == WidthSizeClass.EXPANDED || config.widthClass == WidthSizeClass.LARGE
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1352,26 +1525,32 @@ private fun BottomPurchaseSection(
         shadowElevation = if (isDark) 20.dp else 10.dp,
         tonalElevation = if (isDark) 2.dp else 1.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = config.horizontalPadding, vertical = if (isCompact) 10.dp else 16.dp)
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
         ) {
-            // Plan selector
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 8.dp)
+            Column(
+                modifier = Modifier
+                    .widthIn(max = config.maxContentWidth)
+                    .fillMaxWidth()
+                    .padding(horizontal = config.horizontalPadding, vertical = if (isCompact) 10.dp else 16.dp)
             ) {
-                plans.forEach { plan ->
-                    PlanOptionCard(
-                        plan = plan,
-                        isSelected = selectedPlan == plan.id,
-                        onClick = { onPlanSelected(plan.id) },
-                        modifier = Modifier.weight(1f),
-                        isCompact = isCompact
-                    )
+                // Plan selector
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 10.dp)
+                ) {
+                    plans.forEach { plan ->
+                        PlanOptionCard(
+                            plan = plan,
+                            isSelected = selectedPlan == plan.id,
+                            onClick = { onPlanSelected(plan.id) },
+                            modifier = Modifier.weight(1f),
+                            isCompact = isCompact,
+                            config = config
+                        )
+                    }
                 }
-            }
 
             Spacer(modifier = Modifier.height(if (isCompact) 10.dp else 14.dp))
 
@@ -1419,6 +1598,7 @@ private fun BottomPurchaseSection(
                     modifier = Modifier.clickable { onRestore() }
                 )
             }
+            }
         }
     }
 }
@@ -1431,48 +1611,57 @@ private fun LandscapePurchaseSection(
     selectedPlanDetails: PlanDetails?,
     isLoading: Boolean,
     onPurchase: (StoreProduct) -> Unit,
-    onRestore: () -> Unit
+    onRestore: () -> Unit,
+    isLarge: Boolean = false
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     Surface(
-        modifier = Modifier.fillMaxWidth().widthIn(max = 380.dp),
+        modifier = Modifier.fillMaxWidth().widthIn(max = if (isLarge) 480.dp else 380.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(if (isLarge) 24.dp else 20.dp),
         shadowElevation = if (isDark) 12.dp else 6.dp,
         tonalElevation = if (isDark) 2.dp else 1.dp
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(
+                horizontal = if (isLarge) 20.dp else 12.dp,
+                vertical = if (isLarge) 16.dp else 10.dp
+            ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Choose Your Plan", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(8.dp))
+            Text(
+                "Choose Your Plan",
+                style = if (isLarge) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(if (isLarge) 12.dp else 8.dp))
 
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (isLarge) 8.dp else 4.dp)) {
                 plans.forEach { plan ->
-                    PlanOptionCardHorizontal(plan = plan, isSelected = selectedPlan == plan.id, onClick = { onPlanSelected(plan.id) })
+                    PlanOptionCardHorizontal(plan = plan, isSelected = selectedPlan == plan.id, onClick = { onPlanSelected(plan.id) }, isLarge = isLarge)
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
-            PurchaseCTAButton(selectedPlanDetails = selectedPlanDetails, isLoading = isLoading, onPurchase = onPurchase, height = 44.dp)
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(if (isLarge) 16.dp else 10.dp))
+            PurchaseCTAButton(selectedPlanDetails = selectedPlanDetails, isLoading = isLoading, onPurchase = onPurchase, height = if (isLarge) 52.dp else 44.dp)
+            Spacer(Modifier.height(if (isLarge) 10.dp else 6.dp))
 
             Text(
                 text = if (selectedPlanDetails?.hasFreeTrial == true) "${selectedPlanDetails.trialDays}-day free trial, cancel anytime" else "Cancel anytime",
                 style = MaterialTheme.typography.labelSmall,
-                fontSize = 10.sp,
+                fontSize = if (isLarge) 12.sp else 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(if (isLarge) 8.dp else 4.dp))
             Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(10.dp))
-                Text(" Secure", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(" • ", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 9.sp)
-                Text("Restore", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onRestore() })
+                Icon(Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(if (isLarge) 14.dp else 10.dp))
+                Text(" Secure", style = MaterialTheme.typography.labelSmall, fontSize = if (isLarge) 11.sp else 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(" • ", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = if (isLarge) 11.sp else 9.sp)
+                Text("Restore", style = MaterialTheme.typography.labelSmall, fontSize = if (isLarge) 11.sp else 9.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onRestore() })
             }
         }
     }
@@ -1484,7 +1673,8 @@ private fun PlanOptionCard(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isCompact: Boolean = false
+    isCompact: Boolean = false,
+    config: PaywallLayoutConfig? = null
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val goldPrimary = if (isDark) PremiumColors.GoldPrimary else PremiumColors.GoldLightMode
@@ -1519,6 +1709,17 @@ private fun PlanOptionCard(
         else -> 1.dp
     }
 
+    // Determine font size based on price length - auto-scale for long prices like "TRY 37.99"
+    val priceLength = plan.price.length
+    val priceFontSize = when {
+        isCompact && priceLength > 10 -> 14.sp
+        isCompact && priceLength > 8 -> 16.sp
+        isCompact -> 18.sp
+        priceLength > 10 -> 18.sp
+        priceLength > 8 -> 20.sp
+        else -> 22.sp
+    }
+
     Box(modifier = modifier) {
         Column(
             modifier = Modifier
@@ -1528,7 +1729,7 @@ private fun PlanOptionCard(
                 .background(backgroundColor)
                 .border(borderWidth, borderColor, RoundedCornerShape(if (isCompact) 12.dp else 14.dp))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-                .padding(vertical = if (isCompact) 8.dp else 12.dp, horizontal = if (isCompact) 4.dp else 6.dp),
+                .padding(vertical = if (isCompact) 8.dp else 12.dp, horizontal = if (isCompact) 6.dp else 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (plan.isBestValue) {
@@ -1542,10 +1743,31 @@ private fun PlanOptionCard(
                 Spacer(Modifier.height(if (isCompact) 4.dp else 6.dp))
             }
 
-            Text(plan.title, style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = plan.title,
+                style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
             Spacer(Modifier.height(2.dp))
-            Text(plan.price, style = if (isCompact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface)
-            Text("/${plan.period}", style = MaterialTheme.typography.labelSmall, fontSize = if (isCompact) 9.sp else 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            // Price with auto-scaling font size to prevent wrapping
+            Text(
+                text = plan.price,
+                fontSize = priceFontSize,
+                fontWeight = FontWeight.Bold,
+                color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false
+            )
+            Text(
+                text = "/${plan.period}",
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = if (isCompact) 9.sp else 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
 
             if (plan.hasFreeTrial) {
                 Spacer(Modifier.height(if (isCompact) 4.dp else 6.dp))
@@ -1554,11 +1776,11 @@ private fun PlanOptionCard(
                         .background(successGreen.copy(alpha = if (isDark) 0.15f else 0.2f), RoundedCornerShape(4.dp))
                         .padding(horizontal = 4.dp, vertical = 1.dp)
                 ) {
-                    Text("${plan.trialDays} DAYS FREE", style = MaterialTheme.typography.labelSmall, fontSize = if (isCompact) 8.sp else 9.sp, fontWeight = FontWeight.Bold, color = successGreen)
+                    Text("${plan.trialDays} DAYS FREE", style = MaterialTheme.typography.labelSmall, fontSize = if (isCompact) 8.sp else 9.sp, fontWeight = FontWeight.Bold, color = successGreen, maxLines = 1)
                 }
             } else if (plan.savings != null && plan.savings > 0) {
                 Spacer(Modifier.height(if (isCompact) 4.dp else 6.dp))
-                Text("Save ${plan.savings}%", style = MaterialTheme.typography.labelSmall, fontSize = if (isCompact) 9.sp else 10.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary)
+                Text("Save ${plan.savings}%", style = MaterialTheme.typography.labelSmall, fontSize = if (isCompact) 9.sp else 10.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, maxLines = 1)
             } else {
                 Spacer(Modifier.height(if (isCompact) 14.dp else 18.dp))
             }
@@ -1580,7 +1802,8 @@ private fun PlanOptionCard(
 private fun PlanOptionCardHorizontal(
     plan: PlanDetails,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isLarge: Boolean = false
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val goldPrimary = if (isDark) PremiumColors.GoldPrimary else PremiumColors.GoldLightMode
@@ -1605,41 +1828,46 @@ private fun PlanOptionCardHorizontal(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(if (isLarge) 14.dp else 10.dp))
             .background(backgroundColor)
-            .border(if (isSelected) 2.dp else 1.dp, borderColor, RoundedCornerShape(10.dp))
+            .border(if (isSelected) 2.dp else 1.dp, borderColor, RoundedCornerShape(if (isLarge) 14.dp else 10.dp))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = if (isLarge) 16.dp else 10.dp, vertical = if (isLarge) 12.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(14.dp).border(2.dp, if (isSelected) { if (plan.isBestValue) goldDeep else MaterialTheme.colorScheme.primary } else MaterialTheme.colorScheme.outline, CircleShape),
+            modifier = Modifier.size(if (isLarge) 18.dp else 14.dp).border(2.dp, if (isSelected) { if (plan.isBestValue) goldDeep else MaterialTheme.colorScheme.primary } else MaterialTheme.colorScheme.outline, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            if (isSelected) Box(Modifier.size(7.dp).background(if (plan.isBestValue) goldDeep else MaterialTheme.colorScheme.primary, CircleShape))
+            if (isSelected) Box(Modifier.size(if (isLarge) 10.dp else 7.dp).background(if (plan.isBestValue) goldDeep else MaterialTheme.colorScheme.primary, CircleShape))
         }
 
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(if (isLarge) 12.dp else 8.dp))
 
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(plan.title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    plan.title,
+                    style = if (isLarge) MaterialTheme.typography.titleSmall else MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 if (plan.isBestValue) {
-                    Spacer(Modifier.width(4.dp))
-                    Box(Modifier.background(brush = Brush.linearGradient(listOf(goldPrimary, goldDeep)), shape = RoundedCornerShape(3.dp)).padding(horizontal = 3.dp, vertical = 1.dp)) {
-                        Text("BEST", style = MaterialTheme.typography.labelSmall, fontSize = 6.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Spacer(Modifier.width(if (isLarge) 6.dp else 4.dp))
+                    Box(Modifier.background(brush = Brush.linearGradient(listOf(goldPrimary, goldDeep)), shape = RoundedCornerShape(if (isLarge) 4.dp else 3.dp)).padding(horizontal = if (isLarge) 5.dp else 3.dp, vertical = if (isLarge) 2.dp else 1.dp)) {
+                        Text("BEST", style = MaterialTheme.typography.labelSmall, fontSize = if (isLarge) 8.sp else 6.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
             if (plan.hasFreeTrial) {
-                Text("${plan.trialDays}-day free trial", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = successGreen, fontWeight = FontWeight.Medium)
+                Text("${plan.trialDays}-day free trial", style = MaterialTheme.typography.labelSmall, fontSize = if (isLarge) 11.sp else 9.sp, color = successGreen, fontWeight = FontWeight.Medium)
             } else if (plan.savings != null && plan.savings > 0) {
-                Text("Save ${plan.savings}%", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = MaterialTheme.colorScheme.primary)
+                Text("Save ${plan.savings}%", style = MaterialTheme.typography.labelSmall, fontSize = if (isLarge) 11.sp else 9.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
 
-        Text(plan.price, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface)
-        Text("/${plan.period.take(2)}", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(plan.price, style = if (isLarge) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface)
+        Text("/${if (plan.period == "year") "yr" else "mo"}", style = MaterialTheme.typography.labelSmall, fontSize = if (isLarge) 11.sp else 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

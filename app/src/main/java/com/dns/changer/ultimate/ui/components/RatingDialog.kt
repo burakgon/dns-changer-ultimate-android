@@ -224,6 +224,9 @@ private fun InitialRatingContent(
 ) {
     val isTv = isAndroidTv()
     val positiveButtonFocusRequester = remember { FocusRequester() }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isCompactLandscape = isLandscape && configuration.screenHeightDp < 500
 
     // Request focus on primary button when on TV
     LaunchedEffect(isTv) {
@@ -236,7 +239,7 @@ private fun InitialRatingContent(
     val infiniteTransition = rememberInfiniteTransition(label = "initial")
     val floatOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 8f,
+        targetValue = if (isCompactLandscape) 4f else 8f,
         animationSpec = infiniteRepeatable(
             animation = tween(2000, easing = EaseInOut),
             repeatMode = RepeatMode.Reverse
@@ -246,8 +249,8 @@ private fun InitialRatingContent(
 
     Card(
         modifier = Modifier
-            .widthIn(max = 500.dp)
-            .fillMaxWidth(0.92f)
+            .widthIn(max = if (isCompactLandscape) 600.dp else 500.dp)
+            .fillMaxWidth(if (isCompactLandscape) 0.85f else 0.92f)
             .offset { IntOffset(0, -floatOffset.roundToInt().dp.roundToPx()) }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -278,161 +281,283 @@ private fun InitialRatingContent(
                     )
             )
 
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Close button - top right
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Surface(
-                        modifier = Modifier.align(Alignment.TopEnd),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shadowElevation = 2.dp
+            if (isCompactLandscape) {
+                // Landscape layout: horizontal arrangement
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left side: Star icon
+                    AnimatedStarIcon(compact = true)
+
+                    Spacer(modifier = Modifier.width(20.dp))
+
+                    // Right side: Content
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        IconButton(
-                            onClick = onClose,
-                            modifier = Modifier.size(36.dp)
+                        // Close button - top right
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Surface(
+                                modifier = Modifier.align(Alignment.TopEnd),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shadowElevation = 2.dp
+                            ) {
+                                IconButton(
+                                    onClick = onClose,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.cancel),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Title
+                        Text(
+                            text = stringResource(R.string.rating_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Subtitle
+                        Text(
+                            text = stringResource(R.string.rating_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Buttons in a row for landscape
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = stringResource(R.string.cancel),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            // Secondary button - Not really
+                            OutlinedButton(
+                                onClick = onNegative,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp),
+                                shape = DnsShapes.Button,
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ThumbDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.rating_negative),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            // Primary button - Yes, I love it!
+                            FilledTonalButton(
+                                onClick = onPositive,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .focusRequester(positiveButtonFocusRequester),
+                                shape = DnsShapes.Button,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                ),
+                                elevation = ButtonDefaults.filledTonalButtonElevation(
+                                    defaultElevation = 4.dp
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.rating_positive),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Animated hero star icon
-                AnimatedStarIcon()
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Title
-                Text(
-                    text = stringResource(R.string.rating_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Subtitle
-                Text(
-                    text = stringResource(R.string.rating_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Primary button - Yes, I love it! (with high-visibility TV focus)
-                val positiveInteraction = remember { MutableInteractionSource() }
-                val positiveFocused by positiveInteraction.collectIsFocusedAsState()
-                val positiveFocusScale = if (isTv && positiveFocused) 1.05f else 1f
-
-                FilledTonalButton(
-                    onClick = onPositive,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .scale(positiveFocusScale)
-                        .focusRequester(positiveButtonFocusRequester)
-                        .focusable(interactionSource = positiveInteraction)
-                        .then(
-                            if (isTv && positiveFocused) {
-                                Modifier
-                                    .shadow(
-                                        elevation = 12.dp,
-                                        shape = DnsShapes.Button,
-                                        ambientColor = Color.White.copy(alpha = 0.4f),
-                                        spotColor = Color.White.copy(alpha = 0.4f)
-                                    )
-                                    .border(
-                                        width = 4.dp,
-                                        color = Color.White,
-                                        shape = DnsShapes.Button
-                                    )
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    shape = DnsShapes.Button,
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    ),
-                    elevation = ButtonDefaults.filledTonalButtonElevation(
-                        defaultElevation = 4.dp
-                    )
+            } else {
+                // Portrait layout: vertical arrangement
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.rating_positive),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Secondary button - Not really (with high-visibility TV focus)
-                val negativeInteraction = remember { MutableInteractionSource() }
-                val negativeFocused by negativeInteraction.collectIsFocusedAsState()
-                val negativeFocusScale = if (isTv && negativeFocused) 1.05f else 1f
-
-                OutlinedButton(
-                    onClick = onNegative,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .scale(negativeFocusScale)
-                        .focusable(interactionSource = negativeInteraction)
-                        .then(
-                            if (isTv && negativeFocused) {
-                                Modifier
-                                    .shadow(
-                                        elevation = 12.dp,
-                                        shape = DnsShapes.Button,
-                                        ambientColor = Color.White.copy(alpha = 0.4f),
-                                        spotColor = Color.White.copy(alpha = 0.4f)
-                                    )
-                                    .border(
-                                        width = 4.dp,
-                                        color = Color.White,
-                                        shape = DnsShapes.Button
-                                    )
-                            } else {
-                                Modifier
+                    // Close button - top right
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Surface(
+                            modifier = Modifier.align(Alignment.TopEnd),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shadowElevation = 2.dp
+                        ) {
+                            IconButton(
+                                onClick = onClose,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cancel),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
-                        ),
-                    shape = DnsShapes.Button,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ThumbDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Animated hero star icon
+                    AnimatedStarIcon(compact = false)
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Title
                     Text(
-                        text = stringResource(R.string.rating_negative),
-                        style = MaterialTheme.typography.titleMedium
+                        text = stringResource(R.string.rating_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Subtitle
+                    Text(
+                        text = stringResource(R.string.rating_subtitle),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Primary button - Yes, I love it! (with high-visibility TV focus)
+                    val positiveInteraction = remember { MutableInteractionSource() }
+                    val positiveFocused by positiveInteraction.collectIsFocusedAsState()
+                    val positiveFocusScale = if (isTv && positiveFocused) 1.05f else 1f
+
+                    FilledTonalButton(
+                        onClick = onPositive,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .scale(positiveFocusScale)
+                            .focusRequester(positiveButtonFocusRequester)
+                            .focusable(interactionSource = positiveInteraction)
+                            .then(
+                                if (isTv && positiveFocused) {
+                                    Modifier
+                                        .shadow(
+                                            elevation = 12.dp,
+                                            shape = DnsShapes.Button,
+                                            ambientColor = Color.White.copy(alpha = 0.4f),
+                                            spotColor = Color.White.copy(alpha = 0.4f)
+                                        )
+                                        .border(
+                                            width = 4.dp,
+                                            color = Color.White,
+                                            shape = DnsShapes.Button
+                                        )
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        shape = DnsShapes.Button,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ),
+                        elevation = ButtonDefaults.filledTonalButtonElevation(
+                            defaultElevation = 4.dp
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.rating_positive),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Secondary button - Not really (with high-visibility TV focus)
+                    val negativeInteraction = remember { MutableInteractionSource() }
+                    val negativeFocused by negativeInteraction.collectIsFocusedAsState()
+                    val negativeFocusScale = if (isTv && negativeFocused) 1.05f else 1f
+
+                    OutlinedButton(
+                        onClick = onNegative,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .scale(negativeFocusScale)
+                            .focusable(interactionSource = negativeInteraction)
+                            .then(
+                                if (isTv && negativeFocused) {
+                                    Modifier
+                                        .shadow(
+                                            elevation = 12.dp,
+                                            shape = DnsShapes.Button,
+                                            ambientColor = Color.White.copy(alpha = 0.4f),
+                                            spotColor = Color.White.copy(alpha = 0.4f)
+                                        )
+                                        .border(
+                                            width = 4.dp,
+                                            color = Color.White,
+                                            shape = DnsShapes.Button
+                                        )
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        shape = DnsShapes.Button,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ThumbDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.rating_negative),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
                 }
             }
         }
@@ -440,8 +565,14 @@ private fun InitialRatingContent(
 }
 
 @Composable
-private fun AnimatedStarIcon() {
+private fun AnimatedStarIcon(compact: Boolean = false) {
     val infiniteTransition = rememberInfiniteTransition(label = "starIcon")
+
+    // Sizes based on compact mode
+    val containerSize = if (compact) 80.dp else 120.dp
+    val ringSize = if (compact) 68.dp else 100.dp
+    val iconBackgroundSize = if (compact) 48.dp else 72.dp
+    val starIconSize = if (compact) 28.dp else 40.dp
 
     // Pulsing scale
     val pulseScale by infiniteTransition.animateFloat(
@@ -480,13 +611,13 @@ private fun AnimatedStarIcon() {
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
 
     Box(
-        modifier = Modifier.size(120.dp),
+        modifier = Modifier.size(containerSize),
         contentAlignment = Alignment.Center
     ) {
         // Circular gradient glow
         Canvas(
             modifier = Modifier
-                .size(120.dp)
+                .size(containerSize)
                 .scale(pulseScale)
                 .alpha(glowAlpha)
         ) {
@@ -504,7 +635,7 @@ private fun AnimatedStarIcon() {
         // Rotating gradient ring
         Canvas(
             modifier = Modifier
-                .size(100.dp)
+                .size(ringSize)
                 .rotate(rotation)
         ) {
             drawArc(
@@ -519,14 +650,14 @@ private fun AnimatedStarIcon() {
                 startAngle = 0f,
                 sweepAngle = 270f,
                 useCenter = false,
-                style = Stroke(width = 4.dp.toPx())
+                style = Stroke(width = if (compact) 3.dp.toPx() else 4.dp.toPx())
             )
         }
 
         // Star icon background
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(iconBackgroundSize)
                 .scale(pulseScale)
                 .clip(CircleShape)
                 .background(
@@ -540,7 +671,7 @@ private fun AnimatedStarIcon() {
                 imageVector = Icons.Default.Star,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(starIconSize)
             )
         }
     }

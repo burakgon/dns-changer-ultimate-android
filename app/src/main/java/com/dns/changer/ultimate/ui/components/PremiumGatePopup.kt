@@ -67,10 +67,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.content.res.Configuration
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 import com.dns.changer.ultimate.ui.theme.rememberSemanticColors
@@ -90,6 +92,10 @@ fun PremiumGatePopup(
     onWatchAd: () -> Unit,
     onGoPremium: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isCompactLandscape = isLandscape && configuration.screenHeightDp < 500
+
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(animationSpec = tween(300)),
@@ -128,8 +134,8 @@ fun PremiumGatePopup(
 
                 Card(
                     modifier = Modifier
-                        .widthIn(max = 500.dp)
-                        .fillMaxWidth(0.92f)
+                        .widthIn(max = if (isCompactLandscape) 700.dp else 500.dp)
+                        .fillMaxWidth(if (isCompactLandscape) 0.95f else 0.92f)
                         .offset { IntOffset(0, -floatOffset.roundToInt().dp.roundToPx()) }
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -139,26 +145,54 @@ fun PremiumGatePopup(
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                     elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
                 ) {
-                    Column {
-                        // Header with gradient
-                        PremiumHeader(
-                            icon = featureIcon,
-                            title = featureTitle,
-                            onClose = onDismiss
-                        )
+                    if (isCompactLandscape) {
+                        // Horizontal layout for compact landscape
+                        Row {
+                            // Header with gradient on left
+                            PremiumHeaderCompact(
+                                icon = featureIcon,
+                                title = featureTitle,
+                                onClose = onDismiss,
+                                modifier = Modifier.weight(0.4f)
+                            )
 
-                        // Content section
-                        PremiumContent(
-                            description = featureDescription,
-                            onWatchAd = {
-                                onDismiss()
-                                onWatchAd()
-                            },
-                            onGoPremium = {
-                                onDismiss()
-                                onGoPremium()
-                            }
-                        )
+                            // Content section on right
+                            PremiumContentCompact(
+                                description = featureDescription,
+                                onWatchAd = {
+                                    onDismiss()
+                                    onWatchAd()
+                                },
+                                onGoPremium = {
+                                    onDismiss()
+                                    onGoPremium()
+                                },
+                                modifier = Modifier.weight(0.6f)
+                            )
+                        }
+                    } else {
+                        // Standard vertical layout
+                        Column {
+                            // Header with gradient
+                            PremiumHeader(
+                                icon = featureIcon,
+                                title = featureTitle,
+                                onClose = onDismiss
+                            )
+
+                            // Content section
+                            PremiumContent(
+                                description = featureDescription,
+                                onWatchAd = {
+                                    onDismiss()
+                                    onWatchAd()
+                                },
+                                onGoPremium = {
+                                    onDismiss()
+                                    onGoPremium()
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -224,6 +258,125 @@ private fun PremiumHeader(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = contentColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun PremiumHeaderCompact(
+    icon: ImageVector,
+    title: String,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Use Material You colors for the gradient
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val contentColor = MaterialTheme.colorScheme.onPrimary
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(primaryColor, secondaryColor, tertiaryColor)
+                ),
+                shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp)
+            )
+    ) {
+        // Close button
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Close",
+                tint = contentColor.copy(alpha = 0.8f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        // Animated icon and title
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            AnimatedFeatureIconCompact(icon = icon, contentColor = contentColor)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = contentColor,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnimatedFeatureIconCompact(icon: ImageVector, contentColor: Color) {
+    val infiniteTransition = rememberInfiniteTransition(label = "iconAnimation")
+
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(8000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
+    Box(
+        modifier = Modifier.size(56.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Rotating ring
+        Canvas(
+            modifier = Modifier
+                .size(52.dp)
+                .rotate(rotation)
+        ) {
+            drawArc(
+                brush = Brush.sweepGradient(
+                    colors = listOf(
+                        contentColor.copy(alpha = 0f),
+                        contentColor.copy(alpha = 0.8f),
+                        contentColor.copy(alpha = 0f)
+                    )
+                ),
+                startAngle = 0f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = Stroke(width = 2.dp.toPx())
+            )
+        }
+
+        // Center icon background
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(contentColor.copy(alpha = 0.2f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(24.dp)
             )
         }
     }
@@ -430,6 +583,217 @@ private fun PremiumContent(
                     text = stringResource(R.string.all_features)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PremiumContentCompact(
+    description: String,
+    onWatchAd: () -> Unit,
+    onGoPremium: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 2
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Continue Free button with shimmer - compact
+            ShimmerButtonCompact(
+                text = stringResource(R.string.continue_free),
+                subtitle = stringResource(R.string.quick_video),
+                onClick = onWatchAd
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Or divider - compact
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                Text(
+                    text = stringResource(R.string.or),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                HorizontalDivider(
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Go Premium button - compact
+            PremiumButtonCompact(
+                text = stringResource(R.string.go_premium),
+                onClick = onGoPremium
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Benefits row - compact
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                BenefitChipCompact(
+                    icon = Icons.Default.Block,
+                    text = stringResource(R.string.no_ads)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                BenefitChipCompact(
+                    icon = Icons.Default.Star,
+                    text = stringResource(R.string.all_features)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShimmerButtonCompact(
+    text: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    val semanticColors = rememberSemanticColors()
+    val buttonColor = semanticColors.success
+
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp),
+        shape = DnsShapes.Button,
+        colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+    ) {
+        val buttonContentColor = MaterialTheme.colorScheme.surface
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = buttonContentColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Column {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = buttonContentColor
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = buttonContentColor.copy(alpha = 0.8f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumButtonCompact(
+    text: String,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .border(
+                width = 1.dp,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(GoldColor.copy(alpha = 0.5f), GoldColorLight.copy(alpha = 0.3f))
+                ),
+                shape = DnsShapes.Button
+            ),
+        shape = DnsShapes.Button,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(GoldColor, GoldColorLight)
+                    ),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.WorkspacePremium,
+                contentDescription = null,
+                tint = Color.Black.copy(alpha = 0.8f),
+                modifier = Modifier.size(14.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun BenefitChipCompact(
+    icon: ImageVector,
+    text: String
+) {
+    Surface(
+        shape = DnsShapes.Chip,
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(12.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         }
     }
 }
