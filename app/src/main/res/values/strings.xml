@@ -176,4 +176,8 @@
     <string name="widget_tap_to_disconnect">Tap to disconnect</string>
     <string name="widget_connecting">Connecting…</string>
     <string name="widget_switching">Switching…</string>
+
+    <!-- Instant Toggle Premium Card -->
+    <string name="instant_toggle_title">Want Instant Toggle?</string>
+    <string name="instant_toggle_description">Premium users can switch DNS on and off instantly without opening the app or waiting for ads.</string>
 </resources>

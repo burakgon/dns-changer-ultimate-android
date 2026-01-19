@@ -96,6 +96,9 @@ class MainActivity : ComponentActivity() {
     // Widget action state flow to handle both onCreate and onNewIntent
     private val _widgetAction = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
+    // Track if current action was triggered from widget or quick settings
+    private val _launchedFromWidgetOrQS = kotlinx.coroutines.flow.MutableStateFlow(false)
+
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -122,6 +125,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) {
             intent?.getStringExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION)?.let { action ->
                 _widgetAction.value = action
+                _launchedFromWidgetOrQS.value = true
             }
         }
 
@@ -167,7 +171,9 @@ class MainActivity : ComponentActivity() {
                     },
                     showTilePaywallOnLaunch = showTilePaywall,
                     widgetActionFlow = _widgetAction,
-                    onWidgetActionConsumed = { _widgetAction.value = null }
+                    onWidgetActionConsumed = { _widgetAction.value = null },
+                    launchedFromWidgetOrQSFlow = _launchedFromWidgetOrQS,
+                    onWidgetOrQSFlowConsumed = { _launchedFromWidgetOrQS.value = false }
                 )
             }
         }
@@ -178,6 +184,7 @@ class MainActivity : ComponentActivity() {
         // Handle widget action when activity is already running
         intent.getStringExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION)?.let { action ->
             _widgetAction.value = action
+            _launchedFromWidgetOrQS.value = true
         }
     }
 
@@ -202,6 +209,8 @@ fun DnsChangerApp(
     showTilePaywallOnLaunch: Boolean = false,
     widgetActionFlow: kotlinx.coroutines.flow.StateFlow<String?>,
     onWidgetActionConsumed: () -> Unit,
+    launchedFromWidgetOrQSFlow: kotlinx.coroutines.flow.StateFlow<Boolean>,
+    onWidgetOrQSFlowConsumed: () -> Unit,
     mainViewModel: MainViewModel = hiltViewModel(),
     premiumViewModel: PremiumViewModel = hiltViewModel(),
     ratingViewModel: RatingViewModel = hiltViewModel()
@@ -234,6 +243,9 @@ fun DnsChangerApp(
     var premiumGateTitle by remember { mutableStateOf("") }
     var premiumGateDescription by remember { mutableStateOf("") }
     var showPaywall by remember { mutableStateOf(false) }
+
+    // Track if action was triggered from widget/quick settings (for premium upsell)
+    val launchedFromWidgetOrQS by launchedFromWidgetOrQSFlow.collectAsState()
 
     // Context for showing toasts
     val context = LocalContext.current
@@ -530,14 +542,24 @@ fun DnsChangerApp(
         ConnectionSuccessOverlay(
             visible = showSuccessOverlay,
             server = mainUiState.lastConnectedServer,
-            onContinue = { mainViewModel.dismissConnectionSuccessOverlay() }
+            showPremiumCard = launchedFromWidgetOrQS && !isPremium,
+            onGoPremium = { showPaywall = true },
+            onContinue = {
+                mainViewModel.dismissConnectionSuccessOverlay()
+                onWidgetOrQSFlowConsumed()
+            }
         )
 
         // Disconnection Overlay
         DisconnectionOverlay(
             visible = showDisconnectOverlay,
             previousServer = mainUiState.lastConnectedServer,
-            onContinue = { mainViewModel.dismissDisconnectionOverlay() }
+            showPremiumCard = launchedFromWidgetOrQS && !isPremium,
+            onGoPremium = { showPaywall = true },
+            onContinue = {
+                mainViewModel.dismissDisconnectionOverlay()
+                onWidgetOrQSFlowConsumed()
+            }
         )
 
         // Rating Dialog
