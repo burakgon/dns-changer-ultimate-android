@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.system.OsConstants
 import androidx.core.app.NotificationCompat
 import com.dns.changer.ultimate.MainActivity
 import com.dns.changer.ultimate.R
@@ -131,22 +132,100 @@ class DnsVpnService : VpnService() {
             val builder = Builder()
                 .setSession(serverName)
                 .setMtu(VPN_MTU)
-                .addAddress(VPN_ADDRESS, 32)
-                // Use the actual DNS servers - Android will send DNS queries to these addresses
-                .addDnsServer(primaryDns)
 
-            // Add secondary DNS if different from primary
+            // Try multiple VPN address prefixes (like the working DNS Changer app)
+            var addressSet = false
+            for (prefix in listOf("10.0.0", "192.0.2", "198.51.100", "203.0.113", "192.168.50")) {
+                try {
+                    builder.addAddress("$prefix.1", 24)  // Use /24 subnet like working app
+                    addressSet = true
+                    android.util.Log.d("DnsVpnService", "Using VPN address: $prefix.1/24")
+                    break
+                } catch (e: IllegalArgumentException) {
+                    android.util.Log.w("DnsVpnService", "Address $prefix.1 not available, trying next")
+                    continue
+                }
+            }
+
+            if (!addressSet) {
+                // Fallback to original address
+                builder.addAddress(VPN_ADDRESS, 24)
+                android.util.Log.d("DnsVpnService", "Using fallback VPN address: $VPN_ADDRESS/24")
+            }
+
+            // Add IPv6 address for full IPv6 support (like the working DNS Changer app)
+            try {
+                builder.addAddress("fd00:1:fd00:1:fd00:1:fd00:1", 128)
+                android.util.Log.d("DnsVpnService", "Added IPv6 VPN address")
+            } catch (e: Exception) {
+                android.util.Log.w("DnsVpnService", "Could not add IPv6 address: ${e.message}")
+            }
+
+            // CRITICAL: Use allowFamily() - this is what makes DNS work properly!
+            // The working DNS Changer app uses this API
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                builder.allowFamily(OsConstants.AF_INET)
+                builder.allowFamily(OsConstants.AF_INET6)
+                android.util.Log.d("DnsVpnService", "Enabled allowFamily(AF_INET + AF_INET6)")
+            }
+
+            // Add IPv4 DNS servers
+            builder.addDnsServer(primaryDns)
             if (secondaryDns != primaryDns) {
                 builder.addDnsServer(secondaryDns)
             }
+            android.util.Log.d("DnsVpnService", "Added IPv4 DNS servers: $primaryDns, $secondaryDns")
 
-            // Route only the DNS server IPs through the VPN
-            // This captures DNS traffic while letting all other traffic bypass
-            builder.addRoute(primaryDns, 32)
-            if (secondaryDns != primaryDns) {
-                builder.addRoute(secondaryDns, 32)
+            // Add IPv6 DNS servers for the same provider to prevent IPv6 DNS leakage
+            val ipv6DnsMap = mapOf(
+                // Cloudflare
+                "1.1.1.1" to "2606:4700:4700::1111",
+                "1.0.0.1" to "2606:4700:4700::1001",
+                // Google
+                "8.8.8.8" to "2001:4860:4860::8888",
+                "8.8.4.4" to "2001:4860:4860::8844",
+                // Quad9
+                "9.9.9.9" to "2620:fe::fe",
+                "149.112.112.112" to "2620:fe::9",
+                // OpenDNS
+                "208.67.222.222" to "2620:119:35::35",
+                "208.67.220.220" to "2620:119:53::53",
+                // AdGuard
+                "94.140.14.14" to "2a10:50c0::ad1:ff",
+                "94.140.15.15" to "2a10:50c0::ad2:ff",
+                // CleanBrowsing
+                "185.228.168.9" to "2a0d:2a00:1::2",
+                "185.228.169.9" to "2a0d:2a00:2::2",
+                // Alternate DNS
+                "76.76.19.19" to "2602:fcbc::ad",
+                "76.223.122.150" to "2602:fcbc:2::ad",
+                // DNS.Watch
+                "84.200.69.80" to "2001:1608:10:25::1c04:b12f",
+                "84.200.70.40" to "2001:1608:10:25::9249:d69b",
+                // Yandex
+                "77.88.8.8" to "2a02:6b8::feed:0ff",
+                "77.88.8.1" to "2a02:6b8:0:1::feed:0ff",
+                // Neustar UltraDNS
+                "156.154.70.1" to "2610:a1:1018::1",
+                "156.154.71.1" to "2610:a1:1019::1",
+                // Comodo Secure DNS
+                "8.26.56.26" to "2620:0:ccd::2",
+                "8.20.247.20" to "2620:0:ccc::2"
+            )
+
+            ipv6DnsMap[primaryDns]?.let { ipv6Dns ->
+                builder.addDnsServer(ipv6Dns)
+                android.util.Log.d("DnsVpnService", "Added IPv6 DNS: $ipv6Dns")
             }
-            android.util.Log.d("DnsVpnService", "Added routes for: $primaryDns, $secondaryDns")
+            ipv6DnsMap[secondaryDns]?.let { ipv6Dns ->
+                if (ipv6Dns != ipv6DnsMap[primaryDns]) {
+                    builder.addDnsServer(ipv6Dns)
+                    android.util.Log.d("DnsVpnService", "Added IPv6 DNS: $ipv6Dns")
+                }
+            }
+
+            // NOTE: The working app does NOT add routes for DNS servers!
+            // Android's VPN DNS mechanism handles routing automatically when using allowFamily()
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 builder.setMetered(false)
@@ -213,14 +292,18 @@ class DnsVpnService : VpnService() {
 
         // Check IP version
         val version = (buffer[0].toInt() shr 4) and 0xF
-        if (version != 4) {
-            android.util.Log.d("DnsVpnService", "Ignoring non-IPv4 packet, version=$version")
-            return
-        }
 
+        when (version) {
+            4 -> handleIPv4Packet(buffer, length, outputStream)
+            6 -> handleIPv6Packet(buffer, length, outputStream)
+            else -> android.util.Log.d("DnsVpnService", "Ignoring unknown IP version: $version")
+        }
+    }
+
+    private fun handleIPv4Packet(buffer: ByteArray, length: Int, outputStream: FileOutputStream) {
         val protocol = buffer[9].toInt() and 0xFF
         if (protocol != 17) {
-            android.util.Log.d("DnsVpnService", "Ignoring non-UDP packet, protocol=$protocol")
+            android.util.Log.d("DnsVpnService", "Ignoring non-UDP IPv4 packet, protocol=$protocol")
             return
         }
 
@@ -234,16 +317,41 @@ class DnsVpnService : VpnService() {
         val srcIp = "${buffer[12].toInt() and 0xFF}.${buffer[13].toInt() and 0xFF}.${buffer[14].toInt() and 0xFF}.${buffer[15].toInt() and 0xFF}"
         val dstIp = "${buffer[16].toInt() and 0xFF}.${buffer[17].toInt() and 0xFF}.${buffer[18].toInt() and 0xFF}.${buffer[19].toInt() and 0xFF}"
 
-        android.util.Log.d("DnsVpnService", "Packet: $srcIp -> $dstIp:$destPort (len=$length)")
+        android.util.Log.d("DnsVpnService", "IPv4 Packet: $srcIp -> $dstIp:$destPort (len=$length)")
 
         // Only handle DNS queries (port 53)
         if (destPort == 53) {
-            android.util.Log.d("DnsVpnService", "DNS query detected, forwarding...")
-            forwardDnsQuery(buffer, length, ipHeaderLength, outputStream)
+            android.util.Log.d("DnsVpnService", "IPv4 DNS query detected, forwarding...")
+            forwardDnsQueryIPv4(buffer, length, ipHeaderLength, outputStream)
         }
     }
 
-    private fun forwardDnsQuery(buffer: ByteArray, length: Int, ipHeaderLength: Int, outputStream: FileOutputStream) {
+    private fun handleIPv6Packet(buffer: ByteArray, length: Int, outputStream: FileOutputStream) {
+        // IPv6 header is fixed 40 bytes
+        val ipv6HeaderLength = 40
+        if (length < ipv6HeaderLength + 8) return
+
+        // Next header field at byte 6 (0x11 = UDP)
+        val nextHeader = buffer[6].toInt() and 0xFF
+        if (nextHeader != 17) {
+            android.util.Log.d("DnsVpnService", "Ignoring non-UDP IPv6 packet, nextHeader=$nextHeader")
+            return
+        }
+
+        // Extract destination port from UDP header
+        val destPort = ((buffer[ipv6HeaderLength + 2].toInt() and 0xFF) shl 8) or
+                      (buffer[ipv6HeaderLength + 3].toInt() and 0xFF)
+
+        android.util.Log.d("DnsVpnService", "IPv6 Packet: destPort=$destPort (len=$length)")
+
+        // Only handle DNS queries (port 53)
+        if (destPort == 53) {
+            android.util.Log.d("DnsVpnService", "IPv6 DNS query detected, forwarding...")
+            forwardDnsQueryIPv6(buffer, length, outputStream)
+        }
+    }
+
+    private fun forwardDnsQueryIPv4(buffer: ByteArray, length: Int, ipHeaderLength: Int, outputStream: FileOutputStream) {
         try {
             val udpHeaderLength = 8
             val dnsStart = ipHeaderLength + udpHeaderLength
@@ -253,7 +361,7 @@ class DnsVpnService : VpnService() {
             }
 
             val dnsQuery = buffer.copyOfRange(dnsStart, length)
-            android.util.Log.d("DnsVpnService", "Extracted DNS query: ${dnsQuery.size} bytes, isDoH=$isDoH")
+            android.util.Log.d("DnsVpnService", "Extracted IPv4 DNS query: ${dnsQuery.size} bytes, isDoH=$isDoH")
 
             // Choose DoH or traditional UDP DNS forwarding
             val response: ByteArray? = if (isDoH && dohClient != null) {
@@ -264,18 +372,56 @@ class DnsVpnService : VpnService() {
 
             // Send response back through VPN
             if (response != null) {
-                android.util.Log.d("DnsVpnService", "Building response packet for ${response.size} bytes DNS response")
-                val responsePacket = buildDnsResponse(buffer, ipHeaderLength, response)
+                android.util.Log.d("DnsVpnService", "Building IPv4 response packet for ${response.size} bytes DNS response")
+                val responsePacket = buildDnsResponseIPv4(buffer, ipHeaderLength, response)
                 synchronized(outputStream) {
                     outputStream.write(responsePacket)
                     outputStream.flush()
                 }
-                android.util.Log.d("DnsVpnService", "Response packet written: ${responsePacket.size} bytes")
+                android.util.Log.d("DnsVpnService", "IPv4 Response packet written: ${responsePacket.size} bytes")
             } else {
                 android.util.Log.e("DnsVpnService", "No DNS response received!")
             }
         } catch (e: Exception) {
-            android.util.Log.e("DnsVpnService", "DNS forward error: ${e.message}")
+            android.util.Log.e("DnsVpnService", "IPv4 DNS forward error: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    private fun forwardDnsQueryIPv6(buffer: ByteArray, length: Int, outputStream: FileOutputStream) {
+        try {
+            val ipv6HeaderLength = 40
+            val udpHeaderLength = 8
+            val dnsStart = ipv6HeaderLength + udpHeaderLength
+            if (length <= dnsStart) {
+                android.util.Log.w("DnsVpnService", "IPv6 packet too short for DNS query")
+                return
+            }
+
+            val dnsQuery = buffer.copyOfRange(dnsStart, length)
+            android.util.Log.d("DnsVpnService", "Extracted IPv6 DNS query: ${dnsQuery.size} bytes, isDoH=$isDoH")
+
+            // Choose DoH or traditional UDP DNS forwarding
+            val response: ByteArray? = if (isDoH && dohClient != null) {
+                forwardViaDoH(dnsQuery)
+            } else {
+                forwardViaUdp(dnsQuery)
+            }
+
+            // Send response back through VPN
+            if (response != null) {
+                android.util.Log.d("DnsVpnService", "Building IPv6 response packet for ${response.size} bytes DNS response")
+                val responsePacket = buildDnsResponseIPv6(buffer, response)
+                synchronized(outputStream) {
+                    outputStream.write(responsePacket)
+                    outputStream.flush()
+                }
+                android.util.Log.d("DnsVpnService", "IPv6 Response packet written: ${responsePacket.size} bytes")
+            } else {
+                android.util.Log.e("DnsVpnService", "No DNS response received!")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DnsVpnService", "IPv6 DNS forward error: ${e.message}")
             e.printStackTrace()
         }
     }
@@ -362,7 +508,7 @@ class DnsVpnService : VpnService() {
         return response
     }
 
-    private fun buildDnsResponse(originalPacket: ByteArray, ipHeaderLength: Int, dnsResponse: ByteArray): ByteArray {
+    private fun buildDnsResponseIPv4(originalPacket: ByteArray, ipHeaderLength: Int, dnsResponse: ByteArray): ByteArray {
         val udpHeaderLength = 8
         val totalLength = ipHeaderLength + udpHeaderLength + dnsResponse.size
         val response = ByteArray(totalLength)
@@ -416,6 +562,91 @@ class DnsVpnService : VpnService() {
         System.arraycopy(dnsResponse, 0, response, ipHeaderLength + udpHeaderLength, dnsResponse.size)
 
         return response
+    }
+
+    private fun buildDnsResponseIPv6(originalPacket: ByteArray, dnsResponse: ByteArray): ByteArray {
+        val ipv6HeaderLength = 40
+        val udpHeaderLength = 8
+        val totalLength = ipv6HeaderLength + udpHeaderLength + dnsResponse.size
+        val response = ByteArray(totalLength)
+
+        // Copy original IPv6 header
+        System.arraycopy(originalPacket, 0, response, 0, ipv6HeaderLength)
+
+        // Swap source and destination IPv6 addresses (16 bytes each)
+        // Source is at offset 8, destination is at offset 24
+        System.arraycopy(originalPacket, 24, response, 8, 16)  // dest -> source
+        System.arraycopy(originalPacket, 8, response, 24, 16)  // source -> dest
+
+        // Update payload length (bytes 4-5)
+        val payloadLength = udpHeaderLength + dnsResponse.size
+        response[4] = ((payloadLength shr 8) and 0xFF).toByte()
+        response[5] = (payloadLength and 0xFF).toByte()
+
+        // Hop limit
+        response[7] = 64
+
+        // Swap UDP ports
+        response[ipv6HeaderLength] = originalPacket[ipv6HeaderLength + 2] // dest -> source
+        response[ipv6HeaderLength + 1] = originalPacket[ipv6HeaderLength + 3]
+        response[ipv6HeaderLength + 2] = originalPacket[ipv6HeaderLength] // source -> dest
+        response[ipv6HeaderLength + 3] = originalPacket[ipv6HeaderLength + 1]
+
+        // UDP length
+        val udpLength = udpHeaderLength + dnsResponse.size
+        response[ipv6HeaderLength + 4] = ((udpLength shr 8) and 0xFF).toByte()
+        response[ipv6HeaderLength + 5] = (udpLength and 0xFF).toByte()
+
+        // UDP checksum - required for IPv6, compute it
+        response[ipv6HeaderLength + 6] = 0
+        response[ipv6HeaderLength + 7] = 0
+
+        // Copy DNS response data
+        System.arraycopy(dnsResponse, 0, response, ipv6HeaderLength + udpHeaderLength, dnsResponse.size)
+
+        // Compute UDP checksum for IPv6 (required, unlike IPv4)
+        val checksumValue = computeUdpChecksumIPv6(response, ipv6HeaderLength, udpLength)
+        response[ipv6HeaderLength + 6] = ((checksumValue shr 8) and 0xFF).toByte()
+        response[ipv6HeaderLength + 7] = (checksumValue and 0xFF).toByte()
+
+        return response
+    }
+
+    private fun computeUdpChecksumIPv6(packet: ByteArray, udpOffset: Int, udpLength: Int): Int {
+        var sum = 0L
+
+        // Pseudo-header: source address (16 bytes)
+        for (i in 8 until 24 step 2) {
+            sum += ((packet[i].toInt() and 0xFF) shl 8) or (packet[i + 1].toInt() and 0xFF)
+        }
+
+        // Pseudo-header: destination address (16 bytes)
+        for (i in 24 until 40 step 2) {
+            sum += ((packet[i].toInt() and 0xFF) shl 8) or (packet[i + 1].toInt() and 0xFF)
+        }
+
+        // Pseudo-header: UDP length (32-bit)
+        sum += udpLength
+
+        // Pseudo-header: next header (UDP = 17)
+        sum += 17
+
+        // UDP header and data
+        for (i in udpOffset until udpOffset + udpLength step 2) {
+            if (i + 1 < packet.size) {
+                sum += ((packet[i].toInt() and 0xFF) shl 8) or (packet[i + 1].toInt() and 0xFF)
+            } else {
+                sum += (packet[i].toInt() and 0xFF) shl 8
+            }
+        }
+
+        // Fold 32-bit sum to 16 bits
+        while (sum shr 16 != 0L) {
+            sum = (sum and 0xFFFF) + (sum shr 16)
+        }
+
+        val checksum = sum.inv().toInt() and 0xFFFF
+        return if (checksum == 0) 0xFFFF else checksum
     }
 
     private fun stopWorker() {
