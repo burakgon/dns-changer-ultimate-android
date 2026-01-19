@@ -20,8 +20,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,6 +82,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -101,6 +107,7 @@ import com.dns.changer.ultimate.ui.screens.connect.isAppInDarkTheme
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 import com.dns.changer.ultimate.ui.theme.WindowSize
+import com.dns.changer.ultimate.ui.theme.isAndroidTv
 import com.dns.changer.ultimate.ui.viewmodel.SpeedTestViewModel
 import kotlin.math.cos
 import kotlin.math.sin
@@ -229,9 +236,38 @@ fun SpeedTestScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 } else if (speedTestState.results.isNotEmpty()) {
-                    // Retest button
+                    // Retest button with TV focus support
+                    val isTv = isAndroidTv()
+                    val retestInteractionSource = remember { MutableInteractionSource() }
+                    val retestFocused by retestInteractionSource.collectIsFocusedAsState()
+                    val retestFocusScale = if (isTv && retestFocused) 1.05f else 1f
+
                     Surface(
-                        onClick = onStartTest,
+                        modifier = Modifier
+                            .scale(retestFocusScale)
+                            .then(
+                                if (isTv && retestFocused) {
+                                    Modifier
+                                        .shadow(
+                                            elevation = 8.dp,
+                                            shape = DnsShapes.Chip,
+                                            ambientColor = Color.White.copy(alpha = 0.3f),
+                                            spotColor = Color.White.copy(alpha = 0.3f)
+                                        )
+                                        .border(
+                                            width = 3.dp,
+                                            color = Color.White,
+                                            shape = DnsShapes.Chip
+                                        )
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .clickable(
+                                interactionSource = retestInteractionSource,
+                                indication = LocalIndication.current,
+                                onClick = onStartTest
+                            ),
                         shape = DnsShapes.Chip,
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
@@ -383,10 +419,39 @@ fun SpeedTestScreen(
                             }
                         }
 
-                        // Retest button
+                        // Retest button with TV focus support
                         if (!speedTestState.isRunning && speedTestState.results.isNotEmpty()) {
+                            val isTvCompact = isAndroidTv()
+                            val retestInteractionSourceCompact = remember { MutableInteractionSource() }
+                            val retestFocusedCompact by retestInteractionSourceCompact.collectIsFocusedAsState()
+                            val retestFocusScaleCompact = if (isTvCompact && retestFocusedCompact) 1.05f else 1f
+
                             Surface(
-                                onClick = onStartTest,
+                                modifier = Modifier
+                                    .scale(retestFocusScaleCompact)
+                                    .then(
+                                        if (isTvCompact && retestFocusedCompact) {
+                                            Modifier
+                                                .shadow(
+                                                    elevation = 8.dp,
+                                                    shape = DnsShapes.Chip,
+                                                    ambientColor = Color.White.copy(alpha = 0.3f),
+                                                    spotColor = Color.White.copy(alpha = 0.3f)
+                                                )
+                                                .border(
+                                                    width = 3.dp,
+                                                    color = Color.White,
+                                                    shape = DnsShapes.Chip
+                                                )
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .clickable(
+                                        interactionSource = retestInteractionSourceCompact,
+                                        indication = LocalIndication.current,
+                                        onClick = onStartTest
+                                    ),
                                 shape = DnsShapes.Chip,
                                 color = MaterialTheme.colorScheme.primaryContainer
                             ) {
@@ -705,16 +770,43 @@ private fun InitialSpeedTestView(
                 }
             }
 
-            // Main tappable button
+            // Main tappable button with TV focus support
+            val isTv = isAndroidTv()
+            val startInteractionSource = remember { MutableInteractionSource() }
+            val startFocused by startInteractionSource.collectIsFocusedAsState()
+            val startFocusScale = if (isTv && startFocused) 1.08f else 1f
             val onPrimaryContainerColor = MaterialTheme.colorScheme.onPrimaryContainer
+
             Surface(
                 modifier = Modifier
                     .size(centerButtonSize)
-                    .scale(pulse),
+                    .scale(pulse * startFocusScale)
+                    .then(
+                        if (isTv && startFocused) {
+                            Modifier
+                                .shadow(
+                                    elevation = 16.dp,
+                                    shape = CircleShape,
+                                    ambientColor = Color.White.copy(alpha = 0.4f),
+                                    spotColor = Color.White.copy(alpha = 0.4f)
+                                )
+                                .border(
+                                    width = 4.dp,
+                                    color = Color.White,
+                                    shape = CircleShape
+                                )
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .clickable(
+                        interactionSource = startInteractionSource,
+                        indication = LocalIndication.current,
+                        onClick = onClick
+                    ),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                shadowElevation = 12.dp,
-                onClick = onClick
+                shadowElevation = 12.dp
             ) {
                 Box(
                     modifier = Modifier
@@ -863,11 +955,41 @@ private fun SpeedTestGauge(
         primaryColor
     )
 
+    // TV Focus support
+    val isTv = isAndroidTv()
+    val gaugeInteractionSource = remember { MutableInteractionSource() }
+    val gaugeFocused by gaugeInteractionSource.collectIsFocusedAsState()
+    val gaugeFocusScale = if (isTv && gaugeFocused && !isRunning) 1.05f else 1f
+    val focusBorderColor = if (isDarkTheme) Color.White else Color(0xFF1565C0)
+
     Box(
         modifier = modifier
-            .scale(if (isRunning) pulse else 1f)
+            .scale((if (isRunning) pulse else 1f) * gaugeFocusScale)
+            .then(
+                if (isTv && gaugeFocused && !isRunning) {
+                    Modifier
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = CircleShape,
+                            ambientColor = focusBorderColor.copy(alpha = 0.4f),
+                            spotColor = focusBorderColor.copy(alpha = 0.4f)
+                        )
+                        .border(
+                            width = 4.dp,
+                            color = focusBorderColor,
+                            shape = CircleShape
+                        )
+                } else {
+                    Modifier
+                }
+            )
             .clip(CircleShape)
-            .clickable(enabled = !isRunning, onClick = onClick),
+            .clickable(
+                interactionSource = gaugeInteractionSource,
+                indication = LocalIndication.current,
+                enabled = !isRunning,
+                onClick = onClick
+            ),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -987,6 +1109,16 @@ private fun SpeedTestResultItem(
     modifier: Modifier = Modifier
 ) {
     val isDarkTheme = isAppInDarkTheme()
+    val isTv = isAndroidTv()
+
+    // TV Focus handling
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    // High-visibility focus color
+    val focusBorderColor = if (isDarkTheme) Color.White else Color(0xFF1565C0)
+    val focusScale = if (isTv && isFocused) 1.02f else 1f
+    val cardShape = if (isFastest || (isTv && isFocused)) RoundedCornerShape(16.dp) else RoundedCornerShape(12.dp)
 
     // Get category color for icon
     val categoryColor = remember(result.server.category, isDarkTheme) {
@@ -1001,11 +1133,38 @@ private fun SpeedTestResultItem(
     // Material 3 compliant list item - 72dp height for 2-line content
     // #1 gets a subtle highlight
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = if (isFastest) RoundedCornerShape(16.dp) else RoundedCornerShape(0.dp),
-        color = if (isFastest) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                else Color.Transparent,
-        onClick = onClick
+        modifier = modifier
+            .fillMaxWidth()
+            .scale(focusScale)
+            .then(
+                if (isTv && isFocused) {
+                    Modifier
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = cardShape,
+                            ambientColor = focusBorderColor.copy(alpha = 0.3f),
+                            spotColor = focusBorderColor.copy(alpha = 0.3f)
+                        )
+                        .border(
+                            width = 3.dp,
+                            color = focusBorderColor,
+                            shape = cardShape
+                        )
+                } else {
+                    Modifier
+                }
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick
+            ),
+        shape = cardShape,
+        color = when {
+            isTv && isFocused -> MaterialTheme.colorScheme.surfaceContainerHighest
+            isFastest -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+        }
     ) {
         Row(
             modifier = Modifier
@@ -1279,17 +1438,43 @@ private fun LockedTop3ResultsCard(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Unlock button
+                    // Unlock button with TV focus support
+                    val isTv = isAndroidTv()
+                    val unlockInteractionSource = remember { MutableInteractionSource() }
+                    val unlockFocused by unlockInteractionSource.collectIsFocusedAsState()
+                    val unlockFocusScale = if (isTv && unlockFocused) 1.05f else 1f
+                    val buttonShape = RoundedCornerShape(28.dp)
+
                     Button(
                         onClick = onUnlockClick,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        shape = RoundedCornerShape(28.dp),
+                        shape = buttonShape,
+                        interactionSource = unlockInteractionSource,
                         modifier = Modifier
                             .fillMaxWidth(0.7f)
                             .height(52.dp)
+                            .scale(unlockFocusScale)
+                            .then(
+                                if (isTv && unlockFocused) {
+                                    Modifier
+                                        .shadow(
+                                            elevation = 12.dp,
+                                            shape = buttonShape,
+                                            ambientColor = Color.White.copy(alpha = 0.4f),
+                                            spotColor = Color.White.copy(alpha = 0.4f)
+                                        )
+                                        .border(
+                                            width = 3.dp,
+                                            color = Color.White,
+                                            shape = buttonShape
+                                        )
+                                } else {
+                                    Modifier
+                                }
+                            )
                     ) {
                         Icon(
                             imageVector = Icons.Default.LockOpen,

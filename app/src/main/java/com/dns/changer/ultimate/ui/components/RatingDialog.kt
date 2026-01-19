@@ -27,7 +27,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,6 +83,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -93,10 +96,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.dns.changer.ultimate.ui.theme.isAndroidTv
 import com.dns.changer.ultimate.BuildConfig
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.ui.theme.DnsShapes
@@ -216,6 +222,17 @@ private fun InitialRatingContent(
     onPositive: () -> Unit,
     onNegative: () -> Unit
 ) {
+    val isTv = isAndroidTv()
+    val positiveButtonFocusRequester = remember { FocusRequester() }
+
+    // Request focus on primary button when on TV
+    LaunchedEffect(isTv) {
+        if (isTv) {
+            delay(300) // Wait for animation
+            positiveButtonFocusRequester.requestFocus()
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "initial")
     val floatOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -315,12 +332,37 @@ private fun InitialRatingContent(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Primary button - Yes, I love it!
+                // Primary button - Yes, I love it! (with high-visibility TV focus)
+                val positiveInteraction = remember { MutableInteractionSource() }
+                val positiveFocused by positiveInteraction.collectIsFocusedAsState()
+                val positiveFocusScale = if (isTv && positiveFocused) 1.05f else 1f
+
                 FilledTonalButton(
                     onClick = onPositive,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(56.dp)
+                        .scale(positiveFocusScale)
+                        .focusRequester(positiveButtonFocusRequester)
+                        .focusable(interactionSource = positiveInteraction)
+                        .then(
+                            if (isTv && positiveFocused) {
+                                Modifier
+                                    .shadow(
+                                        elevation = 12.dp,
+                                        shape = DnsShapes.Button,
+                                        ambientColor = Color.White.copy(alpha = 0.4f),
+                                        spotColor = Color.White.copy(alpha = 0.4f)
+                                    )
+                                    .border(
+                                        width = 4.dp,
+                                        color = Color.White,
+                                        shape = DnsShapes.Button
+                                    )
+                            } else {
+                                Modifier
+                            }
+                        ),
                     shape = DnsShapes.Button,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer
@@ -346,12 +388,36 @@ private fun InitialRatingContent(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Secondary button - Not really
+                // Secondary button - Not really (with high-visibility TV focus)
+                val negativeInteraction = remember { MutableInteractionSource() }
+                val negativeFocused by negativeInteraction.collectIsFocusedAsState()
+                val negativeFocusScale = if (isTv && negativeFocused) 1.05f else 1f
+
                 OutlinedButton(
                     onClick = onNegative,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .height(52.dp)
+                        .scale(negativeFocusScale)
+                        .focusable(interactionSource = negativeInteraction)
+                        .then(
+                            if (isTv && negativeFocused) {
+                                Modifier
+                                    .shadow(
+                                        elevation = 12.dp,
+                                        shape = DnsShapes.Button,
+                                        ambientColor = Color.White.copy(alpha = 0.4f),
+                                        spotColor = Color.White.copy(alpha = 0.4f)
+                                    )
+                                    .border(
+                                        width = 4.dp,
+                                        color = Color.White,
+                                        shape = DnsShapes.Button
+                                    )
+                            } else {
+                                Modifier
+                            }
+                        ),
                     shape = DnsShapes.Button,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -484,6 +550,17 @@ private fun AnimatedStarIcon() {
 private fun ThankYouContent(
     onContinue: () -> Unit
 ) {
+    val isTv = isAndroidTv()
+    val continueButtonFocusRequester = remember { FocusRequester() }
+
+    // Request focus on Continue button when on TV
+    LaunchedEffect(isTv) {
+        if (isTv) {
+            delay(500) // Wait for animation
+            continueButtonFocusRequester.requestFocus()
+        }
+    }
+
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
 
@@ -658,12 +735,37 @@ private fun ThankYouContent(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Continue button with ripple
+                // Continue button with high-visibility TV focus
+                val continueInteraction = remember { MutableInteractionSource() }
+                val continueFocused by continueInteraction.collectIsFocusedAsState()
+                val continueFocusScale = if (isTv && continueFocused) 1.05f else 1f
+
                 Button(
                     onClick = onContinue,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .height(52.dp)
+                        .scale(continueFocusScale)
+                        .focusRequester(continueButtonFocusRequester)
+                        .focusable(interactionSource = continueInteraction)
+                        .then(
+                            if (isTv && continueFocused) {
+                                Modifier
+                                    .shadow(
+                                        elevation = 12.dp,
+                                        shape = DnsShapes.Button,
+                                        ambientColor = Color.White.copy(alpha = 0.4f),
+                                        spotColor = Color.White.copy(alpha = 0.4f)
+                                    )
+                                    .border(
+                                        width = 4.dp,
+                                        color = Color.White,
+                                        shape = DnsShapes.Button
+                                    )
+                            } else {
+                                Modifier
+                            }
+                        ),
                     shape = DnsShapes.Button,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
@@ -685,6 +787,17 @@ private fun FeedbackContent(
     onSkip: () -> Unit,
     onSubmit: (String) -> Unit
 ) {
+    val isTv = isAndroidTv()
+    val skipButtonFocusRequester = remember { FocusRequester() }
+
+    // Request focus on Skip button when on TV (more likely action on TV)
+    LaunchedEffect(isTv) {
+        if (isTv) {
+            delay(500)
+            skipButtonFocusRequester.requestFocus()
+        }
+    }
+
     var feedbackText by remember { mutableStateOf("") }
     val minCharacters = 25
     val remainingChars = minCharacters - feedbackText.length
@@ -827,15 +940,44 @@ private fun FeedbackContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Button row
+            // Button row with high-visibility TV focus
+            val skipInteraction = remember { MutableInteractionSource() }
+            val skipFocused by skipInteraction.collectIsFocusedAsState()
+            val skipFocusScale = if (isTv && skipFocused) 1.05f else 1f
+            val sendInteraction = remember { MutableInteractionSource() }
+            val sendFocused by sendInteraction.collectIsFocusedAsState()
+            val sendFocusScale = if (isTv && sendFocused) 1.05f else 1f
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Skip button
+                // Skip button with high-visibility TV focus
                 TextButton(
                     onClick = onSkip,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .scale(skipFocusScale)
+                        .focusRequester(skipButtonFocusRequester)
+                        .focusable(interactionSource = skipInteraction)
+                        .then(
+                            if (isTv && skipFocused) {
+                                Modifier
+                                    .shadow(
+                                        elevation = 8.dp,
+                                        shape = DnsShapes.Button,
+                                        ambientColor = Color.White.copy(alpha = 0.3f),
+                                        spotColor = Color.White.copy(alpha = 0.3f)
+                                    )
+                                    .border(
+                                        width = 3.dp,
+                                        color = Color.White,
+                                        shape = DnsShapes.Button
+                                    )
+                            } else {
+                                Modifier
+                            }
+                        )
                 ) {
                     Text(
                         text = stringResource(R.string.skip),
@@ -843,10 +985,31 @@ private fun FeedbackContent(
                     )
                 }
 
-                // Send button
+                // Send button with high-visibility TV focus
                 Button(
                     onClick = { onSubmit(feedbackText) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .scale(sendFocusScale)
+                        .focusable(interactionSource = sendInteraction)
+                        .then(
+                            if (isTv && sendFocused) {
+                                Modifier
+                                    .shadow(
+                                        elevation = 12.dp,
+                                        shape = DnsShapes.Button,
+                                        ambientColor = Color.White.copy(alpha = 0.4f),
+                                        spotColor = Color.White.copy(alpha = 0.4f)
+                                    )
+                                    .border(
+                                        width = 4.dp,
+                                        color = Color.White,
+                                        shape = DnsShapes.Button
+                                    )
+                            } else {
+                                Modifier
+                            }
+                        ),
                     enabled = isValid,
                     shape = DnsShapes.Button,
                     colors = ButtonDefaults.buttonColors(

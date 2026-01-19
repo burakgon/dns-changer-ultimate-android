@@ -14,8 +14,8 @@ android {
         applicationId = "com.burakgon.dnschanger"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.2.5"
+        versionCode = 10000
+        versionName = "10000"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -123,6 +123,10 @@ dependencies {
     implementation(libs.material3.adaptive.navigation)
     implementation(libs.material3.adaptive.navigation.suite)
     implementation(libs.material3.windowsizeclass)
+
+    // Android TV Compose
+    implementation(libs.tv.foundation)
+    implementation(libs.tv.material)
 
     // Debug
     debugImplementation(libs.androidx.ui.tooling)

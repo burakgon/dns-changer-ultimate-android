@@ -3,6 +3,9 @@ package com.dns.changer.ultimate.ui.screens.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +30,7 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.SettingsSuggest
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.filled.BugReport
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +69,7 @@ import com.dns.changer.ultimate.ui.screens.paywall.PaywallScreen
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.revenuecat.purchases.models.StoreProduct
 import com.dns.changer.ultimate.ui.theme.DnsShapes
+import com.dns.changer.ultimate.ui.theme.isAndroidTv
 import kotlinx.coroutines.launch
 
 enum class ThemeMode {
@@ -88,6 +93,9 @@ fun SettingsScreen(
     val isPremium by preferences.isPremium.collectAsState(initial = false)
     val startOnBoot by preferences.startOnBoot.collectAsState(initial = false)
     var showPaywall by remember { mutableStateOf(false) }
+
+    // TV Focus handling
+    val isTv = isAndroidTv()
 
     // Center content on larger screens
     Box(
@@ -194,10 +202,25 @@ fun SettingsScreen(
                 )
             ) {
                 Column {
-                    // Start on Boot
+                    // Start on Boot - with TV focus support
+                    val startOnBootInteraction = remember { MutableInteractionSource() }
+                    val startOnBootFocused by startOnBootInteraction.collectIsFocusedAsState()
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusable(interactionSource = startOnBootInteraction)
+                            .then(
+                                if (isTv && startOnBootFocused) {
+                                    Modifier.border(
+                                        width = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .clickable {
                                 if (isPremium) {
                                     scope.launch { preferences.setStartOnBoot(!startOnBoot) }
@@ -262,9 +285,25 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )
 
+                    // Request Feature - with TV focus support
+                    val requestFeatureInteraction = remember { MutableInteractionSource() }
+                    val requestFeatureFocused by requestFeatureInteraction.collectIsFocusedAsState()
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusable(interactionSource = requestFeatureInteraction)
+                            .then(
+                                if (isTv && requestFeatureFocused) {
+                                    Modifier.border(
+                                        width = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .clickable {
                                 if (isPremium) {
                                     val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
@@ -330,23 +369,111 @@ fun SettingsScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.version),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = BuildConfig.VERSION_NAME,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Build Type",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (BuildConfig.DEBUG) "Debug" else "Release",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = if (BuildConfig.DEBUG) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // Debug Section (only visible in debug builds)
+            if (BuildConfig.DEBUG) {
+                Spacer(modifier = Modifier.height(32.dp))
+
+                SectionHeader(title = "Debug")
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = DnsShapes.Card,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    )
                 ) {
-                    Text(
-                        text = stringResource(R.string.version),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = BuildConfig.VERSION_NAME,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Premium Status",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Toggle premium for testing",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = isPremium,
+                            onCheckedChange = { enabled ->
+                                scope.launch { preferences.setPremium(enabled) }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.error,
+                                checkedTrackColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        )
+                    }
                 }
             }
 
@@ -424,10 +551,14 @@ private fun ThemeOption(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val borderColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.outlineVariant
+    val isTv = isAndroidTv()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    val borderColor = when {
+        isTv && isFocused -> MaterialTheme.colorScheme.primary
+        isSelected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.outlineVariant
     }
 
     val backgroundColor = if (isSelected) {
@@ -436,13 +567,16 @@ private fun ThemeOption(
         MaterialTheme.colorScheme.surface
     }
 
+    val shape = RoundedCornerShape(16.dp)
+
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(shape)
+            .focusable(interactionSource = interactionSource)
             .border(
-                width = if (isSelected) 2.dp else 1.dp,
+                width = if (isSelected || (isTv && isFocused)) 2.dp else 1.dp,
                 color = borderColor,
-                shape = RoundedCornerShape(16.dp)
+                shape = shape
             )
             .background(backgroundColor)
             .clickable(onClick = onClick)
