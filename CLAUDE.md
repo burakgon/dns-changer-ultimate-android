@@ -1,35 +1,58 @@
 # Project Notes for Claude
 
-## Build Environment (Linux)
+## Build Environment
+
+### macOS (JetBrains Toolbox)
 
 Android Studio is installed via JetBrains Toolbox at:
-`~/.local/share/JetBrains/Toolbox/apps/android-studio`
+`~/Applications/Android Studio.app`
 
 Java (JBR) bundled with Android Studio:
-`~/.local/share/JetBrains/Toolbox/apps/android-studio/jbr`
+`~/Applications/Android Studio.app/Contents/jbr/Contents/Home`
+
+ADB Location:
+`~/Library/Android/sdk/platform-tools/adb`
+
+### Linux (JetBrains Toolbox)
+
+Android Studio: `~/.local/share/JetBrains/Toolbox/apps/android-studio`
+Java (JBR): `~/.local/share/JetBrains/Toolbox/apps/android-studio/jbr`
+ADB: `~/Android/Sdk/platform-tools/adb`
 
 ### Build Commands
 
 To build the project:
 ```bash
+# macOS
+export JAVA_HOME="$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew assembleDebug
+
+# Linux
 export JAVA_HOME="$HOME/.local/share/JetBrains/Toolbox/apps/android-studio/jbr"
 ./gradlew assembleDebug
 ```
 
 To install to connected device:
 ```bash
+# macOS
+export JAVA_HOME="$HOME/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew installDebug
+
+# Linux
 export JAVA_HOME="$HOME/.local/share/JetBrains/Toolbox/apps/android-studio/jbr"
 ./gradlew installDebug
 ```
 
 To launch the app:
 ```bash
+# macOS
+~/Library/Android/sdk/platform-tools/adb shell am start -n com.dns.changer.ultimate/.MainActivity
+
+# Linux
 ~/Android/Sdk/platform-tools/adb shell am start -n com.dns.changer.ultimate/.MainActivity
 ```
 
-### ADB Location
-ADB is at: `~/Android/Sdk/platform-tools/adb`
-
+### ADB Notes
 If multiple devices connected, use `-s DEVICE_ID` flag (check devices with `adb devices`).
 
 ---
