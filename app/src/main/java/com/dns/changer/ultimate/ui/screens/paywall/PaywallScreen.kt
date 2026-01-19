@@ -15,6 +15,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
@@ -46,6 +47,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Https
 import androidx.compose.material.icons.filled.Lightbulb
@@ -412,24 +414,20 @@ private fun PortraitPaywallLayout(
     val isCompact = config.heightClass == HeightSizeClass.COMPACT || isVeryCompact
     val isWideScreen = config.widthClass == WidthSizeClass.EXPANDED || config.widthClass == WidthSizeClass.LARGE
 
-    // Auto-scroll hint animation - shows users the content is scrollable
-    LaunchedEffect(animationStep) {
-        if (animationStep >= 4) {
-            delay(800) // Wait for content to load
-            val scrollHintDistance = 80
-            // Scroll down
-            scrollState.animateScrollTo(
-                scrollHintDistance,
-                animationSpec = tween(400, easing = EaseOutCubic)
-            )
-            delay(200)
-            // Scroll back up
-            scrollState.animateScrollTo(
-                0,
-                animationSpec = tween(300, easing = EaseInOut)
-            )
-        }
-    }
+    // Check if user can scroll more (not at bottom)
+    val canScrollMore = scrollState.value < scrollState.maxValue
+
+    // Bouncing animation for scroll indicator
+    val infiniteTransition = rememberInfiniteTransition(label = "scrollHint")
+    val bounceOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bounce"
+    )
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -496,6 +494,29 @@ private fun PortraitPaywallLayout(
             }
 
             Spacer(modifier = Modifier.height(config.verticalSpacing))
+
+            // Bouncing scroll indicator - shows when there's more content
+            AnimatedVisibility(
+                visible = canScrollMore && animationStep >= 3,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(200))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Scroll for more",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .size(28.dp)
+                            .graphicsLayer { translationY = bounceOffset }
+                    )
+                }
+            }
         }
 
         // BOTTOM SECTION - Fixed at bottom, centered on wide screens
