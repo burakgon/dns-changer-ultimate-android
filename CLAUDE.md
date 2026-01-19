@@ -46,10 +46,10 @@ export JAVA_HOME="$HOME/.local/share/JetBrains/Toolbox/apps/android-studio/jbr"
 To launch the app:
 ```bash
 # macOS
-~/Library/Android/sdk/platform-tools/adb shell am start -n com.dns.changer.ultimate/.MainActivity
+~/Library/Android/sdk/platform-tools/adb shell monkey -p com.burakgon.dnschanger -c android.intent.category.LAUNCHER 1
 
 # Linux
-~/Android/Sdk/platform-tools/adb shell am start -n com.dns.changer.ultimate/.MainActivity
+~/Android/Sdk/platform-tools/adb shell monkey -p com.burakgon.dnschanger -c android.intent.category.LAUNCHER 1
 ```
 
 ### ADB Notes

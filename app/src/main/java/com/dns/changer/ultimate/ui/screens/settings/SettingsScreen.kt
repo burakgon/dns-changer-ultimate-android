@@ -99,7 +99,10 @@ fun SettingsScreen(
     isPremium: Boolean = false, // Calculated premium access (considers subscription status)
     // GDPR Privacy Options
     isPrivacyOptionsRequired: Boolean = false,
-    onShowPrivacyOptions: () -> Unit = {}
+    onShowPrivacyOptions: () -> Unit = {},
+    // Error handling
+    purchaseErrorMessage: String? = null,
+    onClearPurchaseError: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -694,7 +697,9 @@ fun SettingsScreen(
                         onPurchase(product)
                     },
                     onRestore = onRestorePurchases,
-                    onDismiss = { showPaywall = false }
+                    onDismiss = { showPaywall = false },
+                    errorMessage = purchaseErrorMessage,
+                    onClearError = onClearPurchaseError
                 )
             }
         }

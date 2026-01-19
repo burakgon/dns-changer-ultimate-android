@@ -7,7 +7,9 @@ data class PremiumState(
     val isLoading: Boolean = false,
     val offerings: List<PremiumOffering> = emptyList(),
     val subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
-    val subscriptionDetails: SubscriptionDetails? = null
+    val subscriptionDetails: SubscriptionDetails? = null,
+    val errorMessage: String? = null,
+    val isPurchasePending: Boolean = false
 )
 
 /**

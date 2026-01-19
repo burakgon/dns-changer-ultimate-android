@@ -49,7 +49,10 @@ fun DnsNavHost(
     subscriptionDetails: SubscriptionDetails? = null,
     // GDPR Privacy Options
     isPrivacyOptionsRequired: Boolean = false,
-    onShowPrivacyOptions: () -> Unit = {}
+    onShowPrivacyOptions: () -> Unit = {},
+    // Error handling
+    purchaseErrorMessage: String? = null,
+    onClearPurchaseError: () -> Unit = {}
 ) {
     // Get adaptive layout configuration for tablets/foldables
     val adaptiveConfig = rememberAdaptiveLayoutConfig()
@@ -127,7 +130,9 @@ fun DnsNavHost(
                 subscriptionDetails = subscriptionDetails,
                 isPremium = isPremium,
                 isPrivacyOptionsRequired = isPrivacyOptionsRequired,
-                onShowPrivacyOptions = onShowPrivacyOptions
+                onShowPrivacyOptions = onShowPrivacyOptions,
+                purchaseErrorMessage = purchaseErrorMessage,
+                onClearPurchaseError = onClearPurchaseError
             )
         }
     }

@@ -453,7 +453,10 @@ fun DnsChangerApp(
                 isPrivacyOptionsRequired = isPrivacyOptionsRequired,
                 onShowPrivacyOptions = {
                     consentManager.showPrivacyOptionsForm(activity) { /* form dismissed */ }
-                }
+                },
+                // Error handling
+                purchaseErrorMessage = premiumState.errorMessage,
+                onClearPurchaseError = { premiumViewModel.clearError() }
             )
         }
 
@@ -659,7 +662,9 @@ fun DnsChangerApp(
                     onRestore = {
                         premiumViewModel.restorePurchases()
                     },
-                    onDismiss = { showPaywall = false }
+                    onDismiss = { showPaywall = false },
+                    errorMessage = premiumState.errorMessage,
+                    onClearError = { premiumViewModel.clearError() }
                 )
             }
         }
