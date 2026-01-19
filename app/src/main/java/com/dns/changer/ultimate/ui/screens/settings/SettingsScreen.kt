@@ -31,13 +31,17 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.SettingsSuggest
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.ArrowDropDown
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -64,7 +68,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dns.changer.ultimate.BuildConfig
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.data.model.SubscriptionDetails
+import com.dns.changer.ultimate.data.model.SubscriptionStatus
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
+import com.dns.changer.ultimate.ui.components.BillingIssueDialog
+import com.dns.changer.ultimate.ui.components.SubscriptionStatusCard
+import com.dns.changer.ultimate.ui.components.openSubscriptionManagement
 import com.dns.changer.ultimate.ui.screens.paywall.PaywallScreen
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.revenuecat.purchases.models.StoreProduct
@@ -84,18 +93,32 @@ fun SettingsScreen(
     isLoadingPurchase: Boolean = false,
     onPurchase: (StoreProduct) -> Unit = {},
     onRestorePurchases: () -> Unit = {},
-    adaptiveConfig: AdaptiveLayoutConfig
+    adaptiveConfig: AdaptiveLayoutConfig,
+    subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
+    subscriptionDetails: SubscriptionDetails? = null,
+    isPremium: Boolean = false // Calculated premium access (considers subscription status)
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val savedTheme by preferences.themeMode.collectAsState(initial = "SYSTEM")
     val selectedTheme = ThemeMode.valueOf(savedTheme)
-    val isPremium by preferences.isPremium.collectAsState(initial = false)
+    // isPremium is now passed as parameter (calculated hasAccess value)
+    // debugToggleValue is the raw toggle state for the debug switch
+    val debugToggleValue by preferences.isPremium.collectAsState(initial = false)
     val startOnBoot by preferences.startOnBoot.collectAsState(initial = false)
     var showPaywall by remember { mutableStateOf(false) }
+    var showBillingIssueDialog by remember { mutableStateOf(false) }
 
     // TV Focus handling
     val isTv = isAndroidTv()
+
+    // Show billing issue dialog automatically for grace period or billing issues
+    LaunchedEffect(subscriptionStatus) {
+        if (subscriptionStatus == SubscriptionStatus.GRACE_PERIOD ||
+            subscriptionStatus == SubscriptionStatus.BILLING_ISSUE) {
+            showBillingIssueDialog = true
+        }
+    }
 
     // Center content on larger screens
     Box(
@@ -186,6 +209,23 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Subscription Status Section
+            SectionHeader(title = stringResource(R.string.subscription_status))
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SubscriptionStatusCard(
+                subscriptionStatus = subscriptionStatus,
+                subscriptionDetails = subscriptionDetails,
+                isPremium = isPremium,
+                onManageSubscription = {
+                    openSubscriptionManagement(context, subscriptionDetails?.managementUrl)
+                },
+                onShowPaywall = { showPaywall = true }
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -431,48 +471,152 @@ fun SettingsScreen(
                         containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                     )
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.BugReport,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(24.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.BugReport,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Premium Status",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Toggle premium for testing",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = debugToggleValue,
+                                onCheckedChange = { enabled ->
+                                    scope.launch { preferences.setPremium(enabled) }
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = MaterialTheme.colorScheme.error,
+                                    checkedTrackColor = MaterialTheme.colorScheme.errorContainer
+                                )
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Premium Status",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+                        )
+
+                        // Subscription Status Selector
+                        val debugSubStatus by preferences.debugSubscriptionStatus.collectAsState(initial = "ACTIVE")
+                        var statusDropdownExpanded by remember { mutableStateOf(false) }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.WorkspacePremium,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(24.dp)
                                 )
-                                Text(
-                                    text = "Toggle premium for testing",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Subscription Status",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Test different subscription states",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Box {
+                                Surface(
+                                    modifier = Modifier
+                                        .clickable { statusDropdownExpanded = true },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = debugSubStatus,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                DropdownMenu(
+                                    expanded = statusDropdownExpanded,
+                                    onDismissRequest = { statusDropdownExpanded = false }
+                                ) {
+                                    SubscriptionStatus.entries.forEach { status ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = status.name,
+                                                    fontWeight = if (status.name == debugSubStatus) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                            },
+                                            onClick = {
+                                                scope.launch {
+                                                    preferences.setDebugSubscriptionStatus(status.name)
+                                                }
+                                                statusDropdownExpanded = false
+                                            },
+                                            trailingIcon = if (status.name == debugSubStatus) {
+                                                {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            } else null
+                                        )
+                                    }
+                                }
                             }
                         }
-                        Switch(
-                            checked = isPremium,
-                            onCheckedChange = { enabled ->
-                                scope.launch { preferences.setPremium(enabled) }
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.error,
-                                checkedTrackColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        )
                     }
                 }
             }
@@ -500,6 +644,21 @@ fun SettingsScreen(
                     onDismiss = { showPaywall = false }
                 )
             }
+        }
+
+        // Billing Issue Dialog (for grace period and billing issues)
+        if (showBillingIssueDialog &&
+            (subscriptionStatus == SubscriptionStatus.GRACE_PERIOD ||
+             subscriptionStatus == SubscriptionStatus.BILLING_ISSUE)) {
+            BillingIssueDialog(
+                status = subscriptionStatus,
+                subscriptionDetails = subscriptionDetails,
+                onDismiss = { showBillingIssueDialog = false },
+                onManageSubscription = {
+                    showBillingIssueDialog = false
+                    openSubscriptionManagement(context, subscriptionDetails?.managementUrl)
+                }
+            )
         }
     }
 }

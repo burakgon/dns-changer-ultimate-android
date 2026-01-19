@@ -14,6 +14,8 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.dns.changer.ultimate.data.model.SubscriptionDetails
+import com.dns.changer.ultimate.data.model.SubscriptionStatus
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.ui.screens.connect.ConnectScreen
 import com.dns.changer.ultimate.ui.screens.leaktest.DnsLeakTestScreen
@@ -41,7 +43,10 @@ fun DnsNavHost(
     onRestorePurchases: () -> Unit = {},
     onShowPaywall: () -> Unit = {},
     onConnectWithAd: () -> Unit = {},
-    onDisconnectWithAd: () -> Unit = {}
+    onDisconnectWithAd: () -> Unit = {},
+    // Subscription status parameters
+    subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
+    subscriptionDetails: SubscriptionDetails? = null
 ) {
     // Get adaptive layout configuration for tablets/foldables
     val adaptiveConfig = rememberAdaptiveLayoutConfig()
@@ -114,7 +119,10 @@ fun DnsNavHost(
                 isLoadingPurchase = isLoadingPurchase,
                 onPurchase = onPurchase,
                 onRestorePurchases = onRestorePurchases,
-                adaptiveConfig = adaptiveConfig
+                adaptiveConfig = adaptiveConfig,
+                subscriptionStatus = subscriptionStatus,
+                subscriptionDetails = subscriptionDetails,
+                isPremium = isPremium
             )
         }
     }

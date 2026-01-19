@@ -401,7 +401,9 @@ fun DnsChangerApp(
                     showPaywall = true
                 },
                 onConnectWithAd = onConnectWithAd,
-                onDisconnectWithAd = onDisconnectWithAd
+                onDisconnectWithAd = onDisconnectWithAd,
+                subscriptionStatus = premiumState.subscriptionStatus,
+                subscriptionDetails = premiumState.subscriptionDetails
             )
         }
 

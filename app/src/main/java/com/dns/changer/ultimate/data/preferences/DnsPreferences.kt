@@ -27,6 +27,7 @@ class DnsPreferences @Inject constructor(
         val HAS_WATCHED_AD = booleanPreferencesKey("has_watched_ad")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val START_ON_BOOT = booleanPreferencesKey("start_on_boot")
+        val DEBUG_SUBSCRIPTION_STATUS = stringPreferencesKey("debug_subscription_status")
     }
 
     val selectedDnsId: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -55,6 +56,10 @@ class DnsPreferences @Inject constructor(
 
     val startOnBoot: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[Keys.START_ON_BOOT] ?: false
+    }
+
+    val debugSubscriptionStatus: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[Keys.DEBUG_SUBSCRIPTION_STATUS] ?: "ACTIVE"
     }
 
     suspend fun setSelectedDnsId(id: String?) {
@@ -106,6 +111,12 @@ class DnsPreferences @Inject constructor(
     suspend fun setStartOnBoot(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[Keys.START_ON_BOOT] = enabled
+        }
+    }
+
+    suspend fun setDebugSubscriptionStatus(status: String) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.DEBUG_SUBSCRIPTION_STATUS] = status
         }
     }
 }
