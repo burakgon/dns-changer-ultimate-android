@@ -101,6 +101,8 @@ dependencies {
 
     // AdMob
     implementation(libs.play.services.ads)
+    // UMP SDK for GDPR consent
+    implementation(libs.user.messaging.platform)
 
     // RevenueCat
     implementation(libs.revenuecat.purchases)

@@ -48,6 +48,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.dns.changer.ultimate.ads.AdMobManager
+import com.dns.changer.ultimate.ads.ConsentManager
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.preferences.RatingPreferences
 import com.dns.changer.ultimate.service.DnsSpeedTestService
@@ -55,6 +56,7 @@ import com.dns.changer.ultimate.ui.components.ConnectionSuccessOverlay
 import com.dns.changer.ultimate.ui.components.DisconnectionOverlay
 import com.dns.changer.ultimate.ui.components.PremiumGatePopup
 import com.dns.changer.ultimate.ui.components.RatingDialog
+import com.dns.changer.ultimate.ui.components.VpnDisclosureDialog
 import com.dns.changer.ultimate.ui.navigation.DnsNavHost
 import com.dns.changer.ultimate.ui.navigation.Screen
 import com.dns.changer.ultimate.ui.screens.paywall.PaywallScreen
@@ -81,6 +83,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var adMobManager: AdMobManager
+
+    @Inject
+    lateinit var consentManager: ConsentManager
 
     @Inject
     lateinit var dnsPreferences: DnsPreferences
@@ -115,6 +120,21 @@ class MainActivity : ComponentActivity() {
         // Increment launch count for rating prompt using lifecycle-aware scope
         lifecycleScope.launch(Dispatchers.IO) {
             ratingPreferences.incrementLaunchCount()
+        }
+
+        // Gather GDPR consent and initialize ads
+        // This shows consent form for EU users if required
+        consentManager.gatherConsent(this) { formError ->
+            // Consent gathering complete (form shown or not required)
+            // Initialize AdMob after consent is gathered
+            if (consentManager.canRequestAdsSync()) {
+                adMobManager.initialize()
+            }
+        }
+
+        // Also initialize ads if consent was already obtained in a previous session
+        if (consentManager.canRequestAdsSync()) {
+            adMobManager.initialize()
         }
 
         // Check if launched from Quick Settings tile for paywall
@@ -166,6 +186,7 @@ class MainActivity : ComponentActivity() {
                     },
                     activity = this,
                     preferences = dnsPreferences,
+                    consentManager = consentManager,
                     onThemeChanged = { theme ->
                         currentTheme = theme
                     },
@@ -205,6 +226,7 @@ fun DnsChangerApp(
     onShowInterstitialAd: (onDismissed: () -> Unit) -> Unit,
     activity: Activity,
     preferences: DnsPreferences,
+    consentManager: ConsentManager,
     onThemeChanged: (ThemeMode) -> Unit,
     showTilePaywallOnLaunch: Boolean = false,
     widgetActionFlow: kotlinx.coroutines.flow.StateFlow<String?>,
@@ -224,6 +246,15 @@ fun DnsChangerApp(
     val products by premiumViewModel.products.collectAsState()
     val mainUiState by mainViewModel.uiState.collectAsState()
     val connectionState by mainViewModel.connectionState.collectAsState()
+
+    // VPN disclosure consent state (Google Play policy compliance)
+    val vpnDisclosureAccepted by preferences.vpnDisclosureAccepted.collectAsState(initial = false)
+    var showVpnDisclosure by remember { mutableStateOf(false) }
+    var pendingConnectionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val disclosureScope = rememberCoroutineScope()
+
+    // GDPR consent state (for showing privacy options in Settings)
+    val isPrivacyOptionsRequired by consentManager.isPrivacyOptionsRequired.collectAsState()
 
     // Local state to track if we're in ad flow (to hide navigation)
     var showingAdFlow by remember { mutableStateOf(false) }
@@ -260,12 +291,12 @@ fun DnsChangerApp(
     // Coroutine scope for ad loading to ensure UI has time to update
     val adCoroutineScope = rememberCoroutineScope()
 
-    // Callback: set visual state first, wait 1 sec, show ad (if not premium), then actually connect/disconnect
-    val handleConnectWithAd: () -> Unit = handleConnectWithAd@{
+    // Inner function that performs actual connection (after disclosure accepted)
+    val performConnect: () -> Unit = performConnect@{
         // Check internet connection first
         if (!mainViewModel.isInternetAvailable()) {
             Toast.makeText(context, context.getString(R.string.no_internet_connection), Toast.LENGTH_SHORT).show()
-            return@handleConnectWithAd
+            return@performConnect
         }
 
         // Check VPN permission first
@@ -273,13 +304,13 @@ fun DnsChangerApp(
         if (vpnIntent != null) {
             // Need VPN permission - this will trigger the permission dialog
             mainViewModel.connect()
-            return@handleConnectWithAd
+            return@performConnect
         }
 
         // Premium users: connect directly without ads
         if (isPremium) {
             mainViewModel.connect()
-            return@handleConnectWithAd
+            return@performConnect
         }
 
         // Non-premium users: show ad flow
@@ -298,6 +329,20 @@ fun DnsChangerApp(
                 }
             }
         }
+    }
+
+    // Callback: check VPN disclosure first, then connect
+    val handleConnectWithAd: () -> Unit = handleConnectWithAd@{
+        // Check if VPN disclosure has been accepted (Google Play policy requirement)
+        if (!vpnDisclosureAccepted) {
+            // Store the action to perform after disclosure is accepted
+            pendingConnectionAction = { performConnect() }
+            showVpnDisclosure = true
+            return@handleConnectWithAd
+        }
+
+        // Disclosure already accepted, proceed with connection
+        performConnect()
     }
 
     val handleDisconnectWithAd: () -> Unit = handleDisconnectWithAd@{
@@ -403,7 +448,12 @@ fun DnsChangerApp(
                 onConnectWithAd = onConnectWithAd,
                 onDisconnectWithAd = onDisconnectWithAd,
                 subscriptionStatus = premiumState.subscriptionStatus,
-                subscriptionDetails = premiumState.subscriptionDetails
+                subscriptionDetails = premiumState.subscriptionDetails,
+                // GDPR Privacy Options
+                isPrivacyOptionsRequired = isPrivacyOptionsRequired,
+                onShowPrivacyOptions = {
+                    consentManager.showPrivacyOptionsForm(activity) { /* form dismissed */ }
+                }
             )
         }
 
@@ -612,6 +662,23 @@ fun DnsChangerApp(
                     onDismiss = { showPaywall = false }
                 )
             }
+        }
+
+        // VPN Disclosure Dialog (Google Play policy compliance)
+        // Shown before first VPN connection to explain VpnService usage
+        if (showVpnDisclosure) {
+            VpnDisclosureDialog(
+                onAccept = {
+                    // Save acceptance and proceed with pending action
+                    disclosureScope.launch {
+                        preferences.setVpnDisclosureAccepted(true)
+                    }
+                    showVpnDisclosure = false
+                    // Execute the pending connection action
+                    pendingConnectionAction?.invoke()
+                    pendingConnectionAction = null
+                }
+            )
         }
     }
 }

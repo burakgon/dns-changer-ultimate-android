@@ -28,6 +28,7 @@ class DnsPreferences @Inject constructor(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val START_ON_BOOT = booleanPreferencesKey("start_on_boot")
         val DEBUG_SUBSCRIPTION_STATUS = stringPreferencesKey("debug_subscription_status")
+        val VPN_DISCLOSURE_ACCEPTED = booleanPreferencesKey("vpn_disclosure_accepted")
     }
 
     val selectedDnsId: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -60,6 +61,10 @@ class DnsPreferences @Inject constructor(
 
     val debugSubscriptionStatus: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[Keys.DEBUG_SUBSCRIPTION_STATUS] ?: "ACTIVE"
+    }
+
+    val vpnDisclosureAccepted: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[Keys.VPN_DISCLOSURE_ACCEPTED] ?: false
     }
 
     suspend fun setSelectedDnsId(id: String?) {
@@ -117,6 +122,12 @@ class DnsPreferences @Inject constructor(
     suspend fun setDebugSubscriptionStatus(status: String) {
         context.dataStore.edit { preferences ->
             preferences[Keys.DEBUG_SUBSCRIPTION_STATUS] = status
+        }
+    }
+
+    suspend fun setVpnDisclosureAccepted(accepted: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.VPN_DISCLOSURE_ACCEPTED] = accepted
         }
     }
 }

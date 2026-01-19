@@ -216,6 +216,19 @@
     <string name="status_cancelled">Cancelled</string>
     <string name="status_expired">Expired</string>
 
+    <!-- VPN Disclosure (Google Play Policy Compliance) -->
+    <string name="vpn_disclosure_title">How DNS Changer Works</string>
+    <string name="vpn_disclosure_message">DNS Changer uses Android\'s VPN service to route your DNS queries through the DNS server you select. This allows the app to change your device\'s DNS settings without requiring root access.\n\nThe VPN connection is local to your device — it does not connect to any external VPN server. All your internet traffic remains unchanged except for DNS lookups.</string>
+    <string name="vpn_disclosure_data_title">Your Privacy</string>
+    <string name="vpn_disclosure_data_message">DNS Changer does not collect, store, or share any of your browsing data, DNS queries, or personal information through the VPN service.</string>
+    <string name="vpn_disclosure_privacy_link">Read Privacy Policy</string>
+    <string name="vpn_disclosure_accept">I Understand</string>
+
+    <!-- Privacy &amp; Legal -->
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="terms_of_service">Terms of Service</string>
+    <string name="manage_ad_preferences">Manage Ad Preferences</string>
+
     <!-- Billing Issue Dialog -->
     <string name="billing_issue_title_grace">Payment Issue Detected</string>
     <string name="billing_issue_title_expired">Account On Hold</string>

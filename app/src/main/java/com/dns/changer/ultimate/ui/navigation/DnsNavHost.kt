@@ -46,7 +46,10 @@ fun DnsNavHost(
     onDisconnectWithAd: () -> Unit = {},
     // Subscription status parameters
     subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
-    subscriptionDetails: SubscriptionDetails? = null
+    subscriptionDetails: SubscriptionDetails? = null,
+    // GDPR Privacy Options
+    isPrivacyOptionsRequired: Boolean = false,
+    onShowPrivacyOptions: () -> Unit = {}
 ) {
     // Get adaptive layout configuration for tablets/foldables
     val adaptiveConfig = rememberAdaptiveLayoutConfig()
@@ -122,7 +125,9 @@ fun DnsNavHost(
                 adaptiveConfig = adaptiveConfig,
                 subscriptionStatus = subscriptionStatus,
                 subscriptionDetails = subscriptionDetails,
-                isPremium = isPremium
+                isPremium = isPremium,
+                isPrivacyOptionsRequired = isPrivacyOptionsRequired,
+                onShowPrivacyOptions = onShowPrivacyOptions
             )
         }
     }

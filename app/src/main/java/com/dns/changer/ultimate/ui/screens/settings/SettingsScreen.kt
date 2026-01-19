@@ -96,7 +96,10 @@ fun SettingsScreen(
     adaptiveConfig: AdaptiveLayoutConfig,
     subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
     subscriptionDetails: SubscriptionDetails? = null,
-    isPremium: Boolean = false // Calculated premium access (considers subscription status)
+    isPremium: Boolean = false, // Calculated premium access (considers subscription status)
+    // GDPR Privacy Options
+    isPrivacyOptionsRequired: Boolean = false,
+    onShowPrivacyOptions: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -434,24 +437,74 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )
 
+                    // Privacy Policy link
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://burakgon.com/privacy"))
+                                context.startActivity(intent)
+                            }
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Build Type",
+                            text = stringResource(R.string.privacy_policy),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        Text(
-                            text = if (BuildConfig.DEBUG) "Debug" else "Release",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (BuildConfig.DEBUG) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    }
+
+                    // Manage Ad Preferences (GDPR) - only show for EEA/UK users
+                    if (isPrivacyOptionsRequired) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onShowPrivacyOptions() }
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.manage_ad_preferences),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    // Only show Build Type in debug builds
+                    if (BuildConfig.DEBUG) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Build Type",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (BuildConfig.DEBUG) "Debug" else "Release",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = if (BuildConfig.DEBUG) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
