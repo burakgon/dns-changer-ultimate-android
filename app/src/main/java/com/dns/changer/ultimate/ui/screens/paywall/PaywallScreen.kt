@@ -35,9 +35,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -69,10 +71,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -91,6 +95,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -317,7 +322,7 @@ fun PaywallScreen(
                         widthClass = widthClass,
                         crownSize = 110.dp,
                         showAllBenefits = true,
-                        benefitCount = 6,
+                        benefitCount = 8,
                         titleStyle = headlineSmallStyle,
                         verticalSpacing = 12.dp,
                         horizontalPadding = 18.dp,
@@ -332,7 +337,7 @@ fun PaywallScreen(
                         widthClass = widthClass,
                         crownSize = 140.dp,
                         showAllBenefits = true,
-                        benefitCount = 8,
+                        benefitCount = 10,
                         titleStyle = headlineMediumStyle,
                         verticalSpacing = 16.dp,
                         horizontalPadding = 24.dp,
@@ -414,21 +419,6 @@ private fun PortraitPaywallLayout(
     val isCompact = config.heightClass == HeightSizeClass.COMPACT || isVeryCompact
     val isWideScreen = config.widthClass == WidthSizeClass.EXPANDED || config.widthClass == WidthSizeClass.LARGE
 
-    // Check if user can scroll more (not at bottom)
-    val canScrollMore = scrollState.value < scrollState.maxValue
-
-    // Bouncing animation for scroll indicator
-    val infiniteTransition = rememberInfiniteTransition(label = "scrollHint")
-    val bounceOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(600, easing = EaseInOut),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bounce"
-    )
-
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -456,7 +446,7 @@ private fun PortraitPaywallLayout(
             }
         }
 
-        // Scrollable content area - centered on wide screens
+        // Scrollable content area
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -485,7 +475,7 @@ private fun PortraitPaywallLayout(
 
             Spacer(modifier = Modifier.height(config.verticalSpacing))
 
-            // FEATURES
+            // FEATURES - Auto-scrolling infinite loop
             AnimatedVisibility(
                 visible = animationStep >= 3,
                 enter = fadeIn(tween(300)) + slideInVertically(tween(400)) { it / 3 }
@@ -494,29 +484,6 @@ private fun PortraitPaywallLayout(
             }
 
             Spacer(modifier = Modifier.height(config.verticalSpacing))
-
-            // Bouncing scroll indicator - shows when there's more content
-            AnimatedVisibility(
-                visible = canScrollMore && animationStep >= 3,
-                enter = fadeIn(tween(300)),
-                exit = fadeOut(tween(200))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Scroll for more",
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                        modifier = Modifier
-                            .size(28.dp)
-                            .graphicsLayer { translationY = bounceOffset }
-                    )
-                }
-            }
         }
 
         // BOTTOM SECTION - Fixed at bottom, centered on wide screens
@@ -1334,34 +1301,143 @@ private fun BenefitsSection(config: PaywallLayoutConfig) {
         Triple(Icons.Default.Lightbulb, "Feature Requests", "Shape the App")
     )
 
-    val benefits = allBenefits.take(config.benefitCount)
     val isCompact = config.heightClass == HeightSizeClass.VERY_COMPACT ||
                    config.heightClass == HeightSizeClass.COMPACT
 
-    Column(
-        modifier = Modifier.padding(horizontal = config.horizontalPadding),
-        verticalArrangement = Arrangement.spacedBy(if (isCompact) 4.dp else 6.dp)
-    ) {
-        benefits.chunked(2).forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 8.dp)
-            ) {
-                rowItems.forEach { (icon, title, subtitle) ->
-                    BenefitItem(
-                        icon = icon,
-                        title = title,
-                        subtitle = if (isCompact) null else subtitle,
-                        modifier = Modifier.weight(1f),
-                        isCompact = isCompact
-                    )
+    // Create rows (pairs of benefits)
+    val benefitRows = allBenefits.chunked(2)
+    val numRows = benefitRows.size
+
+    // Number of visible rows (calculate first as it affects other dimensions)
+    val visibleRows = config.benefitCount / 2
+
+    // Calculate dimensions - larger rows for bigger screens
+    val rowHeightDp = when {
+        isCompact -> 38.dp
+        visibleRows >= 5 -> 54.dp  // Larger screens get bigger rows
+        visibleRows >= 4 -> 52.dp
+        else -> 48.dp
+    }
+    val rowSpacingDp = if (isCompact) 4.dp else 8.dp
+
+    // Visible area height (rows + gaps between them)
+    val visibleHeightDp = rowHeightDp * visibleRows + rowSpacingDp * (visibleRows - 1)
+
+    // Calculate pixel values for animation
+    val density = LocalDensity.current
+    val rowHeightPx = with(density) { rowHeightDp.toPx() }
+    val rowSpacingPx = with(density) { rowSpacingDp.toPx() }
+    val rowUnitPx = rowHeightPx + rowSpacingPx
+    val cycleHeightPx = rowUnitPx * numRows
+    val visibleHeightPx = with(density) { visibleHeightDp.toPx() }
+
+    // Scroll position in pixels
+    var scrollPx by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        val scrollSpeedPxPerMs = cycleHeightPx / (numRows * 2000f)
+        var lastFrameNanos = 0L
+
+        while (true) {
+            withFrameNanos { frameNanos ->
+                if (lastFrameNanos != 0L) {
+                    val deltaMs = (frameNanos - lastFrameNanos) / 1_000_000f
+                    scrollPx = (scrollPx + scrollSpeedPxPerMs * deltaMs) % cycleHeightPx
                 }
-                // Fill remaining space if odd number
-                if (rowItems.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
+                lastFrameNanos = frameNanos
+            }
+        }
+    }
+
+    // Get background color for fade gradients
+    val backgroundColor = MaterialTheme.colorScheme.surface
+    val fadeHeight = when {
+        isCompact -> 16.dp
+        visibleRows >= 5 -> 40.dp
+        visibleRows >= 4 -> 32.dp
+        else -> 24.dp
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = config.horizontalPadding)
+            .height(visibleHeightDp)
+            .clip(RoundedCornerShape(if (isCompact) 8.dp else 10.dp))
+    ) {
+        // Render each row at its calculated position
+        // We need enough rows to fill visible area plus one cycle
+        val totalRowsNeeded = numRows + visibleRows + 1
+
+        for (i in 0 until totalRowsNeeded) {
+            val rowIndex = i % numRows
+            val rowItems = benefitRows[rowIndex]
+
+            // Calculate y position for this row
+            val baseY = i * rowUnitPx
+            var y = baseY - scrollPx
+
+            // Wrap around for seamless loop
+            if (y < -rowUnitPx) {
+                y += cycleHeightPx
+            }
+
+            // Only render if within visible bounds (with some margin)
+            if (y >= -rowHeightPx && y <= visibleHeightPx) {
+                Row(
+                    modifier = Modifier
+                        .offset { IntOffset(0, y.toInt()) }
+                        .fillMaxWidth()
+                        .height(rowHeightDp),
+                    horizontalArrangement = Arrangement.spacedBy(if (isCompact) 6.dp else 8.dp)
+                ) {
+                    rowItems.forEach { (icon, title, subtitle) ->
+                        BenefitItem(
+                            icon = icon,
+                            title = title,
+                            subtitle = if (isCompact) null else subtitle,
+                            modifier = Modifier.weight(1f),
+                            isCompact = isCompact
+                        )
+                    }
+                    if (rowItems.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
+
+        // Top fade gradient
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(fadeHeight)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            backgroundColor,
+                            backgroundColor.copy(alpha = 0f)
+                        )
+                    )
+                )
+        )
+
+        // Bottom fade gradient
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(fadeHeight)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            backgroundColor.copy(alpha = 0f),
+                            backgroundColor
+                        )
+                    )
+                )
+        )
     }
 }
 
