@@ -223,10 +223,38 @@ class ToggleDnsAction : ActionCallback {
             DnsWidget.DnsWidgetEntryPoint::class.java
         )
         val connectionManager = entryPoint.dnsConnectionManager()
+        val dnsRepository = entryPoint.dnsRepository()
+        val dnsPreferences = entryPoint.dnsPreferences()
 
         val currentState = connectionManager.connectionState.value
+        val isPremium = dnsPreferences.isPremium.first()
 
-        // Open app with action - let the app handle connect/disconnect to show overlays
+        // Premium users get instant toggle without opening the app
+        if (isPremium) {
+            when (currentState) {
+                is ConnectionState.Connected -> {
+                    connectionManager.disconnect()
+                    DnsWidget.updateWidgetState(context)
+                }
+                is ConnectionState.Disconnected, is ConnectionState.Error -> {
+                    val server = dnsRepository.selectedServer.first()
+                    if (server != null) {
+                        connectionManager.connect(server)
+                        DnsWidget.updateWidgetState(context)
+                    } else {
+                        // No server selected - open app
+                        openApp(context)
+                    }
+                }
+                else -> {
+                    // In transition - just update widget
+                    DnsWidget.updateWidgetState(context)
+                }
+            }
+            return
+        }
+
+        // Non-premium users: Open app with action to show ads
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
             when (currentState) {
@@ -240,6 +268,13 @@ class ToggleDnsAction : ActionCallback {
                     // In transition - just open app
                 }
             }
+        }
+        context.startActivity(intent)
+    }
+
+    private fun openApp(context: Context) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)
     }

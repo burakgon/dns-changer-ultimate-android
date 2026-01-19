@@ -15,6 +15,7 @@ import com.revenuecat.purchases.interfaces.ReceiveCustomerInfoCallback
 import com.revenuecat.purchases.models.StoreProduct
 import com.revenuecat.purchases.models.StoreTransaction
 import com.revenuecat.purchases.Offerings
+import com.dns.changer.ultimate.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -108,6 +109,20 @@ class PremiumViewModel @Inject constructor(
 
     fun checkPremiumStatus() {
         _premiumState.value = _premiumState.value.copy(isLoading = true)
+
+        // In debug builds, respect the local DataStore value for testing
+        // Don't overwrite it with RevenueCat status
+        if (BuildConfig.DEBUG) {
+            viewModelScope.launch {
+                preferences.isPremium.collect { localPremium ->
+                    _premiumState.value = _premiumState.value.copy(
+                        isPremium = localPremium,
+                        isLoading = false
+                    )
+                }
+            }
+            return
+        }
 
         try {
             Purchases.sharedInstance.getCustomerInfo(object : ReceiveCustomerInfoCallback {

@@ -9,6 +9,7 @@ import android.service.quicksettings.TileService
 import com.dns.changer.ultimate.MainActivity
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.ConnectionState
+import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.repository.DnsRepository
 import com.dns.changer.ultimate.widget.ToggleDnsAction
 import dagger.hilt.android.EntryPointAccessors
@@ -34,6 +35,7 @@ class DnsQuickSettingsTile : TileService() {
     interface QuickSettingsTileEntryPoint {
         fun dnsConnectionManager(): DnsConnectionManager
         fun dnsRepository(): DnsRepository
+        fun dnsPreferences(): DnsPreferences
     }
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -53,6 +55,10 @@ class DnsQuickSettingsTile : TileService() {
         entryPoint.dnsRepository()
     }
 
+    private val dnsPreferences: DnsPreferences by lazy {
+        entryPoint.dnsPreferences()
+    }
+
     override fun onStartListening() {
         super.onStartListening()
         updateTileState()
@@ -67,31 +73,61 @@ class DnsQuickSettingsTile : TileService() {
 
         scope.launch {
             val currentState = connectionManager.connectionState.value
+            val isPremium = dnsPreferences.isPremium.first()
 
+            // Premium users get instant toggle without opening the app
+            if (isPremium) {
+                when (currentState) {
+                    is ConnectionState.Connected -> {
+                        connectionManager.disconnect()
+                        updateTileState()
+                    }
+                    is ConnectionState.Disconnected -> {
+                        val server = dnsRepository.selectedServer.first()
+                        if (server != null) {
+                            connectionManager.connect(server)
+                            updateTileState()
+                        } else {
+                            // No server selected - open app
+                            openApp()
+                        }
+                    }
+                    is ConnectionState.Error -> {
+                        val server = dnsRepository.selectedServer.first()
+                        if (server != null) {
+                            connectionManager.connect(server)
+                            updateTileState()
+                        } else {
+                            openApp()
+                        }
+                    }
+                    else -> {
+                        // In transition - just update tile
+                        updateTileState()
+                    }
+                }
+                return@launch
+            }
+
+            // Non-premium users: Open app with action to show ads
             when (currentState) {
                 is ConnectionState.Connected -> {
-                    // Open app with disconnect action (same flow as widget/button - shows ad)
                     openAppWithAction(ToggleDnsAction.ACTION_DISCONNECT)
                 }
                 is ConnectionState.Disconnected -> {
-                    // Check if server is selected
                     val server = dnsRepository.selectedServer.first()
                     if (server == null) {
-                        // No server selected - open app normally
                         openApp()
                         return@launch
                     }
-                    // Open app with connect action (same flow as widget/button - shows ad)
                     openAppWithAction(ToggleDnsAction.ACTION_CONNECT)
                 }
                 is ConnectionState.Connecting,
                 is ConnectionState.Disconnecting,
                 is ConnectionState.Switching -> {
-                    // In transition state - just open app
                     openApp()
                 }
                 is ConnectionState.Error -> {
-                    // On error, open app
                     openApp()
                 }
             }

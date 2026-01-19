@@ -260,7 +260,7 @@ fun DnsChangerApp(
     // Coroutine scope for ad loading to ensure UI has time to update
     val adCoroutineScope = rememberCoroutineScope()
 
-    // Callback: set visual state first, wait 1 sec, show ad, then actually connect/disconnect
+    // Callback: set visual state first, wait 1 sec, show ad (if not premium), then actually connect/disconnect
     val handleConnectWithAd: () -> Unit = handleConnectWithAd@{
         // Check internet connection first
         if (!mainViewModel.isInternetAvailable()) {
@@ -276,6 +276,13 @@ fun DnsChangerApp(
             return@handleConnectWithAd
         }
 
+        // Premium users: connect directly without ads
+        if (isPremium) {
+            mainViewModel.connect()
+            return@handleConnectWithAd
+        }
+
+        // Non-premium users: show ad flow
         adCoroutineScope.launch {
             showingAdFlow = true
             // Set visual "Connecting" state (doesn't actually start VPN yet)
@@ -293,7 +300,14 @@ fun DnsChangerApp(
         }
     }
 
-    val handleDisconnectWithAd: () -> Unit = {
+    val handleDisconnectWithAd: () -> Unit = handleDisconnectWithAd@{
+        // Premium users: disconnect directly without ads
+        if (isPremium) {
+            mainViewModel.disconnect()
+            return@handleDisconnectWithAd
+        }
+
+        // Non-premium users: show ad flow
         adCoroutineScope.launch {
             showingAdFlow = true
             // Set visual "Disconnecting" state (doesn't actually stop VPN yet)
