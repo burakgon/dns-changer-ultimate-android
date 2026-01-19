@@ -33,7 +33,6 @@ fun DnsNavHost(
     isPremium: Boolean,
     preferences: DnsPreferences,
     onRequestVpnPermission: (Intent) -> Unit,
-    onRequestVpnPermissionWithCallback: (Intent, (Boolean) -> Unit) -> Unit,
     onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit,
     onThemeChanged: (ThemeMode) -> Unit,
     // Paywall parameters
@@ -44,6 +43,7 @@ fun DnsNavHost(
     onShowPaywall: () -> Unit = {},
     onConnectWithAd: () -> Unit = {},
     onDisconnectWithAd: () -> Unit = {},
+    onTriggerConnectAction: () -> Unit = {},
     // Subscription status parameters
     subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
     subscriptionDetails: SubscriptionDetails? = null,
@@ -106,7 +106,18 @@ fun DnsNavHost(
                 viewModel = speedTestViewModel,
                 isPremium = isPremium,
                 onShowPremiumGate = onShowPremiumGate,
-                onRequestVpnPermission = onRequestVpnPermissionWithCallback,
+                onNavigateToConnectAndStart = {
+                    // Navigate to Connect screen
+                    navController.navigate(Screen.Connect.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                    // Trigger connect action via state (same as widget) to ensure proper timing
+                    onTriggerConnectAction()
+                },
                 adaptiveConfig = adaptiveConfig
             )
         }

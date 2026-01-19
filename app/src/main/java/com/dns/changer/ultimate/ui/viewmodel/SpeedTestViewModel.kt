@@ -1,13 +1,9 @@
 package com.dns.changer.ultimate.ui.viewmodel
 
-import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsServer
-import com.dns.changer.ultimate.data.model.PresetDnsServers
 import com.dns.changer.ultimate.data.model.SpeedTestState
-import com.dns.changer.ultimate.service.DnsConnectionManager
 import com.dns.changer.ultimate.service.DnsSpeedTestService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +19,6 @@ import javax.inject.Inject
 @HiltViewModel
 class SpeedTestViewModel @Inject constructor(
     private val speedTestService: DnsSpeedTestService,
-    private val connectionManager: DnsConnectionManager,
     private val dnsRepository: com.dns.changer.ultimate.data.repository.DnsRepository
 ) : ViewModel() {
 
@@ -45,12 +40,6 @@ class SpeedTestViewModel @Inject constructor(
     // Session-based unlock for current speed test results (resets on new test)
     private val _resultsUnlockedForSession = MutableStateFlow(false)
     val resultsUnlockedForSession: StateFlow<Boolean> = _resultsUnlockedForSession.asStateFlow()
-
-    // VPN permission state
-    private val _vpnPermissionIntent = MutableStateFlow<Intent?>(null)
-    val vpnPermissionIntent: StateFlow<Intent?> = _vpnPermissionIntent.asStateFlow()
-
-    private var pendingConnectionServer: DnsServer? = null
 
     // Auto-start flag - set when navigating from "Find Fastest" button
     private val _shouldAutoStart = MutableStateFlow(false)
@@ -87,52 +76,14 @@ class SpeedTestViewModel @Inject constructor(
         _resultsUnlockedForSession.value = false
     }
 
-    fun connectToServer(server: DnsServer) {
-        // Check if already connected - use switch instead
-        val currentState = connectionManager.connectionState.value
-        if (currentState is ConnectionState.Connected) {
-            // Already connected, just switch server (no permission needed)
-            viewModelScope.launch {
-                dnsRepository.selectServer(server)
-                connectionManager.switchServer(server)
-            }
-            return
-        }
-
-        // Check VPN permission first
-        val vpnIntent = connectionManager.checkVpnPermission()
-        if (vpnIntent != null) {
-            // Need permission - store pending server and emit intent
-            pendingConnectionServer = server
-            _vpnPermissionIntent.value = vpnIntent
-            return
-        }
-
-        // Permission granted, connect directly
+    /**
+     * Selects a server from speed test results.
+     * Always navigates to main screen to go through the full connection flow.
+     */
+    fun selectServer(server: DnsServer) {
         viewModelScope.launch {
             dnsRepository.selectServer(server)
-            connectionManager.connect(server)
         }
-    }
-
-    fun onVpnPermissionResult(granted: Boolean) {
-        _vpnPermissionIntent.value = null
-
-        if (granted && pendingConnectionServer != null) {
-            val server = pendingConnectionServer!!
-            pendingConnectionServer = null
-            viewModelScope.launch {
-                dnsRepository.selectServer(server)
-                connectionManager.connect(server)
-            }
-        } else {
-            pendingConnectionServer = null
-        }
-    }
-
-    fun dismissVpnPermission() {
-        _vpnPermissionIntent.value = null
-        pendingConnectionServer = null
     }
 
     fun dismissPremiumGate() {

@@ -194,6 +194,7 @@ class MainActivity : ComponentActivity() {
                     showTilePaywallOnLaunch = showTilePaywall,
                     widgetActionFlow = _widgetAction,
                     onWidgetActionConsumed = { _widgetAction.value = null },
+                    onSetWidgetAction = { action -> _widgetAction.value = action },
                     launchedFromWidgetOrQSFlow = _launchedFromWidgetOrQS,
                     onWidgetOrQSFlowConsumed = { _launchedFromWidgetOrQS.value = false }
                 )
@@ -232,6 +233,7 @@ fun DnsChangerApp(
     showTilePaywallOnLaunch: Boolean = false,
     widgetActionFlow: kotlinx.coroutines.flow.StateFlow<String?>,
     onWidgetActionConsumed: () -> Unit,
+    onSetWidgetAction: (String) -> Unit,
     launchedFromWidgetOrQSFlow: kotlinx.coroutines.flow.StateFlow<Boolean>,
     onWidgetOrQSFlowConsumed: () -> Unit,
     mainViewModel: MainViewModel = hiltViewModel(),
@@ -426,7 +428,6 @@ fun DnsChangerApp(
                         mainViewModel.onVpnPermissionResult(granted)
                     }
                 },
-                onRequestVpnPermissionWithCallback = onRequestVpnPermission,
                 onShowPremiumGate = { title, description, unlockCallback ->
                     premiumGateTitle = title
                     premiumGateDescription = description
@@ -448,6 +449,7 @@ fun DnsChangerApp(
                 },
                 onConnectWithAd = onConnectWithAd,
                 onDisconnectWithAd = onDisconnectWithAd,
+                onTriggerConnectAction = { onSetWidgetAction(ToggleDnsAction.ACTION_CONNECT) },
                 subscriptionStatus = premiumState.subscriptionStatus,
                 subscriptionDetails = premiumState.subscriptionDetails,
                 // GDPR Privacy Options

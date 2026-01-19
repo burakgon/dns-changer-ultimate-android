@@ -139,11 +139,10 @@ fun SpeedTestScreen(
     viewModel: SpeedTestViewModel = hiltViewModel(),
     isPremium: Boolean,
     onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit,
-    onRequestVpnPermission: (android.content.Intent, (Boolean) -> Unit) -> Unit,
+    onNavigateToConnectAndStart: () -> Unit,
     adaptiveConfig: AdaptiveLayoutConfig
 ) {
     val speedTestState by viewModel.speedTestState.collectAsState()
-    val vpnPermissionIntent by viewModel.vpnPermissionIntent.collectAsState()
     val totalServerCount by viewModel.totalServerCount.collectAsState()
     val sessionUnlocked by viewModel.resultsUnlockedForSession.collectAsState()
     val shouldAutoStart by viewModel.shouldAutoStart.collectAsState()
@@ -181,13 +180,10 @@ fun SpeedTestScreen(
         viewModel.startSpeedTest(isPremium = isPremium)
     }
 
-    // Handle VPN permission request
-    LaunchedEffect(vpnPermissionIntent) {
-        vpnPermissionIntent?.let { intent ->
-            onRequestVpnPermission(intent) { granted ->
-                viewModel.onVpnPermissionResult(granted)
-            }
-        }
+    // Handle server selection: navigate to main screen and go through full connection flow
+    val onServerSelected: (DnsServer) -> Unit = { server ->
+        viewModel.selectServer(server)
+        onNavigateToConnectAndStart()
     }
 
     // Gauge size based on window size and orientation
@@ -329,7 +325,7 @@ fun SpeedTestScreen(
                     premiumGateTitle = speedTestTitle,
                     premiumGateDescription = speedTestDescription,
                     onAdWatched = { viewModel.onAdWatched() },
-                    onConnectToServer = { viewModel.connectToServer(it) },
+                    onConnectToServer = onServerSelected,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -474,7 +470,7 @@ fun SpeedTestScreen(
                         premiumGateTitle = speedTestTitle,
                         premiumGateDescription = speedTestDescription,
                         onAdWatched = { viewModel.onAdWatched() },
-                        onConnectToServer = { viewModel.connectToServer(it) },
+                        onConnectToServer = onServerSelected,
                         modifier = Modifier
                             .weight(1f)
                             .widthIn(max = adaptiveConfig.contentMaxWidth)
