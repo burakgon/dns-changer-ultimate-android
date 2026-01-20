@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -14,8 +15,8 @@ android {
         applicationId = "com.burakgon.dnschanger"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10009
-        versionName = "10009"
+        versionCode = 10011
+        versionName = "10011"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -103,6 +104,10 @@ dependencies {
     implementation(libs.play.services.ads)
     // UMP SDK for GDPR consent
     implementation(libs.user.messaging.platform)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
 
     // RevenueCat
     implementation(libs.revenuecat.purchases)

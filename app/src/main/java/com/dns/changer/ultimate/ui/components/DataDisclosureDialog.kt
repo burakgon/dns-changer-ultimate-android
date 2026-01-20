@@ -19,7 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,17 +45,18 @@ import androidx.compose.ui.window.DialogProperties
 import com.dns.changer.ultimate.R
 
 /**
- * VPN Disclosure Dialog - Shows prominent disclosure before first VPN connection
- * as required by Google Play VpnService policy.
+ * Data Collection Disclosure Dialog - Shows prominent disclosure at first app launch
+ * BEFORE any data collection starts, as required by Google Play User Data policy.
  *
  * Requirements met:
- * - Displayed in normal app usage (before first connection)
- * - Explains why VpnService is needed and how it's used
+ * - Displayed at first app launch (before analytics collection)
+ * - Explains WHAT data is collected, WHY, and HOW it's used
  * - Provides link to privacy policy
- * - Requires affirmative user action (tap "I Understand")
+ * - Requires affirmative user action (tap "I Agree")
+ * - Cannot be dismissed without accepting
  */
 @Composable
-fun VpnDisclosureDialog(
+fun DataDisclosureDialog(
     onAccept: () -> Unit,
     onPrivacyPolicy: () -> Unit = {}
 ) {
@@ -95,7 +96,6 @@ fun VpnDisclosureDialog(
                 val scrollState = rememberScrollState()
                 val coroutineScope = rememberCoroutineScope()
 
-                // Check if scrolled to bottom or content fits
                 val isAtBottom by remember {
                     derivedStateOf {
                         val maxScroll = scrollState.maxValue
@@ -114,14 +114,14 @@ fun VpnDisclosureDialog(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Shield,
+                            imageVector = Icons.Default.Analytics,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(40.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = stringResource(R.string.vpn_disclosure_title),
+                            text = stringResource(R.string.data_disclosure_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
@@ -138,7 +138,7 @@ fun VpnDisclosureDialog(
                                 .verticalScroll(scrollState)
                         ) {
                             Text(
-                                text = stringResource(R.string.vpn_disclosure_message),
+                                text = stringResource(R.string.data_disclosure_message),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -146,7 +146,7 @@ fun VpnDisclosureDialog(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = stringResource(R.string.vpn_disclosure_data_title),
+                                text = stringResource(R.string.data_disclosure_what_title),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -155,7 +155,24 @@ fun VpnDisclosureDialog(
                             Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
-                                text = stringResource(R.string.vpn_disclosure_data_message),
+                                text = stringResource(R.string.data_disclosure_what_message),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = stringResource(R.string.data_disclosure_why_title),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Spacer(modifier = Modifier.height(2.dp))
+
+                            Text(
+                                text = stringResource(R.string.data_disclosure_why_message),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -176,7 +193,7 @@ fun VpnDisclosureDialog(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = stringResource(R.string.vpn_disclosure_privacy_link),
+                                    text = stringResource(R.string.data_disclosure_privacy_link),
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -197,7 +214,7 @@ fun VpnDisclosureDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = stringResource(R.string.vpn_disclosure_accept),
+                                text = stringResource(R.string.data_disclosure_accept),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -208,7 +225,6 @@ fun VpnDisclosureDialog(
                 val scrollState = rememberScrollState()
                 val coroutineScope = rememberCoroutineScope()
 
-                // Check if scrolled to bottom or content fits
                 val isAtBottom by remember {
                     derivedStateOf {
                         val maxScroll = scrollState.maxValue
@@ -221,7 +237,7 @@ fun VpnDisclosureDialog(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Shield,
+                        imageVector = Icons.Default.Analytics,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(44.dp)
@@ -230,7 +246,7 @@ fun VpnDisclosureDialog(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = stringResource(R.string.vpn_disclosure_title),
+                        text = stringResource(R.string.data_disclosure_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -244,7 +260,7 @@ fun VpnDisclosureDialog(
                             .verticalScroll(scrollState)
                     ) {
                         Text(
-                            text = stringResource(R.string.vpn_disclosure_message),
+                            text = stringResource(R.string.data_disclosure_message),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -252,7 +268,7 @@ fun VpnDisclosureDialog(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = stringResource(R.string.vpn_disclosure_data_title),
+                            text = stringResource(R.string.data_disclosure_what_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -261,7 +277,24 @@ fun VpnDisclosureDialog(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = stringResource(R.string.vpn_disclosure_data_message),
+                            text = stringResource(R.string.data_disclosure_what_message),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = stringResource(R.string.data_disclosure_why_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = stringResource(R.string.data_disclosure_why_message),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -283,7 +316,7 @@ fun VpnDisclosureDialog(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = stringResource(R.string.vpn_disclosure_privacy_link),
+                                text = stringResource(R.string.data_disclosure_privacy_link),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -304,7 +337,7 @@ fun VpnDisclosureDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = stringResource(R.string.vpn_disclosure_accept),
+                            text = stringResource(R.string.data_disclosure_accept),
                             fontWeight = FontWeight.SemiBold
                         )
                     }

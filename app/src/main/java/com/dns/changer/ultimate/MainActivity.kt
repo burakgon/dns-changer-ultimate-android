@@ -48,6 +48,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.dns.changer.ultimate.ads.AdMobManager
+import com.dns.changer.ultimate.ads.AnalyticsManager
 import com.dns.changer.ultimate.ads.ConsentManager
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.preferences.RatingPreferences
@@ -58,6 +59,7 @@ import com.dns.changer.ultimate.ui.components.BillingIssueDialog
 import com.dns.changer.ultimate.ui.components.openSubscriptionManagement
 import com.dns.changer.ultimate.ui.components.PremiumGatePopup
 import com.dns.changer.ultimate.ui.components.RatingDialog
+import com.dns.changer.ultimate.ui.components.DataDisclosureDialog
 import com.dns.changer.ultimate.ui.components.VpnDisclosureDialog
 import com.dns.changer.ultimate.data.model.SubscriptionStatus
 import com.dns.changer.ultimate.ui.navigation.DnsNavHost
@@ -79,6 +81,7 @@ import com.dns.changer.ultimate.widget.ToggleDnsAction
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -87,6 +90,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var adMobManager: AdMobManager
+
+    @Inject
+    lateinit var analyticsManager: AnalyticsManager
 
     @Inject
     lateinit var consentManager: ConsentManager
@@ -126,20 +132,9 @@ class MainActivity : ComponentActivity() {
             ratingPreferences.incrementLaunchCount()
         }
 
-        // Gather GDPR consent and initialize ads
-        // This shows consent form for EU users if required
-        consentManager.gatherConsent(this) { formError ->
-            // Consent gathering complete (form shown or not required)
-            // Initialize AdMob after consent is gathered
-            if (consentManager.canRequestAdsSync()) {
-                adMobManager.initialize()
-            }
-        }
-
-        // Also initialize ads if consent was already obtained in a previous session
-        if (consentManager.canRequestAdsSync()) {
-            adMobManager.initialize()
-        }
+        // Note: GDPR consent gathering is now handled in the Composable
+        // AFTER the data disclosure dialog has been accepted.
+        // This ensures proper order: Data Disclosure -> UMP Consent Form
 
         // Check if launched from Quick Settings tile for paywall
         val showTilePaywall = intent?.getBooleanExtra(DnsQuickSettingsTile.EXTRA_SHOW_TILE_PAYWALL, false) ?: false
@@ -191,6 +186,8 @@ class MainActivity : ComponentActivity() {
                     activity = this,
                     preferences = dnsPreferences,
                     consentManager = consentManager,
+                    analyticsManager = analyticsManager,
+                    adMobManager = adMobManager,
                     onThemeChanged = { theme ->
                         currentTheme = theme
                     },
@@ -232,6 +229,8 @@ fun DnsChangerApp(
     activity: Activity,
     preferences: DnsPreferences,
     consentManager: ConsentManager,
+    analyticsManager: AnalyticsManager,
+    adMobManager: AdMobManager,
     onThemeChanged: (ThemeMode) -> Unit,
     showTilePaywallOnLaunch: Boolean = false,
     widgetActionFlow: kotlinx.coroutines.flow.StateFlow<String?>,
@@ -253,14 +252,66 @@ fun DnsChangerApp(
     val mainUiState by mainViewModel.uiState.collectAsState()
     val connectionState by mainViewModel.connectionState.collectAsState()
 
-    // VPN disclosure consent state (Google Play policy compliance)
+    // GDPR consent state (for showing privacy options in Settings)
+    val isPrivacyOptionsRequired by consentManager.isPrivacyOptionsRequired.collectAsState()
+    val canRequestAds by consentManager.canRequestAds.collectAsState()
+
+    // Data disclosure consent state (Google Play User Data policy compliance)
+    // This must be shown BEFORE any data collection (Firebase Analytics, etc.)
+    // Use null as initial to detect when the actual preference value has loaded
+    val dataDisclosureAcceptedNullable by preferences.dataDisclosureAccepted
+        .map<Boolean, Boolean?> { it }
+        .collectAsState(initial = null)
+    var showDataDisclosure by remember { mutableStateOf(false) }
+    val dataDisclosureScope = rememberCoroutineScope()
+
+    // Track if GDPR consent has been gathered this session
+    val isConsentGathered by consentManager.isConsentGathered.collectAsState()
+    var consentGatheringTriggered by remember { mutableStateOf(false) }
+
+    // Check if we need to show data disclosure on first launch
+    // or gather GDPR consent and enable analytics if already accepted
+    // Only act when the preference has actually loaded (not null)
+    LaunchedEffect(dataDisclosureAcceptedNullable) {
+        val accepted = dataDisclosureAcceptedNullable ?: return@LaunchedEffect // Wait for actual value
+
+        if (accepted) {
+            // Data disclosure accepted - now gather GDPR consent (shows UMP form for EU users)
+            // This ensures proper order: Data Disclosure -> UMP Consent Form
+            if (!consentGatheringTriggered) {
+                consentGatheringTriggered = true
+                consentManager.gatherConsent(activity) { _ ->
+                    // Consent gathering complete - initialize AdMob if allowed
+                    if (consentManager.canRequestAdsSync()) {
+                        adMobManager.initialize()
+                    }
+                }
+            }
+        } else {
+            // Not accepted yet - show the disclosure dialog
+            showDataDisclosure = true
+        }
+    }
+
+    // Enable/update analytics when consent state changes
+    LaunchedEffect(dataDisclosureAcceptedNullable, canRequestAds, isConsentGathered) {
+        val accepted = dataDisclosureAcceptedNullable ?: return@LaunchedEffect
+        if (accepted && isConsentGathered) {
+            // Both data disclosure accepted and GDPR consent gathered
+            if (!analyticsManager.isAnalyticsEnabled()) {
+                analyticsManager.enableAnalytics(adConsentGranted = canRequestAds)
+            } else {
+                // Analytics already enabled, but UMP consent may have changed
+                analyticsManager.updateAdConsent(canRequestAds)
+            }
+        }
+    }
+
+    // VPN disclosure consent state (Google Play VpnService policy compliance)
     val vpnDisclosureAccepted by preferences.vpnDisclosureAccepted.collectAsState(initial = false)
     var showVpnDisclosure by remember { mutableStateOf(false) }
     var pendingConnectionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val disclosureScope = rememberCoroutineScope()
-
-    // GDPR consent state (for showing privacy options in Settings)
-    val isPrivacyOptionsRequired by consentManager.isPrivacyOptionsRequired.collectAsState()
 
     // Local state to track if we're in ad flow (to hide navigation)
     var showingAdFlow by remember { mutableStateOf(false) }
@@ -708,7 +759,23 @@ fun DnsChangerApp(
             }
         }
 
-        // VPN Disclosure Dialog (Google Play policy compliance)
+        // Data Disclosure Dialog (Google Play User Data policy compliance)
+        // MUST be shown at first launch BEFORE any data collection (Firebase Analytics)
+        if (showDataDisclosure) {
+            DataDisclosureDialog(
+                onAccept = {
+                    // Save acceptance - this triggers LaunchedEffect which will:
+                    // 1. Gather GDPR consent (show UMP form for EU users)
+                    // 2. Enable Firebase Analytics after consent is gathered
+                    dataDisclosureScope.launch {
+                        preferences.setDataDisclosureAccepted(true)
+                    }
+                    showDataDisclosure = false
+                }
+            )
+        }
+
+        // VPN Disclosure Dialog (Google Play VpnService policy compliance)
         // Shown before first VPN connection to explain VpnService usage
         if (showVpnDisclosure) {
             VpnDisclosureDialog(

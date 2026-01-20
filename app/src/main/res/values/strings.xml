@@ -216,11 +216,23 @@
     <string name="status_cancelled">Cancelled</string>
     <string name="status_expired">Expired</string>
 
-    <!-- VPN Disclosure (Google Play Policy Compliance) -->
+    <!-- Data Collection Disclosure (Google Play User Data Policy Compliance) -->
+    <!-- Shown at FIRST APP LAUNCH before any data collection -->
+    <string name="data_disclosure_title">Privacy &amp; Data</string>
+    <string name="data_disclosure_message">Before you start using DNS Changer, we want to be transparent about how we handle your data.</string>
+    <string name="data_disclosure_what_title">What We Collect</string>
+    <string name="data_disclosure_what_message">• Device identifiers for analytics\n• App usage data (screens visited, features used)\n• Crash reports to fix bugs\n• Ad interaction data for relevant ads</string>
+    <string name="data_disclosure_why_title">Why We Collect It</string>
+    <string name="data_disclosure_why_message">• To improve app performance and stability\n• To understand which features are most useful\n• To show relevant ads (free version)\n• To fix crashes and bugs quickly\n\nWe never collect your browsing history, DNS queries, or personal information.</string>
+    <string name="data_disclosure_privacy_link">Read Full Privacy Policy</string>
+    <string name="data_disclosure_accept">I Agree</string>
+
+    <!-- VPN Disclosure (Google Play VpnService Policy Compliance) -->
+    <!-- Shown before FIRST VPN CONNECTION -->
     <string name="vpn_disclosure_title">How DNS Changer Works</string>
     <string name="vpn_disclosure_message">DNS Changer uses Android\'s VPN service to route your DNS queries through the DNS server you select. This allows the app to change your device\'s DNS settings without requiring root access.\n\nThe VPN connection is local to your device — it does not connect to any external VPN server. All your internet traffic remains unchanged except for DNS lookups.</string>
-    <string name="vpn_disclosure_data_title">Your Privacy</string>
-    <string name="vpn_disclosure_data_message">DNS Changer does not collect, store, or share any of your browsing data, DNS queries, or personal information through the VPN service.</string>
+    <string name="vpn_disclosure_data_title">VPN Privacy</string>
+    <string name="vpn_disclosure_data_message">The VPN service does not collect, store, or share any of your browsing data or DNS queries. Your DNS lookups are sent directly to your selected DNS provider.</string>
     <string name="vpn_disclosure_privacy_link">Read Privacy Policy</string>
     <string name="vpn_disclosure_accept">I Understand</string>
 
