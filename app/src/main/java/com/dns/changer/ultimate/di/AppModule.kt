@@ -2,6 +2,7 @@ package com.dns.changer.ultimate.di
 
 import android.content.Context
 import com.dns.changer.ultimate.ads.AdMobManager
+import com.dns.changer.ultimate.data.preferences.AppLockPreferences
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.repository.DnsRepository
 import com.dns.changer.ultimate.service.DnsConnectionManager
@@ -22,6 +23,12 @@ object AppModule {
     fun provideDnsPreferences(
         @ApplicationContext context: Context
     ): DnsPreferences = DnsPreferences(context)
+
+    @Provides
+    @Singleton
+    fun provideAppLockPreferences(
+        @ApplicationContext context: Context
+    ): AppLockPreferences = AppLockPreferences(context)
 
     @Provides
     @Singleton

@@ -258,4 +258,29 @@
     <string name="subscription_cancelled_desc">Your subscription has been cancelled, but you still have access to premium features until your current billing period ends.</string>
     <string name="subscription_access_until_date">Access until %1$s</string>
     <string name="resubscribe">Resubscribe</string>
+
+    <!-- App Lock / Security -->
+    <string name="security">Security</string>
+    <string name="app_lock">App Lock</string>
+    <string name="app_lock_description">Protect the app with PIN or biometric</string>
+    <string name="app_lock_title">DNS Changer</string>
+    <string name="app_lock_enter_pin">Enter your PIN to continue</string>
+    <string name="app_lock_wrong_pin">Wrong PIN</string>
+    <string name="app_lock_too_many_attempts">Too many failed attempts</string>
+    <string name="app_lock_try_again_in">Try again in %1$d seconds</string>
+    <string name="app_lock_create_pin">Create PIN</string>
+    <string name="app_lock_create_new_pin">Create New PIN</string>
+    <string name="app_lock_create_pin_subtitle">Choose a 4-digit PIN to secure your app</string>
+    <string name="app_lock_confirm_pin">Confirm PIN</string>
+    <string name="app_lock_confirm_pin_subtitle">Enter your PIN again to confirm</string>
+    <string name="app_lock_pins_dont_match">PINs don\'t match. Try again.</string>
+    <string name="app_lock_use_biometric">Use Biometric</string>
+    <string name="app_lock_use_pin">Use PIN Instead</string>
+    <string name="app_lock_backspace">Delete</string>
+    <string name="app_lock_biometric_title">Unlock DNS Changer</string>
+    <string name="app_lock_biometric_subtitle">Use your fingerprint or face to unlock</string>
+    <string name="biometric_unlock">Biometric Unlock</string>
+    <string name="biometric_unlock_description">Use fingerprint or face to unlock</string>
+    <string name="change_pin">Change PIN</string>
+    <string name="change_pin_description">Set a new PIN for app lock</string>
 </resources>

@@ -52,7 +52,14 @@ fun DnsNavHost(
     onShowPrivacyOptions: () -> Unit = {},
     // Error handling
     purchaseErrorMessage: String? = null,
-    onClearPurchaseError: () -> Unit = {}
+    onClearPurchaseError: () -> Unit = {},
+    // App Lock
+    isAppLockEnabled: Boolean = false,
+    isBiometricAvailable: Boolean = false,
+    isBiometricEnabled: Boolean = true,
+    onToggleAppLock: (Boolean) -> Unit = {},
+    onSetupPin: () -> Unit = {},
+    onToggleBiometric: (Boolean) -> Unit = {}
 ) {
     // Get adaptive layout configuration for tablets/foldables
     val adaptiveConfig = rememberAdaptiveLayoutConfig()
@@ -138,7 +145,14 @@ fun DnsNavHost(
                 isPremium = isPremium,
                 isPrivacyOptionsRequired = isPrivacyOptionsRequired,
                 onShowPrivacyOptions = onShowPrivacyOptions,
-                onShowPaywall = onShowPaywall
+                onShowPaywall = onShowPaywall,
+                // App Lock
+                isAppLockEnabled = isAppLockEnabled,
+                isBiometricAvailable = isBiometricAvailable,
+                isBiometricEnabled = isBiometricEnabled,
+                onToggleAppLock = onToggleAppLock,
+                onSetupPin = onSetupPin,
+                onToggleBiometric = onToggleBiometric
             )
         }
     }

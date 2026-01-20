@@ -72,10 +72,14 @@ import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.dns.changer.ultimate.ui.theme.DnsChangerTheme
 import com.dns.changer.ultimate.ui.theme.rememberAdaptiveLayoutConfig
+import com.dns.changer.ultimate.ui.viewmodel.AppLockViewModel
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.PendingAction
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import com.dns.changer.ultimate.ui.viewmodel.RatingViewModel
+import com.dns.changer.ultimate.ui.screens.applock.AppLockScreen
+import com.dns.changer.ultimate.ui.screens.applock.PinSetupDialog
+import androidx.fragment.app.FragmentActivity
 import com.dns.changer.ultimate.service.DnsQuickSettingsTile
 import com.dns.changer.ultimate.widget.ToggleDnsAction
 import dagger.hilt.android.AndroidEntryPoint
@@ -86,7 +90,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var adMobManager: AdMobManager
@@ -240,7 +244,8 @@ fun DnsChangerApp(
     onWidgetOrQSFlowConsumed: () -> Unit,
     mainViewModel: MainViewModel = hiltViewModel(),
     premiumViewModel: PremiumViewModel = hiltViewModel(),
-    ratingViewModel: RatingViewModel = hiltViewModel()
+    ratingViewModel: RatingViewModel = hiltViewModel(),
+    appLockViewModel: AppLockViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -251,6 +256,35 @@ fun DnsChangerApp(
     val products by premiumViewModel.products.collectAsState()
     val mainUiState by mainViewModel.uiState.collectAsState()
     val connectionState by mainViewModel.connectionState.collectAsState()
+
+    // App Lock state
+    val appLockUiState by appLockViewModel.uiState.collectAsState()
+    val isAppLockEnabled by appLockViewModel.isAppLockEnabled.collectAsState()
+    val isBiometricEnabled by appLockViewModel.isBiometricEnabled.collectAsState()
+    var showPinSetupDialog by remember { mutableStateOf(false) }
+    var isChangingPin by remember { mutableStateOf(false) }
+    val isBiometricAvailable = remember { appLockViewModel.isBiometricAvailable() }
+
+    // Check if app should be locked on start
+    LaunchedEffect(Unit) {
+        val shouldLock = appLockViewModel.checkShouldLock()
+        appLockViewModel.setLocked(shouldLock)
+    }
+
+    // Trigger biometric prompt when app is locked and biometric is available
+    LaunchedEffect(appLockUiState.isLocked, appLockUiState.isInitialized) {
+        if (appLockUiState.isLocked &&
+            appLockUiState.isInitialized &&
+            isBiometricAvailable &&
+            isBiometricEnabled &&
+            !appLockUiState.isLockout) {
+            appLockViewModel.showBiometricPrompt(
+                activity = activity as FragmentActivity,
+                onSuccess = { appLockViewModel.onBiometricSuccess() },
+                onError = { error -> appLockViewModel.onBiometricError(error) }
+            )
+        }
+    }
 
     // GDPR consent state (for showing privacy options in Settings)
     val isPrivacyOptionsRequired by consentManager.isPrivacyOptionsRequired.collectAsState()
@@ -543,7 +577,23 @@ fun DnsChangerApp(
                 },
                 // Error handling
                 purchaseErrorMessage = premiumState.errorMessage,
-                onClearPurchaseError = { premiumViewModel.clearError() }
+                onClearPurchaseError = { premiumViewModel.clearError() },
+                // App Lock
+                isAppLockEnabled = isAppLockEnabled,
+                isBiometricAvailable = isBiometricAvailable,
+                isBiometricEnabled = isBiometricEnabled,
+                onToggleAppLock = { enabled ->
+                    if (!enabled) {
+                        appLockViewModel.disableAppLock()
+                    }
+                },
+                onSetupPin = {
+                    isChangingPin = isAppLockEnabled
+                    showPinSetupDialog = true
+                },
+                onToggleBiometric = { enabled ->
+                    appLockViewModel.setBiometricEnabled(enabled)
+                }
             )
         }
 
@@ -808,6 +858,39 @@ fun DnsChangerApp(
                     showSubscriptionStatusDialog = false
                     openSubscriptionManagement(context, premiumState.subscriptionDetails?.managementUrl)
                 }
+            )
+        }
+
+        // PIN Setup Dialog
+        if (showPinSetupDialog) {
+            PinSetupDialog(
+                onDismiss = { showPinSetupDialog = false },
+                onPinSet = { pin ->
+                    appLockViewModel.setPin(pin)
+                    showPinSetupDialog = false
+                },
+                isChangingPin = isChangingPin
+            )
+        }
+
+        // App Lock Screen (shown when app is locked)
+        if (appLockUiState.isLocked && appLockUiState.isInitialized && isAppLockEnabled) {
+            AppLockScreen(
+                onPinEntered = { pin ->
+                    appLockViewModel.verifyPin(pin)
+                },
+                onBiometricRequest = {
+                    appLockViewModel.showBiometricPrompt(
+                        activity = activity as FragmentActivity,
+                        onSuccess = { appLockViewModel.onBiometricSuccess() },
+                        onError = { error -> appLockViewModel.onBiometricError(error) }
+                    )
+                },
+                isPinError = appLockUiState.isPinError,
+                isLockout = appLockUiState.isLockout,
+                lockoutRemainingSeconds = appLockUiState.lockoutRemainingSeconds,
+                isBiometricAvailable = isBiometricAvailable && isBiometricEnabled,
+                errorMessage = appLockUiState.errorMessage
             )
         }
     }

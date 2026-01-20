@@ -15,8 +15,8 @@ android {
         applicationId = "com.burakgon.dnschanger"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10011
-        versionName = "10011"
+        versionCode = 10013
+        versionName = "10013"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -134,6 +134,9 @@ dependencies {
     // Android TV Compose
     implementation(libs.tv.foundation)
     implementation(libs.tv.material)
+
+    // Biometric Authentication
+    implementation(libs.biometric)
 
     // Debug
     debugImplementation(libs.androidx.ui.tooling)
