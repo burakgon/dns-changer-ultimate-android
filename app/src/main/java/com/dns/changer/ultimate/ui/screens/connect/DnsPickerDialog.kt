@@ -11,6 +11,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -226,232 +227,274 @@ fun DnsPickerDialog(
                     isDarkTheme = isDarkTheme
                 )
             } else {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start = 24.dp,
-                            end = 8.dp,
-                            top = 16.dp,
-                            bottom = 8.dp
-                        ),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Use BoxWithConstraints for adaptive layout based on actual available space
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = stringResource(R.string.select_server),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    // Determine compact mode based on actual dialog width
+                    // < 340dp = very compact, 340-480dp = compact, > 480dp = normal
+                    val isVeryCompact = maxWidth < 340.dp
+                    val isCompact = maxWidth < 480.dp
 
-                    Row {
-                        IconButton(onClick = onAddCustomDns) {
-                            Icon(
-                                imageVector = Icons.Rounded.Add,
-                                contentDescription = "Add Custom DNS",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+                    // Calculate available height for content to determine if we should show descriptions
+                    // On shorter screens or when dialog is constrained, hide descriptions
+                    val availableHeight = minOf(maxHeight, maxDialogHeight)
+                    val showDescriptions = availableHeight > 500.dp && !isVeryCompact
 
-                // Find Fastest Button with TV focus
-                val findFastestInteraction = remember { MutableInteractionSource() }
-                val findFastestFocused by findFastestInteraction.collectIsFocusedAsState()
-
-                Button(
-                    onClick = {
-                        onDismiss()
-                        onFindFastest()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = if (isCompactLandscape) 12.dp else 20.dp,
-                            vertical = if (isCompactLandscape) 4.dp else 8.dp
-                        )
-                        .height(if (isCompactLandscape) 36.dp else 48.dp)
-                        .focusRequester(findFastestFocusRequester)
-                        .focusable(interactionSource = findFastestInteraction)
-                        .then(
-                            if (isTv && findFastestFocused) {
-                                Modifier.border(
-                                    width = 3.dp,
-                                    color = MaterialTheme.colorScheme.onTertiary,
-                                    shape = RoundedCornerShape(if (isCompactLandscape) 8.dp else 12.dp)
-                                )
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    shape = RoundedCornerShape(if (isCompactLandscape) 8.dp else 12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary,
-                        contentColor = MaterialTheme.colorScheme.onTertiary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Speed,
-                        contentDescription = null,
-                        modifier = Modifier.size(if (isCompactLandscape) 16.dp else 20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(if (isCompactLandscape) 4.dp else 8.dp))
-                    Text(
-                        text = stringResource(R.string.find_fastest),
-                        style = if (isCompactLandscape) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                // Category Filter Chips
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = if (isCompactLandscape) 12.dp else 20.dp,
-                            vertical = if (isCompactLandscape) 4.dp else 8.dp
-                        ),
-                    horizontalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 4.dp else 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 4.dp else 8.dp)
-                ) {
-                    // "All" chip - use luminance-based content color
-                    val allChipBgColor = MaterialTheme.colorScheme.primary
-                    val allChipContentColor = if (allChipBgColor.luminance() > 0.5f) Color.Black else Color.White
-                    val isAllSelected = selectedCategory == null
-                    FilterChip(
-                        selected = isAllSelected,
-                        onClick = { selectedCategory = null },
-                        label = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // Header
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = if (isCompact) 16.dp else 24.dp,
+                                    end = 8.dp,
+                                    top = if (isCompact) 12.dp else 16.dp,
+                                    bottom = if (isCompact) 4.dp else 8.dp
+                                ),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "All",
-                                color = if (isAllSelected) allChipContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                text = stringResource(R.string.select_server),
+                                style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                        },
-                        leadingIcon = if (isAllSelected) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = allChipContentColor
-                                )
+
+                            Row {
+                                IconButton(onClick = onAddCustomDns) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Add,
+                                        contentDescription = "Add Custom DNS",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                IconButton(onClick = onDismiss) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = "Close",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
-                        } else null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = allChipBgColor,
-                            selectedLabelColor = allChipContentColor,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
+                        }
 
-                    // Category chips
-                    DnsCategory.entries.forEach { category ->
-                        val categoryColor = CategoryColors.forCategory(category, isDarkTheme)
-                        val isThisCategorySelected = selectedCategory == category
-                        // Use luminance-based content color for selected state
-                        val selectedContentColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
-                        FilterChip(
-                            selected = isThisCategorySelected,
+                        // Find Fastest Button with TV focus
+                        val findFastestInteraction = remember { MutableInteractionSource() }
+                        val findFastestFocused by findFastestInteraction.collectIsFocusedAsState()
+
+                        Button(
                             onClick = {
-                                selectedCategory = if (selectedCategory == category) null else category
+                                onDismiss()
+                                onFindFastest()
                             },
-                            label = {
-                                Text(
-                                    text = category.displayName,
-                                    color = if (isThisCategorySelected) selectedContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = if (isCompact) 12.dp else 20.dp,
+                                    vertical = if (isCompact) 4.dp else 8.dp
                                 )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = category.icon,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = if (isThisCategorySelected) selectedContentColor else categoryColor
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = categoryColor,
-                                selectedLabelColor = selectedContentColor,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                .height(if (isCompact) 44.dp else 48.dp)
+                                .focusRequester(findFastestFocusRequester)
+                                .focusable(interactionSource = findFastestInteraction)
+                                .then(
+                                    if (isTv && findFastestFocused) {
+                                        Modifier.border(
+                                            width = 3.dp,
+                                            color = MaterialTheme.colorScheme.onTertiary,
+                                            shape = RoundedCornerShape(if (isCompact) 10.dp else 12.dp)
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                            shape = RoundedCornerShape(if (isCompact) 10.dp else 12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary
                             )
-                        )
-                    }
-                }
-
-                // Server List - use grid for TV/landscape, column for portrait
-                if (useGridLayout) {
-                    // Grid layout for TV/landscape - shows more servers at once
-                    val allServers = if (selectedCategory == null) {
-                        filteredServersMap.values.flatten()
-                    } else {
-                        filteredServers
-                    }
-
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(gridColumns),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f, fill = false),
-                        contentPadding = PaddingValues(
-                            horizontal = if (isCompactLandscape) 8.dp else 12.dp,
-                            vertical = if (isCompactLandscape) 4.dp else 8.dp
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 6.dp else 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 6.dp else 8.dp)
-                    ) {
-                        items(
-                            items = allServers,
-                            key = { it.id }
-                        ) { server ->
-                            DnsServerCard(
-                                server = server,
-                                isSelected = selectedServer?.id == server.id,
-                                onClick = {
-                                    onServerSelected(server)
-                                    onDismiss()
-                                },
-                                onDelete = if (server.isCustom) {
-                                    { onDeleteCustomDns(server.id) }
-                                } else null,
-                                isCompact = true, // Always compact in grid
-                                isTv = isTv,
-                                modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Speed,
+                                contentDescription = null,
+                                modifier = Modifier.size(if (isCompact) 18.dp else 20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(if (isCompact) 6.dp else 8.dp))
+                            Text(
+                                text = stringResource(R.string.find_fastest),
+                                style = if (isCompact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
-                    }
-                } else {
-                    // Column layout for portrait phones
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f, fill = false),
-                        contentPadding = PaddingValues(bottom = 16.dp)
-                    ) {
-                        if (selectedCategory == null) {
-                            // Show all with group headers (Custom first, then others)
-                            val orderedCategories = listOf(DnsCategory.CUSTOM) + DnsCategory.entries.filter { it != DnsCategory.CUSTOM }
-                            orderedCategories.forEach { category ->
-                                val serversInCategory = filteredServersMap[category] ?: emptyList()
-                                if (serversInCategory.isNotEmpty()) {
-                                    // Category Header
-                                    item(key = "header_${category.name}") {
-                                        CategoryHeader(category = category)
+
+                        // Category Filter Chips - consistent small sizing across all devices
+                        // Use labelSmall for compact text, slightly larger icons for touch targets
+                        val chipTextStyle = MaterialTheme.typography.labelSmall
+                        val chipIconSize = 14.dp
+
+                        FlowRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // "All" chip - use luminance-based content color
+                            val allChipBgColor = MaterialTheme.colorScheme.primary
+                            val allChipContentColor = if (allChipBgColor.luminance() > 0.5f) Color.Black else Color.White
+                            val isAllSelected = selectedCategory == null
+                            FilterChip(
+                                selected = isAllSelected,
+                                onClick = { selectedCategory = null },
+                                label = {
+                                    Text(
+                                        text = "All",
+                                        style = chipTextStyle,
+                                        color = if (isAllSelected) allChipContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                leadingIcon = if (isAllSelected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(chipIconSize),
+                                            tint = allChipContentColor
+                                        )
                                     }
-                                    // Servers in this category
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = allChipBgColor,
+                                    selectedLabelColor = allChipContentColor,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+
+                            // Category chips
+                            DnsCategory.entries.forEach { category ->
+                                val categoryColor = CategoryColors.forCategory(category, isDarkTheme)
+                                val isThisCategorySelected = selectedCategory == category
+                                // Use luminance-based content color for selected state
+                                val selectedContentColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
+                                FilterChip(
+                                    selected = isThisCategorySelected,
+                                    onClick = {
+                                        selectedCategory = if (selectedCategory == category) null else category
+                                    },
+                                    label = {
+                                        Text(
+                                            text = category.displayName,
+                                            style = chipTextStyle,
+                                            color = if (isThisCategorySelected) selectedContentColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = category.icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(chipIconSize),
+                                            tint = if (isThisCategorySelected) selectedContentColor else categoryColor
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = categoryColor,
+                                        selectedLabelColor = selectedContentColor,
+                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            }
+                        }
+
+                        // Server List - use grid for TV/landscape, column for portrait
+                        if (useGridLayout) {
+                            // Grid layout for TV/landscape - shows more servers at once
+                            val allServers = if (selectedCategory == null) {
+                                filteredServersMap.values.flatten()
+                            } else {
+                                filteredServers
+                            }
+
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(gridColumns),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false),
+                                contentPadding = PaddingValues(
+                                    horizontal = if (isCompactLandscape) 8.dp else 12.dp,
+                                    vertical = if (isCompactLandscape) 4.dp else 8.dp
+                                ),
+                                horizontalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 6.dp else 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(if (isCompactLandscape) 6.dp else 8.dp)
+                            ) {
+                                items(
+                                    items = allServers,
+                                    key = { it.id }
+                                ) { server ->
+                                    DnsServerCard(
+                                        server = server,
+                                        isSelected = selectedServer?.id == server.id,
+                                        onClick = {
+                                            onServerSelected(server)
+                                            onDismiss()
+                                        },
+                                        onDelete = if (server.isCustom) {
+                                            { onDeleteCustomDns(server.id) }
+                                        } else null,
+                                        isCompact = true, // Always compact in grid
+                                        showDescriptions = false, // No descriptions in grid for space
+                                        isTv = isTv,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        } else {
+                            // Column layout for portrait phones
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false),
+                                contentPadding = PaddingValues(bottom = if (isCompact) 8.dp else 16.dp)
+                            ) {
+                                if (selectedCategory == null) {
+                                    // Show all with group headers (Custom first, then others)
+                                    val orderedCategories = listOf(DnsCategory.CUSTOM) + DnsCategory.entries.filter { it != DnsCategory.CUSTOM }
+                                    orderedCategories.forEach { category ->
+                                        val serversInCategory = filteredServersMap[category] ?: emptyList()
+                                        if (serversInCategory.isNotEmpty()) {
+                                            // Category Header
+                                            item(key = "header_${category.name}") {
+                                                CategoryHeader(category = category, isCompact = isCompact)
+                                            }
+                                            // Servers in this category
+                                            items(
+                                                items = serversInCategory,
+                                                key = { it.id }
+                                            ) { server ->
+                                                DnsServerCard(
+                                                    server = server,
+                                                    isSelected = selectedServer?.id == server.id,
+                                                    onClick = {
+                                                        onServerSelected(server)
+                                                        onDismiss()
+                                                    },
+                                                    onDelete = if (server.isCustom) {
+                                                        { onDeleteCustomDns(server.id) }
+                                                    } else null,
+                                                    isCompact = isCompact,
+                                                    showDescriptions = showDescriptions,
+                                                    isTv = isTv,
+                                                    modifier = Modifier.padding(horizontal = if (isCompact) 12.dp else 16.dp, vertical = if (isCompact) 3.dp else 4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Filtered - no headers needed
                                     items(
-                                        items = serversInCategory,
+                                        items = filteredServers,
                                         key = { it.id }
                                     ) { server ->
                                         DnsServerCard(
@@ -464,104 +507,88 @@ fun DnsPickerDialog(
                                             onDelete = if (server.isCustom) {
                                                 { onDeleteCustomDns(server.id) }
                                             } else null,
-                                            isCompact = false,
+                                            isCompact = isCompact,
+                                            showDescriptions = showDescriptions,
                                             isTv = isTv,
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                            modifier = Modifier.padding(horizontal = if (isCompact) 12.dp else 16.dp, vertical = if (isCompact) 3.dp else 4.dp)
                                         )
                                     }
                                 }
                             }
-                        } else {
-                            // Filtered - no headers needed
-                            items(
-                                items = filteredServers,
-                                key = { it.id }
-                            ) { server ->
-                                DnsServerCard(
-                                    server = server,
-                                    isSelected = selectedServer?.id == server.id,
-                                    onClick = {
-                                        onServerSelected(server)
-                                        onDismiss()
-                                    },
-                                    onDelete = if (server.isCustom) {
-                                        { onDeleteCustomDns(server.id) }
-                                    } else null,
-                                    isCompact = false,
-                                    isTv = isTv,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                                )
-                            }
                         }
-                    }
-                }
 
-                // Search Box at bottom
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = if (isCompactLandscape) 12.dp else 20.dp,
-                            vertical = if (isCompactLandscape) 6.dp else 12.dp
-                        ),
-                    placeholder = {
-                        Text(
-                            text = stringResource(R.string.search_dns),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    trailingIcon = if (searchQuery.isNotEmpty()) {
-                        {
-                            IconButton(onClick = { searchQuery = "" }) {
+                        // Search Box at bottom
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = if (isCompact) 12.dp else 20.dp,
+                                    vertical = if (isCompact) 8.dp else 12.dp
+                                ),
+                            placeholder = {
+                                Text(
+                                    text = stringResource(R.string.search_dns),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Clear",
+                                    imageVector = Icons.Rounded.Search,
+                                    contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            }
-                        }
-                    } else null,
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-            }
+                            },
+                            trailingIcon = if (searchQuery.isNotEmpty()) {
+                                {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = "Clear",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            } else null,
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun CategoryHeader(category: DnsCategory) {
+private fun CategoryHeader(category: DnsCategory, isCompact: Boolean = false) {
     val isDarkTheme = isAppInDarkTheme()
     val categoryColor = remember(category, isDarkTheme) { CategoryColors.forCategory(category, isDarkTheme) }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
+            .padding(
+                start = if (isCompact) 14.dp else 20.dp,
+                end = if (isCompact) 14.dp else 20.dp,
+                top = if (isCompact) 10.dp else 16.dp,
+                bottom = if (isCompact) 4.dp else 8.dp
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(28.dp)
+                .size(if (isCompact) 24.dp else 28.dp)
                 .background(
                     color = categoryColor.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(if (isCompact) 6.dp else 8.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -569,17 +596,17 @@ private fun CategoryHeader(category: DnsCategory) {
                 imageVector = category.icon,
                 contentDescription = null,
                 tint = categoryColor,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(if (isCompact) 14.dp else 16.dp)
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(if (isCompact) 8.dp else 12.dp))
         Text(
             text = category.displayName,
-            style = MaterialTheme.typography.labelLarge,
+            style = if (isCompact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(if (isCompact) 8.dp else 12.dp))
         HorizontalDivider(
             modifier = Modifier.weight(1f),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -594,6 +621,7 @@ private fun DnsServerCard(
     onClick: () -> Unit,
     onDelete: (() -> Unit)? = null,
     isCompact: Boolean = false,
+    showDescriptions: Boolean = true,
     isTv: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -719,7 +747,7 @@ private fun DnsServerCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (!isCompact) {
+                if (showDescriptions) {
                     Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
@@ -1052,6 +1080,7 @@ private fun DnsPickerCompactLandscapeContent(
                             { onDeleteCustomDns(server.id) }
                         } else null,
                         isCompact = true,
+                        showDescriptions = false, // No descriptions in compact landscape grid
                         isTv = isTv,
                         modifier = Modifier.fillMaxWidth()
                     )
