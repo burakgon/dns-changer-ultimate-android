@@ -271,10 +271,11 @@ fun DnsChangerApp(
         appLockViewModel.setLocked(shouldLock)
     }
 
-    // Trigger biometric prompt when app is locked and biometric is available
-    LaunchedEffect(appLockUiState.isLocked, appLockUiState.isInitialized) {
+    // Trigger biometric prompt when app is locked and biometric is available (premium only)
+    LaunchedEffect(appLockUiState.isLocked, appLockUiState.isInitialized, isPremium) {
         if (appLockUiState.isLocked &&
             appLockUiState.isInitialized &&
+            isPremium &&
             isBiometricAvailable &&
             isBiometricEnabled &&
             !appLockUiState.isLockout) {
@@ -297,11 +298,14 @@ fun DnsChangerApp(
         .map<Boolean, Boolean?> { it }
         .collectAsState(initial = null)
     var showDataDisclosure by remember { mutableStateOf(false) }
+    // Track if we've already processed the data disclosure to prevent re-showing on recomposition
+    var dataDisclosureProcessed by remember { mutableStateOf(false) }
     val dataDisclosureScope = rememberCoroutineScope()
 
     // Track if GDPR consent has been gathered this session
     val isConsentGathered by consentManager.isConsentGathered.collectAsState()
-    var consentGatheringTriggered by remember { mutableStateOf(false) }
+    // Initialize local flag based on singleton state to prevent re-gathering on recomposition
+    var consentGatheringTriggered by remember(isConsentGathered) { mutableStateOf(isConsentGathered) }
 
     // Check if we need to show data disclosure on first launch
     // or gather GDPR consent and enable analytics if already accepted
@@ -309,10 +313,16 @@ fun DnsChangerApp(
     LaunchedEffect(dataDisclosureAcceptedNullable) {
         val accepted = dataDisclosureAcceptedNullable ?: return@LaunchedEffect // Wait for actual value
 
+        // Skip if we've already processed this (prevents re-showing on recomposition)
+        if (dataDisclosureProcessed) return@LaunchedEffect
+        dataDisclosureProcessed = true
+
         if (accepted) {
             // Data disclosure accepted - now gather GDPR consent (shows UMP form for EU users)
             // This ensures proper order: Data Disclosure -> UMP Consent Form
-            if (!consentGatheringTriggered) {
+            // Check both: local flag AND singleton ConsentManager's state
+            // The singleton state persists correctly across recomposition when subscription changes
+            if (!consentGatheringTriggered && !consentManager.isConsentGathered.value) {
                 consentGatheringTriggered = true
                 consentManager.gatherConsent(activity) { _ ->
                     // Consent gathering complete - initialize AdMob if allowed
@@ -342,7 +352,11 @@ fun DnsChangerApp(
     }
 
     // VPN disclosure consent state (Google Play VpnService policy compliance)
-    val vpnDisclosureAccepted by preferences.vpnDisclosureAccepted.collectAsState(initial = false)
+    // Use null as initial to detect when the actual preference value has loaded
+    // This prevents showing the dialog again during recomposition before DataStore loads
+    val vpnDisclosureAcceptedNullable by preferences.vpnDisclosureAccepted
+        .map<Boolean, Boolean?> { it }
+        .collectAsState(initial = null)
     var showVpnDisclosure by remember { mutableStateOf(false) }
     var pendingConnectionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val disclosureScope = rememberCoroutineScope()
@@ -393,6 +407,13 @@ fun DnsChangerApp(
                 showSubscriptionStatusDialog = true
             }
             else -> {}
+        }
+    }
+
+    // Auto-close paywall when subscription completes successfully
+    LaunchedEffect(isPremium) {
+        if (isPremium && showPaywall) {
+            showPaywall = false
         }
     }
 
@@ -455,14 +476,17 @@ fun DnsChangerApp(
     // Callback: check VPN disclosure first, then connect
     val handleConnectWithAd: () -> Unit = handleConnectWithAd@{
         // Check if VPN disclosure has been accepted (Google Play policy requirement)
-        if (!vpnDisclosureAccepted) {
+        // Use null-safe check: if null (still loading from DataStore), treat as accepted to avoid re-showing
+        // If false (not yet accepted), show the disclosure dialog
+        val vpnAccepted = vpnDisclosureAcceptedNullable
+        if (vpnAccepted == false) {
             // Store the action to perform after disclosure is accepted
             pendingConnectionAction = { performConnect() }
             showVpnDisclosure = true
             return@handleConnectWithAd
         }
 
-        // Disclosure already accepted, proceed with connection
+        // Disclosure already accepted (true) or still loading (null), proceed with connection
         performConnect()
     }
 
@@ -873,8 +897,8 @@ fun DnsChangerApp(
             )
         }
 
-        // App Lock Screen (shown when app is locked)
-        if (appLockUiState.isLocked && appLockUiState.isInitialized && isAppLockEnabled) {
+        // App Lock Screen (shown when app is locked - premium feature only)
+        if (appLockUiState.isLocked && appLockUiState.isInitialized && isAppLockEnabled && isPremium) {
             AppLockScreen(
                 onPinEntered = { pin ->
                     appLockViewModel.verifyPin(pin)
