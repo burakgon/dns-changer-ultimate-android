@@ -1,6 +1,7 @@
 package com.dns.changer.ultimate.ui.screens.leaktest
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -143,8 +144,13 @@ fun DnsLeakTestScreen(
         }
     }
 
+    val noInternetMessage = stringResource(R.string.no_internet_connection)
     val onStartTest: () -> Unit = {
-        leakTestViewModel.startTest()
+        if (!mainViewModel.isInternetAvailable()) {
+            Toast.makeText(context, noInternetMessage, Toast.LENGTH_SHORT).show()
+        } else {
+            leakTestViewModel.startTest()
+        }
     }
 
     // Size based on window size and orientation

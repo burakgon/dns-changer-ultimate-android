@@ -108,7 +108,9 @@ import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 import com.dns.changer.ultimate.ui.theme.WindowSize
 import com.dns.changer.ultimate.ui.theme.isAndroidTv
+import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.SpeedTestViewModel
+import android.widget.Toast
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -137,6 +139,7 @@ private object RatingColors {
 @Composable
 fun SpeedTestScreen(
     viewModel: SpeedTestViewModel = hiltViewModel(),
+    mainViewModel: MainViewModel = hiltViewModel(),
     isPremium: Boolean,
     onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit,
     onNavigateToConnectAndStart: () -> Unit,
@@ -176,8 +179,13 @@ fun SpeedTestScreen(
     }
 
     // Speed test always runs freely - no pre-gate
+    val noInternetMessage = stringResource(R.string.no_internet_connection)
     val onStartTest = {
-        viewModel.startSpeedTest(isPremium = isPremium)
+        if (!mainViewModel.isInternetAvailable()) {
+            Toast.makeText(context, noInternetMessage, Toast.LENGTH_SHORT).show()
+        } else {
+            viewModel.startSpeedTest(isPremium = isPremium)
+        }
     }
 
     // Handle server selection: navigate to main screen and go through full connection flow
