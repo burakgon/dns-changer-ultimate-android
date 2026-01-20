@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.outlined.Lock
 import android.content.Intent
 import android.net.Uri
@@ -325,7 +326,7 @@ fun SettingsScreen(
                                     Modifier.border(
                                         width = 2.dp,
                                         color = MaterialTheme.colorScheme.primary,
-                                        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                                        shape = RoundedCornerShape(0.dp)
                                     )
                                 } else {
                                     Modifier
@@ -374,6 +375,67 @@ fun SettingsScreen(
                             }
                             Text(
                                 text = stringResource(R.string.request_feature_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Tasker Integration (Premium only, info item)
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
+                    val taskerInteraction = remember { MutableInteractionSource() }
+                    val taskerFocused by taskerInteraction.collectIsFocusedAsState()
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusable(interactionSource = taskerInteraction)
+                            .then(
+                                if (isTv && taskerFocused) {
+                                    Modifier.border(
+                                        width = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .clickable {
+                                if (!isPremium) {
+                                    onShowPaywall()
+                                }
+                                // If premium, just show info (no action needed)
+                            }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartToy,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(R.string.tasker_integration),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (!isPremium) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    PremiumBadge()
+                                }
+                            }
+                            Text(
+                                text = stringResource(R.string.tasker_integration_description),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

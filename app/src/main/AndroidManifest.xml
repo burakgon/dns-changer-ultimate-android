@@ -89,7 +89,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Tasker Integration for automation -->
+        <!-- Tasker Integration for automation (broadcast intents) -->
         <receiver
             android:name=".service.TaskerIntentReceiver"
             android:enabled="true"
@@ -99,6 +99,28 @@
                 <action android:name="com.dns.changer.ultimate.TASKER_DISCONNECT" />
                 <action android:name="com.dns.changer.ultimate.TASKER_SWITCH" />
                 <action android:name="com.dns.changer.ultimate.TASKER_QUERY_STATUS" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Tasker Plugin API - Configuration Activity -->
+        <activity
+            android:name=".tasker.TaskerPluginActivity"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.DnsChanger">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+            </intent-filter>
+        </activity>
+
+        <!-- Tasker Plugin API - Fire Receiver -->
+        <receiver
+            android:name=".tasker.TaskerPluginReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
             </intent-filter>
         </receiver>
 
