@@ -868,13 +868,19 @@ fun DnsChangerApp(
         if (showDataDisclosure) {
             DataDisclosureDialog(
                 onAccept = {
-                    // Save acceptance - this triggers LaunchedEffect which will:
-                    // 1. Gather GDPR consent (show UMP form for EU users)
-                    // 2. Enable Firebase Analytics after consent is gathered
+                    // Save acceptance
                     dataDisclosureScope.launch {
                         preferences.setDataDisclosureAccepted(true)
                     }
                     showDataDisclosure = false
+
+                    // Immediately trigger GDPR consent gathering (shows UMP form for EU users)
+                    consentManager.gatherConsent(activity) { _ ->
+                        // Consent gathering complete - initialize AdMob if allowed
+                        if (consentManager.canRequestAdsSync()) {
+                            adMobManager.initialize()
+                        }
+                    }
                 }
             )
         }

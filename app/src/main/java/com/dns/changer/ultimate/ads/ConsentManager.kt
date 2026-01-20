@@ -73,7 +73,8 @@ class ConsentManager @Inject constructor(
         activity: Activity,
         onConsentGatheringComplete: (FormError?) -> Unit
     ) {
-        Log.d(TAG, "Starting consent gathering process...")
+        Log.e(TAG, "🟢 Starting consent gathering process...")
+        Log.e(TAG, "🟢 Is DEBUG build: ${BuildConfig.DEBUG}")
 
         // Build consent request parameters
         val params = buildConsentRequestParameters()
@@ -161,6 +162,7 @@ class ConsentManager @Inject constructor(
 
         // Add debug settings only in debug builds
         if (BuildConfig.DEBUG) {
+            Log.e(TAG, "🟢 Adding debug settings for UMP - EEA geography")
             val debugSettings = ConsentDebugSettings.Builder(context)
                 // Add test devices to enable debug geography
                 .addTestDeviceHashedId("0CB4D26B8A5068966213D6599648CD1F")
@@ -169,6 +171,9 @@ class ConsentManager @Inject constructor(
                 .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
                 .build()
             builder.setConsentDebugSettings(debugSettings)
+            Log.e(TAG, "🟢 Debug settings applied with test devices")
+        } else {
+            Log.e(TAG, "🔴 NOT a debug build - no debug settings applied")
         }
 
         return builder.build()
