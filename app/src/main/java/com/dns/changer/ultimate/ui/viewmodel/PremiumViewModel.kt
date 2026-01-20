@@ -102,12 +102,22 @@ class PremiumViewModel @Inject constructor(
      */
     private fun updatePremiumStateFromCustomerInfo(customerInfo: CustomerInfo) {
         val entitlement = customerInfo.entitlements[ENTITLEMENT_ID]
-        // isActive is the ONLY check needed - RevenueCat handles all subscription states internally
-        val hasPremiumAccess = entitlement?.isActive == true
+
+        // RevenueCat's entitlement.isActive is the ONLY source of truth for premium access.
+        // It already handles: grace periods, paused, cancelled, billing issues, expired, etc.
+        // See: https://www.revenuecat.com/docs/customers/customer-info
+        val hasPremiumAccess = customerInfo.entitlements.active.containsKey(ENTITLEMENT_ID)
+
         val (status, details) = parseSubscriptionInfo(entitlement, customerInfo)
 
-        android.util.Log.d("PremiumViewModel", "Updating premium state: hasPremiumAccess=$hasPremiumAccess, status=$status, " +
-            "willRenew=${entitlement?.willRenew}, billingIssue=${entitlement?.billingIssueDetectedAt != null}")
+        // Logging for debugging
+        android.util.Log.d("PremiumViewModel", "=== RevenueCat CustomerInfo ===")
+        android.util.Log.d("PremiumViewModel", "Active entitlements: ${customerInfo.entitlements.active.keys}")
+        android.util.Log.d("PremiumViewModel", "hasPremiumAccess: $hasPremiumAccess, status: $status")
+        if (entitlement != null) {
+            android.util.Log.d("PremiumViewModel", "Entitlement '$ENTITLEMENT_ID': isActive=${entitlement.isActive}, willRenew=${entitlement.willRenew}")
+        }
+        android.util.Log.d("PremiumViewModel", "===============================")
 
         _premiumState.value = _premiumState.value.copy(
             isPremium = hasPremiumAccess,
@@ -255,7 +265,8 @@ class PremiumViewModel @Inject constructor(
     }
 
     /**
-     * Parse EntitlementInfo to determine subscription status and details
+     * Parse EntitlementInfo to determine subscription status for UI display.
+     * Note: For ACCESS decisions, use customerInfo.entitlements.active.containsKey() instead.
      */
     private fun parseSubscriptionInfo(
         entitlement: EntitlementInfo?,
@@ -265,45 +276,35 @@ class PremiumViewModel @Inject constructor(
             return SubscriptionStatus.NONE to null
         }
 
-        val now = Date()
         val expirationDate = entitlement.expirationDate
         val billingIssueDetectedAt = entitlement.billingIssueDetectedAt
         val unsubscribeDetectedAt = entitlement.unsubscribeDetectedAt
         val willRenew = entitlement.willRenew
+        val isActive = entitlement.isActive
 
-        // Determine subscription status based on Google Play Billing states:
-        // - ACTIVE: isActive=true, normal subscription
-        // - IN_GRACE_PERIOD: isActive=true, billingIssue detected (billing failed but still has access)
-        // - ON_HOLD (Account Hold): isActive=false, billingIssue detected (after grace period, no access)
-        // - PAUSED: isActive=false, willRenew=true, no billingIssue (user paused, will auto-resume)
-        // - CANCELED: isActive=true, willRenew=false, unsubscribe detected (access until period ends)
-        // - EXPIRED: isActive=false, expirationDate in past
+        // Determine subscription status for UI display based on entitlement properties
+        // RevenueCat's isActive already handles all the complex logic internally
         val status = when {
-            // Grace Period: Billing issue detected but subscription is still active
-            // User has access during this period while Google retries payment
-            billingIssueDetectedAt != null && entitlement.isActive -> SubscriptionStatus.GRACE_PERIOD
+            // Grace Period: Has billing issue but still active (RevenueCat keeps isActive=true during grace)
+            billingIssueDetectedAt != null && isActive -> SubscriptionStatus.GRACE_PERIOD
 
-            // Account Hold (BILLING_ISSUE): Billing issue + no longer active
-            // Grace period expired, user lost access but can still recover by fixing payment
-            billingIssueDetectedAt != null && !entitlement.isActive -> SubscriptionStatus.BILLING_ISSUE
+            // Account Hold / Billing Issue: Has billing issue and no longer active
+            billingIssueDetectedAt != null && !isActive -> SubscriptionStatus.BILLING_ISSUE
 
-            // Cancelled but still active: User cancelled but has access until period ends
-            // unsubscribeDetectedAt is set when user cancels auto-renewal
-            unsubscribeDetectedAt != null && entitlement.isActive && !willRenew -> SubscriptionStatus.CANCELLED
+            // Cancelled but still active: User cancelled renewal but still has access
+            unsubscribeDetectedAt != null && isActive && !willRenew -> SubscriptionStatus.CANCELLED
 
-            // Active subscription in good standing
-            entitlement.isActive -> SubscriptionStatus.ACTIVE
+            // Active: Subscription is active and in good standing
+            isActive -> SubscriptionStatus.ACTIVE
 
-            // Paused (Google Play feature): Not active, but willRenew is true (will auto-resume)
-            // No billing issue, no unsubscribe - user explicitly paused
-            // Expiration date is in the past (access ended when pause started)
-            !entitlement.isActive && willRenew &&
-                billingIssueDetectedAt == null && unsubscribeDetectedAt == null -> SubscriptionStatus.PAUSED
+            // Paused: Not active, will renew, no billing/cancel issues (Google Play pause feature)
+            !isActive && willRenew && billingIssueDetectedAt == null -> SubscriptionStatus.PAUSED
 
-            // Expired: Not active, expiration date in past, won't renew
-            expirationDate != null && expirationDate.before(now) && !entitlement.isActive -> SubscriptionStatus.EXPIRED
+            // Expired: Not active and won't renew
+            !isActive && !willRenew -> SubscriptionStatus.EXPIRED
 
-            else -> SubscriptionStatus.NONE
+            // Fallback
+            else -> SubscriptionStatus.EXPIRED
         }
 
         // Parse period type from product identifier
