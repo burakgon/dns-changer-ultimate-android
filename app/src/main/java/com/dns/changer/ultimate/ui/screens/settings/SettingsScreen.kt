@@ -417,10 +417,14 @@ fun SettingsScreen(
                                 }
                             )
                             .clickable {
-                                if (isAppLockEnabled) {
-                                    onToggleAppLock(false)
+                                if (isPremium) {
+                                    if (isAppLockEnabled) {
+                                        onToggleAppLock(false)
+                                    } else {
+                                        onSetupPin()
+                                    }
                                 } else {
-                                    onSetupPin()
+                                    onShowPaywall()
                                 }
                             }
                             .padding(16.dp),
@@ -439,12 +443,18 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(
-                                    text = stringResource(R.string.app_lock),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stringResource(R.string.app_lock),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (!isPremium) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        PremiumBadge()
+                                    }
+                                }
                                 Text(
                                     text = stringResource(R.string.app_lock_description),
                                     style = MaterialTheme.typography.bodySmall,
@@ -453,12 +463,16 @@ fun SettingsScreen(
                             }
                         }
                         Switch(
-                            checked = isAppLockEnabled,
+                            checked = isAppLockEnabled && isPremium,
                             onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    onSetupPin()
+                                if (isPremium) {
+                                    if (enabled) {
+                                        onSetupPin()
+                                    } else {
+                                        onToggleAppLock(false)
+                                    }
                                 } else {
-                                    onToggleAppLock(false)
+                                    onShowPaywall()
                                 }
                             },
                             colors = SwitchDefaults.colors(
@@ -468,8 +482,8 @@ fun SettingsScreen(
                         )
                     }
 
-                    // Biometric Authentication (only shown when app lock is enabled and biometric is available)
-                    if (isAppLockEnabled && isBiometricAvailable) {
+                    // Biometric Authentication (only shown when app lock is enabled, premium, and biometric is available)
+                    if (isAppLockEnabled && isPremium && isBiometricAvailable) {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -534,8 +548,8 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Change PIN (only shown when app lock is enabled)
-                    if (isAppLockEnabled) {
+                    // Change PIN (only shown when app lock is enabled and premium)
+                    if (isAppLockEnabled && isPremium) {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
