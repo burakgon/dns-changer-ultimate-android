@@ -85,6 +85,7 @@ import com.dns.changer.ultimate.widget.ToggleDnsAction
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -298,32 +299,24 @@ fun DnsChangerApp(
         .map<Boolean, Boolean?> { it }
         .collectAsState(initial = null)
     var showDataDisclosure by remember { mutableStateOf(false) }
-    // Track if we've already processed the data disclosure to prevent re-showing on recomposition
-    var dataDisclosureProcessed by remember { mutableStateOf(false) }
     val dataDisclosureScope = rememberCoroutineScope()
 
-    // Track if GDPR consent has been gathered this session
+    // Track if GDPR consent has been gathered - use ONLY the singleton state
+    // This survives recomposition and subscription changes
     val isConsentGathered by consentManager.isConsentGathered.collectAsState()
-    // Initialize local flag based on singleton state to prevent re-gathering on recomposition
-    var consentGatheringTriggered by remember(isConsentGathered) { mutableStateOf(isConsentGathered) }
 
     // Check if we need to show data disclosure on first launch
     // or gather GDPR consent and enable analytics if already accepted
-    // Only act when the preference has actually loaded (not null)
-    LaunchedEffect(dataDisclosureAcceptedNullable) {
-        val accepted = dataDisclosureAcceptedNullable ?: return@LaunchedEffect // Wait for actual value
-
-        // Skip if we've already processed this (prevents re-showing on recomposition)
-        if (dataDisclosureProcessed) return@LaunchedEffect
-        dataDisclosureProcessed = true
+    // IMPORTANT: Use LaunchedEffect(Unit) to run ONCE, and check values inside
+    // This prevents re-triggering when subscription status changes cause recomposition
+    LaunchedEffect(Unit) {
+        // Wait for the actual value to load from DataStore
+        val accepted = preferences.dataDisclosureAccepted.first()
 
         if (accepted) {
-            // Data disclosure accepted - now gather GDPR consent (shows UMP form for EU users)
-            // This ensures proper order: Data Disclosure -> UMP Consent Form
-            // Check both: local flag AND singleton ConsentManager's state
-            // The singleton state persists correctly across recomposition when subscription changes
-            if (!consentGatheringTriggered && !consentManager.isConsentGathered.value) {
-                consentGatheringTriggered = true
+            // Data disclosure already accepted - trigger GDPR consent if not yet gathered
+            // Use ONLY the singleton ConsentManager state which survives recomposition
+            if (!consentManager.isConsentGathered.value) {
                 consentManager.gatherConsent(activity) { _ ->
                     // Consent gathering complete - initialize AdMob if allowed
                     if (consentManager.canRequestAdsSync()) {
@@ -352,11 +345,7 @@ fun DnsChangerApp(
     }
 
     // VPN disclosure consent state (Google Play VpnService policy compliance)
-    // Use null as initial to detect when the actual preference value has loaded
-    // This prevents showing the dialog again during recomposition before DataStore loads
-    val vpnDisclosureAcceptedNullable by preferences.vpnDisclosureAccepted
-        .map<Boolean, Boolean?> { it }
-        .collectAsState(initial = null)
+    // The actual check is done in handleConnectWithAd using .first() to avoid race conditions
     var showVpnDisclosure by remember { mutableStateOf(false) }
     var pendingConnectionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val disclosureScope = rememberCoroutineScope()
@@ -474,20 +463,20 @@ fun DnsChangerApp(
     }
 
     // Callback: check VPN disclosure first, then connect
-    val handleConnectWithAd: () -> Unit = handleConnectWithAd@{
-        // Check if VPN disclosure has been accepted (Google Play policy requirement)
-        // Use null-safe check: if null (still loading from DataStore), treat as accepted to avoid re-showing
-        // If false (not yet accepted), show the disclosure dialog
-        val vpnAccepted = vpnDisclosureAcceptedNullable
-        if (vpnAccepted == false) {
-            // Store the action to perform after disclosure is accepted
-            pendingConnectionAction = { performConnect() }
-            showVpnDisclosure = true
-            return@handleConnectWithAd
+    // Uses coroutine with .first() to get actual DataStore value, avoiding race conditions during recomposition
+    val handleConnectWithAd: () -> Unit = {
+        disclosureScope.launch {
+            // Get the actual value from DataStore to avoid race conditions
+            val vpnAccepted = preferences.vpnDisclosureAccepted.first()
+            if (!vpnAccepted) {
+                // Store the action to perform after disclosure is accepted
+                pendingConnectionAction = { performConnect() }
+                showVpnDisclosure = true
+            } else {
+                // Disclosure already accepted, proceed with connection
+                performConnect()
+            }
         }
-
-        // Disclosure already accepted (true) or still loading (null), proceed with connection
-        performConnect()
     }
 
     val handleDisconnectWithAd: () -> Unit = handleDisconnectWithAd@{
