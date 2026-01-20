@@ -33,10 +33,7 @@ import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.BugReport
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -47,15 +44,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,12 +61,9 @@ import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.SubscriptionDetails
 import com.dns.changer.ultimate.data.model.SubscriptionStatus
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
-import com.dns.changer.ultimate.ui.components.BillingIssueDialog
 import com.dns.changer.ultimate.ui.components.SubscriptionStatusCard
 import com.dns.changer.ultimate.ui.components.openSubscriptionManagement
-import com.dns.changer.ultimate.ui.screens.paywall.PaywallScreen
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
-import com.revenuecat.purchases.models.StoreProduct
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 import com.dns.changer.ultimate.ui.theme.isAndroidTv
 import kotlinx.coroutines.launch
@@ -86,20 +76,15 @@ enum class ThemeMode {
 fun SettingsScreen(
     preferences: DnsPreferences,
     onThemeChanged: (ThemeMode) -> Unit = {},
-    products: Map<String, StoreProduct> = emptyMap(),
-    isLoadingPurchase: Boolean = false,
-    onPurchase: (StoreProduct) -> Unit = {},
-    onRestorePurchases: () -> Unit = {},
     adaptiveConfig: AdaptiveLayoutConfig,
     subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
     subscriptionDetails: SubscriptionDetails? = null,
-    isPremium: Boolean = false, // Calculated premium access (considers subscription status)
+    isPremium: Boolean = false,
     // GDPR Privacy Options
     isPrivacyOptionsRequired: Boolean = false,
     onShowPrivacyOptions: () -> Unit = {},
-    // Error handling
-    purchaseErrorMessage: String? = null,
-    onClearPurchaseError: () -> Unit = {}
+    // Unified paywall callback (handles subscription status check in MainActivity)
+    onShowPaywall: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -107,19 +92,9 @@ fun SettingsScreen(
     val selectedTheme = ThemeMode.valueOf(savedTheme)
     // isPremium is passed as parameter (calculated hasAccess value from RevenueCat)
     val startOnBoot by preferences.startOnBoot.collectAsState(initial = false)
-    var showPaywall by remember { mutableStateOf(false) }
-    var showBillingIssueDialog by remember { mutableStateOf(false) }
 
     // TV Focus handling
     val isTv = isAndroidTv()
-
-    // Show billing issue dialog automatically for grace period or billing issues
-    LaunchedEffect(subscriptionStatus) {
-        if (subscriptionStatus == SubscriptionStatus.GRACE_PERIOD ||
-            subscriptionStatus == SubscriptionStatus.BILLING_ISSUE) {
-            showBillingIssueDialog = true
-        }
-    }
 
     // Center content on larger screens
     Box(
@@ -225,7 +200,7 @@ fun SettingsScreen(
                 onManageSubscription = {
                     openSubscriptionManagement(context, subscriptionDetails?.managementUrl)
                 },
-                onShowPaywall = { showPaywall = true }
+                onShowPaywall = onShowPaywall
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -266,7 +241,7 @@ fun SettingsScreen(
                                 if (isPremium) {
                                     scope.launch { preferences.setStartOnBoot(!startOnBoot) }
                                 } else {
-                                    showPaywall = true
+                                    onShowPaywall()
                                 }
                             }
                             .padding(16.dp),
@@ -310,7 +285,7 @@ fun SettingsScreen(
                                 if (isPremium) {
                                     scope.launch { preferences.setStartOnBoot(enabled) }
                                 } else {
-                                    showPaywall = true
+                                    onShowPaywall()
                                 }
                             },
                             colors = SwitchDefaults.colors(
@@ -360,7 +335,7 @@ fun SettingsScreen(
                                         Intent.createChooser(emailIntent, "Send Feature Request")
                                     )
                                 } else {
-                                    showPaywall = true
+                                    onShowPaywall()
                                 }
                             }
                             .padding(16.dp),
@@ -584,45 +559,6 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-        }
-
-        // Full-screen Paywall
-        if (showPaywall) {
-            Dialog(
-                onDismissRequest = { showPaywall = false },
-                properties = DialogProperties(
-                    dismissOnBackPress = true,
-                    dismissOnClickOutside = false,
-                    usePlatformDefaultWidth = false
-                )
-            ) {
-                PaywallScreen(
-                    products = products,
-                    isLoading = isLoadingPurchase,
-                    onPurchase = { product ->
-                        onPurchase(product)
-                    },
-                    onRestore = onRestorePurchases,
-                    onDismiss = { showPaywall = false },
-                    errorMessage = purchaseErrorMessage,
-                    onClearError = onClearPurchaseError
-                )
-            }
-        }
-
-        // Billing Issue Dialog (for grace period and billing issues)
-        if (showBillingIssueDialog &&
-            (subscriptionStatus == SubscriptionStatus.GRACE_PERIOD ||
-             subscriptionStatus == SubscriptionStatus.BILLING_ISSUE)) {
-            BillingIssueDialog(
-                status = subscriptionStatus,
-                subscriptionDetails = subscriptionDetails,
-                onDismiss = { showBillingIssueDialog = false },
-                onManageSubscription = {
-                    showBillingIssueDialog = false
-                    openSubscriptionManagement(context, subscriptionDetails?.managementUrl)
-                }
-            )
         }
     }
 }

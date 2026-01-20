@@ -132,18 +132,13 @@ fun DnsNavHost(
             SettingsScreen(
                 preferences = preferences,
                 onThemeChanged = onThemeChanged,
-                products = products,
-                isLoadingPurchase = isLoadingPurchase,
-                onPurchase = onPurchase,
-                onRestorePurchases = onRestorePurchases,
                 adaptiveConfig = adaptiveConfig,
                 subscriptionStatus = subscriptionStatus,
                 subscriptionDetails = subscriptionDetails,
                 isPremium = isPremium,
                 isPrivacyOptionsRequired = isPrivacyOptionsRequired,
                 onShowPrivacyOptions = onShowPrivacyOptions,
-                purchaseErrorMessage = purchaseErrorMessage,
-                onClearPurchaseError = onClearPurchaseError
+                onShowPaywall = onShowPaywall
             )
         }
     }

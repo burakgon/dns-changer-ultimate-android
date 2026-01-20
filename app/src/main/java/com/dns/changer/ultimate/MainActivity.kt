@@ -54,9 +54,12 @@ import com.dns.changer.ultimate.data.preferences.RatingPreferences
 import com.dns.changer.ultimate.service.DnsSpeedTestService
 import com.dns.changer.ultimate.ui.components.ConnectionSuccessOverlay
 import com.dns.changer.ultimate.ui.components.DisconnectionOverlay
+import com.dns.changer.ultimate.ui.components.BillingIssueDialog
+import com.dns.changer.ultimate.ui.components.openSubscriptionManagement
 import com.dns.changer.ultimate.ui.components.PremiumGatePopup
 import com.dns.changer.ultimate.ui.components.RatingDialog
 import com.dns.changer.ultimate.ui.components.VpnDisclosureDialog
+import com.dns.changer.ultimate.data.model.SubscriptionStatus
 import com.dns.changer.ultimate.ui.navigation.DnsNavHost
 import com.dns.changer.ultimate.ui.navigation.Screen
 import com.dns.changer.ultimate.ui.screens.paywall.PaywallScreen
@@ -277,6 +280,36 @@ fun DnsChangerApp(
     var premiumGateTitle by remember { mutableStateOf("") }
     var premiumGateDescription by remember { mutableStateOf("") }
     var showPaywall by remember { mutableStateOf(false) }
+    var showSubscriptionStatusDialog by remember { mutableStateOf(false) }
+
+    // Helper: Show subscription status dialog instead of paywall when subscription exists but inactive
+    // This prevents showing "buy" options when user just needs to fix/resume their existing subscription
+    val handleShowPaywall: () -> Unit = {
+        when (premiumState.subscriptionStatus) {
+            SubscriptionStatus.PAUSED,
+            SubscriptionStatus.BILLING_ISSUE -> {
+                // Subscription exists but is inactive - show status dialog to fix it
+                showSubscriptionStatusDialog = true
+            }
+            else -> {
+                // No subscription or active/cancelled - show paywall
+                showPaywall = true
+            }
+        }
+    }
+
+    // Show subscription status dialog for states that need user attention (app-wide)
+    LaunchedEffect(premiumState.subscriptionStatus) {
+        when (premiumState.subscriptionStatus) {
+            SubscriptionStatus.GRACE_PERIOD,
+            SubscriptionStatus.BILLING_ISSUE,
+            SubscriptionStatus.PAUSED,
+            SubscriptionStatus.CANCELLED -> {
+                showSubscriptionStatusDialog = true
+            }
+            else -> {}
+        }
+    }
 
     // Track if action was triggered from widget/quick settings (for premium upsell)
     val launchedFromWidgetOrQS by launchedFromWidgetOrQSFlow.collectAsState()
@@ -287,7 +320,7 @@ fun DnsChangerApp(
     // Show paywall if launched from Quick Settings tile (premium feature)
     LaunchedEffect(showTilePaywallOnLaunch) {
         if (showTilePaywallOnLaunch && !isPremium) {
-            showPaywall = true
+            handleShowPaywall()
         }
     }
 
@@ -445,7 +478,7 @@ fun DnsChangerApp(
                     premiumViewModel.restorePurchases()
                 },
                 onShowPaywall = {
-                    showPaywall = true
+                    handleShowPaywall()
                 },
                 onConnectWithAd = onConnectWithAd,
                 onDisconnectWithAd = onDisconnectWithAd,
@@ -594,7 +627,7 @@ fun DnsChangerApp(
             },
             onGoPremium = {
                 showPremiumGate = false
-                showPaywall = true
+                handleShowPaywall()
             }
         )
 
@@ -618,7 +651,7 @@ fun DnsChangerApp(
             visible = showSuccessOverlay,
             server = mainUiState.lastConnectedServer,
             showPremiumCard = launchedFromWidgetOrQS && !isPremium,
-            onGoPremium = { showPaywall = true },
+            onGoPremium = { handleShowPaywall() },
             onContinue = {
                 mainViewModel.dismissConnectionSuccessOverlay()
                 onWidgetOrQSFlowConsumed()
@@ -630,7 +663,7 @@ fun DnsChangerApp(
             visible = showDisconnectOverlay,
             previousServer = mainUiState.lastConnectedServer,
             showPremiumCard = launchedFromWidgetOrQS && !isPremium,
-            onGoPremium = { showPaywall = true },
+            onGoPremium = { handleShowPaywall() },
             onContinue = {
                 mainViewModel.dismissDisconnectionOverlay()
                 onWidgetOrQSFlowConsumed()
@@ -688,6 +721,25 @@ fun DnsChangerApp(
                     // Execute the pending connection action
                     pendingConnectionAction?.invoke()
                     pendingConnectionAction = null
+                }
+            )
+        }
+
+        // Subscription Status Dialog (app-wide for status alerts)
+        if (showSubscriptionStatusDialog &&
+            premiumState.subscriptionStatus in listOf(
+                SubscriptionStatus.GRACE_PERIOD,
+                SubscriptionStatus.BILLING_ISSUE,
+                SubscriptionStatus.PAUSED,
+                SubscriptionStatus.CANCELLED
+            )) {
+            BillingIssueDialog(
+                status = premiumState.subscriptionStatus,
+                subscriptionDetails = premiumState.subscriptionDetails,
+                onDismiss = { showSubscriptionStatusDialog = false },
+                onManageSubscription = {
+                    showSubscriptionStatusDialog = false
+                    openSubscriptionManagement(context, premiumState.subscriptionDetails?.managementUrl)
                 }
             )
         }
