@@ -162,8 +162,9 @@ class ConsentManager @Inject constructor(
         // Add debug settings only in debug builds
         if (BuildConfig.DEBUG) {
             val debugSettings = ConsentDebugSettings.Builder(context)
-                // Add test device to enable debug geography
+                // Add test devices to enable debug geography
                 .addTestDeviceHashedId("0CB4D26B8A5068966213D6599648CD1F")
+                .addTestDeviceHashedId("36693F0AA9928FF6188E92A5231C765D") // SM-F966B
                 // Test as if user is in EEA (enables consent form)
                 .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
                 .build()
