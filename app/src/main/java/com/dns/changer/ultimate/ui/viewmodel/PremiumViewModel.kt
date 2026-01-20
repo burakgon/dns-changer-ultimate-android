@@ -282,14 +282,24 @@ class PremiumViewModel @Inject constructor(
         val willRenew = entitlement.willRenew
         val isActive = entitlement.isActive
 
+        // Log all entitlement properties for debugging subscription state issues
+        android.util.Log.d("PremiumViewModel", "=== Parsing Entitlement ===")
+        android.util.Log.d("PremiumViewModel", "  isActive: $isActive")
+        android.util.Log.d("PremiumViewModel", "  willRenew: $willRenew")
+        android.util.Log.d("PremiumViewModel", "  expirationDate: $expirationDate")
+        android.util.Log.d("PremiumViewModel", "  billingIssueDetectedAt: $billingIssueDetectedAt")
+        android.util.Log.d("PremiumViewModel", "  unsubscribeDetectedAt: $unsubscribeDetectedAt")
+
         // Determine subscription status for UI display based on entitlement properties
         // RevenueCat's isActive already handles all the complex logic internally
         val status = when {
             // Grace Period: Has billing issue but still active (RevenueCat keeps isActive=true during grace)
             billingIssueDetectedAt != null && isActive -> SubscriptionStatus.GRACE_PERIOD
 
-            // Account Hold / Billing Issue: Has billing issue and no longer active
-            billingIssueDetectedAt != null && !isActive -> SubscriptionStatus.BILLING_ISSUE
+            // Account Hold / Billing Issue: Has billing issue, no longer active, but still recoverable
+            // willRenew=true means user can fix payment to recover subscription
+            // If willRenew=false, subscription is cancelled and should fall to EXPIRED
+            billingIssueDetectedAt != null && !isActive && willRenew -> SubscriptionStatus.BILLING_ISSUE
 
             // Cancelled but still active: User cancelled renewal but still has access
             unsubscribeDetectedAt != null && isActive && !willRenew -> SubscriptionStatus.CANCELLED
@@ -306,6 +316,8 @@ class PremiumViewModel @Inject constructor(
             // Fallback
             else -> SubscriptionStatus.EXPIRED
         }
+
+        android.util.Log.d("PremiumViewModel", "  → Determined status: $status")
 
         // Parse period type from product identifier
         val periodType = when {

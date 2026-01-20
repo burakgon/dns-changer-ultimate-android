@@ -4,7 +4,7 @@ import java.util.Date
 
 data class PremiumState(
     val isPremium: Boolean = false,
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true, // Default to loading until we fetch actual status from RevenueCat
     val offerings: List<PremiumOffering> = emptyList(),
     val subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
     val subscriptionDetails: SubscriptionDetails? = null,
