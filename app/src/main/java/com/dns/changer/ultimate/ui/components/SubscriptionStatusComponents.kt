@@ -498,7 +498,8 @@ private fun formatDate(date: Date): String {
 }
 
 /**
- * Adaptive dialog for billing issues and grace period warnings
+ * Adaptive dialog for subscription status notifications
+ * Handles: GRACE_PERIOD, BILLING_ISSUE, PAUSED, CANCELLED
  * Works on phones, tablets, foldables, and TV
  */
 @Composable
@@ -508,8 +509,6 @@ fun BillingIssueDialog(
     onDismiss: () -> Unit,
     onManageSubscription: () -> Unit
 ) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -569,8 +568,8 @@ fun BillingIssueDialog(
                         }
                     }
 
-                    // Animated warning icon
-                    val infiniteTransition = rememberInfiniteTransition(label = "warning")
+                    // Animated icon
+                    val infiniteTransition = rememberInfiniteTransition(label = "status")
                     val scale by infiniteTransition.animateFloat(
                         initialValue = 1f,
                         targetValue = 1.1f,
@@ -591,6 +590,16 @@ fun BillingIssueDialog(
                             Icons.Default.CreditCardOff,
                             SubscriptionColors.ErrorRed,
                             SubscriptionColors.ErrorRed.copy(alpha = 0.15f)
+                        )
+                        SubscriptionStatus.PAUSED -> Triple(
+                            Icons.Default.Pause,
+                            SubscriptionColors.WarningOrange,
+                            SubscriptionColors.WarningOrange.copy(alpha = 0.15f)
+                        )
+                        SubscriptionStatus.CANCELLED -> Triple(
+                            Icons.Default.Cancel,
+                            SubscriptionColors.WarningOrange,
+                            SubscriptionColors.WarningOrange.copy(alpha = 0.15f)
                         )
                         else -> Triple(
                             Icons.Default.Warning,
@@ -621,6 +630,8 @@ fun BillingIssueDialog(
                         text = when (status) {
                             SubscriptionStatus.GRACE_PERIOD -> stringResource(R.string.billing_issue_title_grace)
                             SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.billing_issue_title_expired)
+                            SubscriptionStatus.PAUSED -> stringResource(R.string.subscription_paused_title)
+                            SubscriptionStatus.CANCELLED -> stringResource(R.string.subscription_cancelled_title)
                             else -> stringResource(R.string.billing_issue_title_grace)
                         },
                         style = MaterialTheme.typography.headlineSmall,
@@ -636,6 +647,8 @@ fun BillingIssueDialog(
                         text = when (status) {
                             SubscriptionStatus.GRACE_PERIOD -> stringResource(R.string.billing_issue_desc_grace)
                             SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.billing_issue_desc_expired)
+                            SubscriptionStatus.PAUSED -> stringResource(R.string.subscription_paused_desc)
+                            SubscriptionStatus.CANCELLED -> stringResource(R.string.subscription_cancelled_desc)
                             else -> stringResource(R.string.billing_issue_desc_grace)
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -644,60 +657,57 @@ fun BillingIssueDialog(
                         lineHeight = 22.sp
                     )
 
-                    // Grace period countdown (if applicable)
-                    if (status == SubscriptionStatus.GRACE_PERIOD) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    color = SubscriptionColors.WarningOrange.copy(alpha = 0.1f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .padding(16.dp)
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.billing_issue_access_continues),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = SubscriptionColors.WarningOrange,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = stringResource(R.string.billing_issue_update_payment),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
+                    // Info box for specific statuses
+                    when (status) {
+                        SubscriptionStatus.GRACE_PERIOD -> {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            StatusInfoBox(
+                                icon = Icons.Default.Warning,
+                                text = stringResource(R.string.billing_issue_access_continues),
+                                backgroundColor = SubscriptionColors.WarningOrange.copy(alpha = 0.1f),
+                                textColor = SubscriptionColors.WarningOrange
+                            )
+                        }
+                        SubscriptionStatus.CANCELLED -> {
+                            subscriptionDetails?.expirationDate?.let { expDate ->
+                                Spacer(modifier = Modifier.height(16.dp))
+                                StatusInfoBox(
+                                    icon = Icons.Default.CalendarMonth,
+                                    text = stringResource(R.string.subscription_access_until_date, formatDate(expDate)),
+                                    backgroundColor = SubscriptionColors.WarningOrange.copy(alpha = 0.1f),
+                                    textColor = SubscriptionColors.WarningOrange
                                 )
                             }
                         }
+                        else -> {}
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Primary action - Update payment method
+                    // Primary action button
                     Button(
                         onClick = onManageSubscription,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (status == SubscriptionStatus.BILLING_ISSUE)
-                                SubscriptionColors.ErrorRed
-                            else SubscriptionColors.WarningOrange
+                            containerColor = when (status) {
+                                SubscriptionStatus.BILLING_ISSUE -> SubscriptionColors.ErrorRed
+                                else -> SubscriptionColors.WarningOrange
+                            }
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.OpenInNew,
+                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = stringResource(R.string.billing_issue_update_button),
+                            text = when (status) {
+                                SubscriptionStatus.PAUSED -> stringResource(R.string.resume_subscription)
+                                SubscriptionStatus.CANCELLED -> stringResource(R.string.resubscribe)
+                                else -> stringResource(R.string.billing_issue_update_button)
+                            },
                             fontWeight = FontWeight.SemiBold
                         )
                     }

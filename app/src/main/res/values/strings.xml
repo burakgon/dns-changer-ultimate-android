@@ -238,4 +238,12 @@
     <string name="billing_issue_update_payment">Update your payment method to ensure uninterrupted service</string>
     <string name="billing_issue_update_button">Update Payment Method</string>
     <string name="billing_issue_dismiss">I\'ll do it later</string>
+
+    <!-- Subscription Status Dialogs -->
+    <string name="subscription_paused_title">Subscription Paused</string>
+    <string name="subscription_paused_desc">Your subscription is currently paused. Premium features are unavailable until you resume your subscription in Google Play.</string>
+    <string name="subscription_cancelled_title">Subscription Cancelled</string>
+    <string name="subscription_cancelled_desc">Your subscription has been cancelled, but you still have access to premium features until your current billing period ends.</string>
+    <string name="subscription_access_until_date">Access until %1$s</string>
+    <string name="resubscribe">Resubscribe</string>
 </resources>
