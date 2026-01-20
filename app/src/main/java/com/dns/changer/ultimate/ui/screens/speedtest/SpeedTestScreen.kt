@@ -44,7 +44,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -501,10 +503,35 @@ private fun SpeedTestResultsList(
     premiumGateDescription: String,
     onAdWatched: () -> Unit,
     onConnectToServer: (DnsServer) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
 ) {
+    // Auto-scroll to top when results change during testing or when test completes
+    // This ensures users always see the fastest (top) results
+    val resultsCount = speedTestState.results.size
+    var previousResultsCount by remember { mutableStateOf(0) }
+    var wasRunning by remember { mutableStateOf(false) }
+
+    LaunchedEffect(resultsCount, speedTestState.isRunning) {
+        // Scroll to top when:
+        // 1. New results are added during testing (results count increased)
+        // 2. Test just completed (was running, now stopped)
+        val resultsAdded = resultsCount > previousResultsCount
+        val testJustCompleted = wasRunning && !speedTestState.isRunning
+
+        if ((speedTestState.isRunning && resultsAdded) || testJustCompleted) {
+            if (resultsCount > 0) {
+                listState.animateScrollToItem(0)
+            }
+        }
+
+        previousResultsCount = resultsCount
+        wasRunning = speedTestState.isRunning
+    }
+
     LazyColumn(
         modifier = modifier,
+        state = listState,
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
