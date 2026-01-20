@@ -259,6 +259,16 @@
     <string name="subscription_access_until_date">Access until %1$s</string>
     <string name="resubscribe">Resubscribe</string>
 
+    <!-- Tasker Integration -->
+    <string name="tasker_integration">Tasker Integration</string>
+    <string name="tasker_integration_description">Automate DNS connections with Tasker and other automation apps</string>
+    <string name="tasker_how_to">How to Use</string>
+    <string name="tasker_action_connect">Connect to DNS</string>
+    <string name="tasker_action_disconnect">Disconnect from DNS</string>
+    <string name="tasker_action_switch">Switch DNS Server</string>
+    <string name="tasker_action_query">Query Connection Status</string>
+    <string name="tasker_example">Example: Use Tasker to automatically connect to DNS when joining public WiFi networks</string>
+
     <!-- App Lock / Security -->
     <string name="security">Security</string>
     <string name="app_lock">App Lock</string>

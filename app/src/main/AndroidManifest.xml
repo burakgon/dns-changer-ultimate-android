@@ -89,6 +89,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- Tasker Integration for automation -->
+        <receiver
+            android:name=".service.TaskerIntentReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.dns.changer.ultimate.TASKER_CONNECT" />
+                <action android:name="com.dns.changer.ultimate.TASKER_DISCONNECT" />
+                <action android:name="com.dns.changer.ultimate.TASKER_SWITCH" />
+                <action android:name="com.dns.changer.ultimate.TASKER_QUERY_STATUS" />
+            </intent-filter>
+        </receiver>
+
         <!-- Quick Settings Tile for toggling DNS -->
         <service
             android:name=".service.DnsQuickSettingsTile"
