@@ -353,11 +353,30 @@ fun DnsChangerApp(
     // Local state to track if we're in ad flow (to hide navigation)
     var showingAdFlow by remember { mutableStateOf(false) }
 
+    // Track if we're waiting for connection/disconnection to complete after ad
+    // This prevents rapid action changes that break the overlay flow
+    var awaitingActionCompletion by remember { mutableStateOf(false) }
+
     // Hide navigation during ad flow or connection transitions
     val hideNavigation = showingAdFlow ||
         connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Connecting ||
         connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Disconnecting ||
         connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Switching
+
+    // Clear awaitingActionCompletion when connection reaches a stable state
+    // This allows the overlay to show before enabling button again
+    LaunchedEffect(connectionState, awaitingActionCompletion) {
+        if (awaitingActionCompletion) {
+            val isStableState = connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Connected ||
+                connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Disconnected ||
+                connectionState is com.dns.changer.ultimate.data.model.ConnectionState.Error
+            if (isStableState) {
+                // Wait for overlay to render before allowing new actions
+                kotlinx.coroutines.delay(500)
+                awaitingActionCompletion = false
+            }
+        }
+    }
 
     // Rating state
     val showRatingDialog by ratingViewModel.showRatingDialog.collectAsState()
@@ -424,6 +443,12 @@ fun DnsChangerApp(
 
     // Inner function that performs actual connection (after disclosure accepted)
     val performConnect: () -> Unit = performConnect@{
+        // Prevent rapid action changes - if we're still waiting for previous action to complete
+        if (awaitingActionCompletion) {
+            android.util.Log.d("MainActivity", "performConnect blocked - awaiting previous action completion")
+            return@performConnect
+        }
+
         // Check internet connection first
         if (!mainViewModel.isInternetAvailable()) {
             Toast.makeText(context, context.getString(R.string.no_internet_connection), Toast.LENGTH_SHORT).show()
@@ -447,6 +472,9 @@ fun DnsChangerApp(
         // Non-premium users: show ad flow
         adCoroutineScope.launch {
             showingAdFlow = true
+            awaitingActionCompletion = true
+            // Clear any pending disconnect overlay to prevent inconsistent state
+            mainViewModel.dismissDisconnectionOverlay()
             // Set visual "Connecting" state (doesn't actually start VPN yet)
             mainViewModel.setConnectingState()
             // Wait 1 sec so user sees "Connecting..."
@@ -456,6 +484,8 @@ fun DnsChangerApp(
                 onShowInterstitialAd {
                     // Ad dismissed - NOW actually connect
                     mainViewModel.connect()
+                    // Don't set showingAdFlow = false immediately
+                    // Let the LaunchedEffect handle it after state stabilizes
                     showingAdFlow = false
                 }
             }
@@ -480,6 +510,12 @@ fun DnsChangerApp(
     }
 
     val handleDisconnectWithAd: () -> Unit = handleDisconnectWithAd@{
+        // Prevent rapid action changes - if we're still waiting for previous action to complete
+        if (awaitingActionCompletion) {
+            android.util.Log.d("MainActivity", "handleDisconnectWithAd blocked - awaiting previous action completion")
+            return@handleDisconnectWithAd
+        }
+
         // Premium users: disconnect directly without ads
         if (isPremium) {
             mainViewModel.disconnect()
@@ -489,6 +525,9 @@ fun DnsChangerApp(
         // Non-premium users: show ad flow
         adCoroutineScope.launch {
             showingAdFlow = true
+            awaitingActionCompletion = true
+            // Clear any pending success overlay to prevent inconsistent state
+            mainViewModel.dismissConnectionSuccessOverlay()
             // Set visual "Disconnecting" state (doesn't actually stop VPN yet)
             mainViewModel.setDisconnectingState()
             // Wait 1 sec so user sees "Disconnecting..."
@@ -498,6 +537,8 @@ fun DnsChangerApp(
                 onShowInterstitialAd {
                     // Ad dismissed - NOW actually disconnect
                     mainViewModel.disconnect()
+                    // Don't set showingAdFlow = false immediately
+                    // Let the LaunchedEffect handle it after state stabilizes
                     showingAdFlow = false
                 }
             }
