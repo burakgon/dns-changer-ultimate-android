@@ -98,6 +98,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -155,6 +156,40 @@ private object PremiumColors {
     // Light mode specific - darker/more saturated for contrast
     val GoldLightMode = Color(0xFFFF9800)
     val GoldDeepLightMode = Color(0xFFE65100)
+}
+
+// Auto-sizing text that shrinks to fit in a single line
+@Composable
+private fun AutoSizeText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    fontWeight: FontWeight? = null,
+    textAlign: TextAlign? = null,
+    maxFontSize: androidx.compose.ui.unit.TextUnit,
+    minFontSize: androidx.compose.ui.unit.TextUnit = 10.sp
+) {
+    var fontSize by remember(text, maxFontSize) { mutableStateOf(maxFontSize) }
+    var readyToDraw by remember(text, maxFontSize) { mutableStateOf(false) }
+
+    Text(
+        text = text,
+        modifier = modifier.drawBehind { if (!readyToDraw) drawRect(Color.Transparent) },
+        color = color,
+        fontSize = fontSize,
+        fontWeight = fontWeight,
+        textAlign = textAlign,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Clip,
+        onTextLayout = { textLayoutResult ->
+            if (textLayoutResult.didOverflowWidth && fontSize > minFontSize) {
+                fontSize = (fontSize.value - 1f).sp
+            } else {
+                readyToDraw = true
+            }
+        }
+    )
 }
 
 // Screen size classification for adaptive layouts - based on HEIGHT
@@ -1806,16 +1841,8 @@ private fun PlanOptionCard(
         else -> 1.dp
     }
 
-    // Determine font size based on price length - auto-scale for long prices like "TRY 37.99"
-    val priceLength = plan.price.length
-    val priceFontSize = when {
-        isCompact && priceLength > 10 -> 14.sp
-        isCompact && priceLength > 8 -> 16.sp
-        isCompact -> 18.sp
-        priceLength > 10 -> 18.sp
-        priceLength > 8 -> 20.sp
-        else -> 22.sp
-    }
+    // Max font size for price - will auto-shrink if needed
+    val maxPriceFontSize = if (isCompact) 18.sp else 22.sp
 
     Box(modifier = modifier) {
         Column(
@@ -1849,14 +1876,13 @@ private fun PlanOptionCard(
             )
             Spacer(Modifier.height(2.dp))
 
-            // Price with auto-scaling font size to prevent wrapping
-            Text(
+            // Price with auto-sizing to fit in single line
+            AutoSizeText(
                 text = plan.price,
-                fontSize = priceFontSize,
+                maxFontSize = maxPriceFontSize,
+                minFontSize = if (isCompact) 10.sp else 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                softWrap = false
+                color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "/${plan.period}",
@@ -1963,7 +1989,13 @@ private fun PlanOptionCardHorizontal(
             }
         }
 
-        Text(plan.price, style = if (isLarge) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface)
+        AutoSizeText(
+            text = plan.price,
+            maxFontSize = if (isLarge) 18.sp else 14.sp,
+            minFontSize = if (isLarge) 12.sp else 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (plan.isBestValue) goldDark else MaterialTheme.colorScheme.onSurface
+        )
         Text("/${if (plan.period == "year") "yr" else "mo"}", style = MaterialTheme.typography.labelSmall, fontSize = if (isLarge) 11.sp else 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
