@@ -27,12 +27,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ui.theme.isAndroidTv
 
 /**
  * VPN Disclosure Dialog - Shows prominent disclosure before first VPN connection
@@ -64,6 +69,18 @@ fun VpnDisclosureDialog(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val screenHeightDp = configuration.screenHeightDp
     val isCompactLandscape = isLandscape && screenHeightDp < 500
+
+    // TV/D-pad focus support
+    val isTv = isAndroidTv()
+    val acceptButtonFocusRequester = remember { FocusRequester() }
+
+    // Request focus on accept button when on TV
+    LaunchedEffect(isTv) {
+        if (isTv) {
+            delay(300) // Wait for dialog animation
+            acceptButtonFocusRequester.requestFocus()
+        }
+    }
 
     Dialog(
         onDismissRequest = { /* Cannot dismiss without accepting */ },
@@ -194,7 +211,9 @@ fun VpnDisclosureDialog(
                                     }
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(acceptButtonFocusRequester)
                         ) {
                             Text(
                                 text = stringResource(R.string.vpn_disclosure_accept),
@@ -301,7 +320,9 @@ fun VpnDisclosureDialog(
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(acceptButtonFocusRequester)
                     ) {
                         Text(
                             text = stringResource(R.string.vpn_disclosure_accept),
