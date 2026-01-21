@@ -267,9 +267,8 @@ fun ConnectScreen(
                 viewModel.selectServer(server)
             },
             onAddCustomDns = {
-                // Check if free user already has 1 custom DNS
-                val customDnsCount = uiState.servers[DnsCategory.CUSTOM]?.size ?: 0
-                if (!isPremium && customDnsCount >= 1) {
+                // Custom DNS is a premium feature
+                if (!isPremium) {
                     // Show premium gate with ads option
                     onShowPremiumGate(customDnsTitle, customDnsDescription) {
                         viewModel.showAddCustomDns()
