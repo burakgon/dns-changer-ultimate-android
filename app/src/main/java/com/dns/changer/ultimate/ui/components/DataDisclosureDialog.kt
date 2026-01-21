@@ -201,7 +201,7 @@ fun DataDisclosureDialog(
                             ) {
                                 TextButton(
                                     onClick = {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.appazio.com/terms/"))
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://appcastle.co/terms"))
                                         context.startActivity(intent)
                                     }
                                 ) {
@@ -219,7 +219,7 @@ fun DataDisclosureDialog(
 
                                 TextButton(
                                     onClick = {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://burakgon.com/privacy"))
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://appcastle.co/privacy"))
                                         context.startActivity(intent)
                                         onPrivacyPolicy()
                                     }
@@ -348,7 +348,7 @@ fun DataDisclosureDialog(
                         ) {
                             TextButton(
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.appazio.com/terms/"))
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://appcastle.co/terms"))
                                     context.startActivity(intent)
                                 }
                             ) {
@@ -366,7 +366,7 @@ fun DataDisclosureDialog(
 
                             TextButton(
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://burakgon.com/privacy"))
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://appcastle.co/privacy"))
                                     context.startActivity(intent)
                                     onPrivacyPolicy()
                                 }

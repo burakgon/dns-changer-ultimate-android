@@ -181,7 +181,7 @@ fun VpnDisclosureDialog(
 
                             TextButton(
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://burakgon.com/privacy"))
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://appcastle.co/privacy"))
                                     context.startActivity(intent)
                                     onPrivacyPolicy()
                                 }
@@ -289,7 +289,7 @@ fun VpnDisclosureDialog(
 
                         TextButton(
                             onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://burakgon.com/privacy"))
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://appcastle.co/privacy"))
                                 context.startActivity(intent)
                                 onPrivacyPolicy()
                             },

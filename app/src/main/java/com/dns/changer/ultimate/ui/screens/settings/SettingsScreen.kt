@@ -336,7 +336,7 @@ fun SettingsScreen(
                                 if (isPremium) {
                                     val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
                                         data = Uri.parse("mailto:")
-                                        putExtra(Intent.EXTRA_EMAIL, arrayOf("burakgon1@gmail.com"))
+                                        putExtra(Intent.EXTRA_EMAIL, arrayOf("b@appcastle.co"))
                                         putExtra(Intent.EXTRA_SUBJECT, "DNS Changer Feature Request")
                                         putExtra(
                                             Intent.EXTRA_TEXT,
@@ -708,7 +708,7 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://burakgon.com/privacy"))
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://appcastle.co/privacy"))
                                 context.startActivity(intent)
                             }
                             .padding(16.dp),

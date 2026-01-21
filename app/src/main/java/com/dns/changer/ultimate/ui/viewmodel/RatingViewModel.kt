@@ -109,7 +109,7 @@ class RatingViewModel @Inject constructor(
 
             val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
                 data = Uri.parse("mailto:")
-                putExtra(Intent.EXTRA_EMAIL, arrayOf("feedback@dnschangerapp.com"))
+                putExtra(Intent.EXTRA_EMAIL, arrayOf("b@appcastle.co"))
                 putExtra(Intent.EXTRA_SUBJECT, "DNS Changer Feedback")
                 putExtra(Intent.EXTRA_TEXT, "$feedback\n\n$deviceInfo")
             }
