@@ -224,7 +224,8 @@
     <string name="data_disclosure_what_message">• Device identifiers for analytics\n• App usage data (screens visited, features used)\n• Crash reports to fix bugs\n• Ad interaction data for relevant ads</string>
     <string name="data_disclosure_why_title">Why We Collect It</string>
     <string name="data_disclosure_why_message">• To improve app performance and stability\n• To understand which features are most useful\n• To show relevant ads (free version)\n• To fix crashes and bugs quickly\n\nWe never collect your browsing history, DNS queries, or personal information.</string>
-    <string name="data_disclosure_privacy_link">Read Full Privacy Policy</string>
+    <string name="data_disclosure_privacy_link">Privacy Policy</string>
+    <string name="data_disclosure_terms_link">Terms of Use</string>
     <string name="data_disclosure_accept">I Agree</string>
 
     <!-- VPN Disclosure (Google Play VpnService Policy Compliance) -->
