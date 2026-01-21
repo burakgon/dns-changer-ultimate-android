@@ -1,7 +1,6 @@
 package com.dns.changer.ultimate.data.model
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PersonAdd
@@ -16,7 +15,6 @@ enum class DnsCategory(
     SPEED("Speed", Icons.Default.Speed),
     PRIVACY("Privacy", Icons.Default.Lock),
     SECURITY("Security", Icons.Default.Security),
-    AD_BLOCKING("Ad Blocking", Icons.Default.Block),
     FAMILY("Family", Icons.Default.FamilyRestroom),
     CUSTOM("Custom", Icons.Default.PersonAdd)
 }
@@ -160,48 +158,6 @@ object PresetDnsServers {
             secondaryDns = "156.154.71.2",
             category = DnsCategory.SECURITY,
             description = "Enterprise-grade threat protection"
-        ),
-
-        // Ad Blocking category
-        DnsServer(
-            id = "adguard",
-            name = "AdGuard DNS",
-            primaryDns = "94.140.14.14",
-            secondaryDns = "94.140.15.15",
-            category = DnsCategory.AD_BLOCKING,
-            description = "Blocks ads & trackers"
-        ),
-        DnsServer(
-            id = "mullvad_adblock",
-            name = "Mullvad Ad-blocking",
-            primaryDns = "194.242.2.3",
-            secondaryDns = "194.242.2.4",
-            category = DnsCategory.AD_BLOCKING,
-            description = "Privacy + ad blocking"
-        ),
-        DnsServer(
-            id = "controld_ads",
-            name = "Control D Ads",
-            primaryDns = "76.76.2.2",
-            secondaryDns = "76.76.10.2",
-            category = DnsCategory.AD_BLOCKING,
-            description = "Blocks ads"
-        ),
-        DnsServer(
-            id = "nextdns_ads",
-            name = "NextDNS Ads & Trackers",
-            primaryDns = "45.90.28.167",
-            secondaryDns = "45.90.30.167",
-            category = DnsCategory.AD_BLOCKING,
-            description = "Ad & tracker blocking"
-        ),
-        DnsServer(
-            id = "tiarap",
-            name = "Tiarap DNS",
-            primaryDns = "188.166.206.224",
-            secondaryDns = "139.59.134.108",
-            category = DnsCategory.AD_BLOCKING,
-            description = "Japanese ad-blocking DNS"
         ),
 
         // Family category
