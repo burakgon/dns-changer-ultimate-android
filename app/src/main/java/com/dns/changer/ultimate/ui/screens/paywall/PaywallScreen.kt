@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Rocket
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Widgets
@@ -1326,13 +1327,15 @@ private fun SocialProofBannerCompact() {
 @Composable
 private fun BenefitsSection(config: PaywallLayoutConfig) {
     val allBenefits = listOf(
+        Triple(Icons.Default.Block, "Zero Ads", "100% Ad-Free"),
         Triple(Icons.Default.Https, "DNS over HTTPS", "Encrypted & Private"),
+        Triple(Icons.Default.Add, "Custom DNS", "Your Own Servers"),
         Triple(Icons.Default.PowerSettingsNew, "Auto-Connect", "Start on Boot"),
         Triple(Icons.Default.Widgets, "Quick Toggle", "One-Tap Access"),
-        Triple(Icons.Default.Block, "Zero Ads", "100% Ad-Free"),
-        Triple(Icons.Default.Add, "Unlimited DNS", "Custom Servers"),
         Triple(Icons.Default.Speed, "Speed Tests", "Find Fastest DNS"),
+        Triple(Icons.Default.Lock, "App Lock", "PIN & Biometric"),
         Triple(Icons.Default.Star, "Home Widget", "Quick Access"),
+        Triple(Icons.Default.SmartToy, "Tasker Support", "Automation Ready"),
         Triple(Icons.Default.Lightbulb, "Feature Requests", "Shape the App")
     )
 
@@ -1479,12 +1482,16 @@ private fun BenefitsSection(config: PaywallLayoutConfig) {
 @Composable
 private fun BenefitsSectionLandscape() {
     val benefits = listOf(
+        Pair(Icons.Default.Block, "Zero Ads"),
         Pair(Icons.Default.Https, "DNS over HTTPS"),
+        Pair(Icons.Default.Add, "Custom DNS"),
         Pair(Icons.Default.PowerSettingsNew, "Auto-Connect"),
         Pair(Icons.Default.Widgets, "Quick Toggle"),
-        Pair(Icons.Default.Block, "Zero Ads"),
-        Pair(Icons.Default.Add, "Unlimited DNS"),
-        Pair(Icons.Default.Speed, "Speed Tests")
+        Pair(Icons.Default.Speed, "Speed Tests"),
+        Pair(Icons.Default.Lock, "App Lock"),
+        Pair(Icons.Default.Star, "Home Widget"),
+        Pair(Icons.Default.SmartToy, "Tasker Support"),
+        Pair(Icons.Default.Lightbulb, "Feature Requests")
     )
 
     Column(
@@ -1507,12 +1514,16 @@ private fun BenefitsSectionLandscape() {
 @Composable
 private fun BenefitsSectionLargeLandscape() {
     val benefits = listOf(
+        Triple(Icons.Default.Block, "Zero Ads", "100% Ad-Free"),
         Triple(Icons.Default.Https, "DNS over HTTPS", "Encrypted & Private"),
+        Triple(Icons.Default.Add, "Custom DNS", "Your Own Servers"),
         Triple(Icons.Default.PowerSettingsNew, "Auto-Connect", "Start on Boot"),
         Triple(Icons.Default.Widgets, "Quick Toggle", "One-Tap Access"),
-        Triple(Icons.Default.Block, "Zero Ads", "100% Ad-Free"),
-        Triple(Icons.Default.Add, "Unlimited DNS", "Custom Servers"),
-        Triple(Icons.Default.Speed, "Speed Tests", "Find Fastest DNS")
+        Triple(Icons.Default.Speed, "Speed Tests", "Find Fastest DNS"),
+        Triple(Icons.Default.Lock, "App Lock", "PIN & Biometric"),
+        Triple(Icons.Default.Star, "Home Widget", "Quick Access"),
+        Triple(Icons.Default.SmartToy, "Tasker Support", "Automation Ready"),
+        Triple(Icons.Default.Lightbulb, "Feature Requests", "Shape the App")
     )
 
     Column(
