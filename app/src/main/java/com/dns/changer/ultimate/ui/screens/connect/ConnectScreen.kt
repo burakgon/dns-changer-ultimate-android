@@ -61,7 +61,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -353,10 +352,11 @@ private fun PowerButton(
         label = "pulse"
     )
 
-    val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val errorColor = MaterialTheme.colorScheme.error
+    val colorScheme = MaterialTheme.colorScheme
+    val tertiaryColor = colorScheme.tertiary
+    val secondaryColor = colorScheme.secondary
+    val primaryColor = colorScheme.primary
+    val errorColor = colorScheme.error
 
     val buttonColor by animateColorAsState(
         targetValue = when {
@@ -369,9 +369,17 @@ private fun PowerButton(
         label = "buttonColor"
     )
 
-    // Calculate content color based on background luminance for guaranteed contrast
-    // This works correctly even in grey Material You themes
-    val contentColor = if (buttonColor.luminance() > 0.5f) Color.Black else Color.White
+    // Use proper Material You on* colors for content - these adapt to dynamic color palettes
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            isConnected -> colorScheme.onTertiary
+            isError -> colorScheme.onError
+            isTransitioning -> colorScheme.onSecondary
+            else -> colorScheme.onPrimary
+        },
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "contentColor"
+    )
 
     val scale by animateFloatAsState(
         targetValue = if (isTransitioning) pulseScale else 1f,
@@ -409,8 +417,8 @@ private fun PowerButton(
         val interactionSource = remember { MutableInteractionSource() }
         val isFocused by interactionSource.collectIsFocusedAsState()
 
-        // High-visibility focus for TV - white glow effect
-        val focusBorderColor = Color.White
+        // High-visibility focus for TV - use theme inverse surface for proper Material You adaptation
+        val focusBorderColor = MaterialTheme.colorScheme.inverseSurface
         val tvFocusScale = if (isTv && isFocused) 1.05f else 1f
 
         Surface(
@@ -557,8 +565,8 @@ private fun ServerSelectionCard(
     val isFocused by interactionSource.collectIsFocusedAsState()
     val cardShape = RoundedCornerShape(24.dp)
 
-    // High-visibility focus color
-    val focusBorderColor = Color.White
+    // High-visibility focus color - use theme inverse surface for proper Material You adaptation
+    val focusBorderColor = MaterialTheme.colorScheme.inverseSurface
 
     // Scale on focus for TV
     val focusScale = if (isTv && isFocused) 1.03f else 1f

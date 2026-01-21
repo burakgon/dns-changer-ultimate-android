@@ -96,7 +96,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -110,6 +109,7 @@ import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.ui.screens.connect.isAppInDarkTheme
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.theme.WindowSize
+import com.dns.changer.ultimate.ui.theme.contentColorFor
 import com.dns.changer.ultimate.ui.theme.rememberSemanticColors
 import kotlinx.coroutines.delay
 import kotlin.math.cos
@@ -552,8 +552,14 @@ private fun LeakTestGauge(
             LeakTestStatus.COMPLETED_LEAK_DETECTED -> errorColor
             else -> primaryColor
         }
-        // Calculate content color based on background luminance
-        val centerContentColor = if (centerBgColor.luminance() > 0.5f) Color.Black else Color.White
+        // Use proper Material You content colors for each status
+        val colorScheme = MaterialTheme.colorScheme
+        val centerContentColor = when (status) {
+            LeakTestStatus.COMPLETED_SECURE -> semanticColors.onSuccess
+            LeakTestStatus.COMPLETED_NOT_PROTECTED -> semanticColors.onWarning
+            LeakTestStatus.COMPLETED_LEAK_DETECTED -> colorScheme.onError
+            else -> colorScheme.onPrimary
+        }
 
         Surface(
             modifier = Modifier
@@ -750,11 +756,12 @@ private fun ActionButton(
     modifier: Modifier = Modifier,
     compact: Boolean = false
 ) {
-    // Use Material theme colors for backgrounds
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val tertiaryColor = MaterialTheme.colorScheme.tertiary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
-    val errorColor = MaterialTheme.colorScheme.error
+    // Use Material theme colors for backgrounds and content
+    val colorScheme = MaterialTheme.colorScheme
+    val primaryColor = colorScheme.primary
+    val tertiaryColor = colorScheme.tertiary
+    val secondaryColor = colorScheme.secondary
+    val errorColor = colorScheme.error
 
     val containerColor = when (status) {
         LeakTestStatus.COMPLETED_SECURE -> tertiaryColor
@@ -763,9 +770,13 @@ private fun ActionButton(
         else -> primaryColor
     }
 
-    // Calculate content color based on background luminance for guaranteed contrast
-    // This works correctly even in grey Material You themes
-    val contentColor = if (containerColor.luminance() > 0.5f) Color.Black else Color.White
+    // Use proper Material You on* colors for content - adapts to dynamic color palettes
+    val contentColor = when (status) {
+        LeakTestStatus.COMPLETED_SECURE -> colorScheme.onTertiary
+        LeakTestStatus.COMPLETED_NOT_PROTECTED -> colorScheme.onSecondary
+        LeakTestStatus.COMPLETED_LEAK_DETECTED -> colorScheme.onError
+        else -> colorScheme.onPrimary
+    }
 
     Button(
         onClick = onStartTest,

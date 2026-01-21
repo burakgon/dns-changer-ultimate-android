@@ -57,7 +57,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -83,6 +82,7 @@ import kotlinx.coroutines.delay
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.DnsCategory
 import com.dns.changer.ultimate.data.model.DnsServer
+import com.dns.changer.ultimate.ui.theme.contentColorFor
 import com.dns.changer.ultimate.ui.theme.isAndroidTv
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -342,9 +342,9 @@ fun DnsPickerDialog(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            // "All" chip - use luminance-based content color
+                            // "All" chip - use Material You onPrimary for proper theme adaptation
                             val allChipBgColor = MaterialTheme.colorScheme.primary
-                            val allChipContentColor = if (allChipBgColor.luminance() > 0.5f) Color.Black else Color.White
+                            val allChipContentColor = MaterialTheme.colorScheme.onPrimary
                             val isAllSelected = selectedCategory == null
                             FilterChip(
                                 selected = isAllSelected,
@@ -377,8 +377,8 @@ fun DnsPickerDialog(
                             DnsCategory.entries.forEach { category ->
                                 val categoryColor = CategoryColors.forCategory(category, isDarkTheme)
                                 val isThisCategorySelected = selectedCategory == category
-                                // Use luminance-based content color for selected state
-                                val selectedContentColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
+                                // Use Material You compatible content color for selected state
+                                val selectedContentColor = contentColorFor(categoryColor)
                                 FilterChip(
                                     selected = isThisCategorySelected,
                                     onClick = {
@@ -634,21 +634,21 @@ private fun DnsServerCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
-    // High-visibility focus color - white/bright for dark theme, dark for light theme
+    // High-visibility focus color - use theme colors for proper Material You adaptation
     val focusBorderColor = if (isDarkTheme) {
-        Color.White
+        MaterialTheme.colorScheme.inverseSurface
     } else {
-        Color(0xFF1565C0) // Bright blue for light theme
+        MaterialTheme.colorScheme.primary
     }
 
-    // Use category colors for icon, with luminance-based content when selected
+    // Use category colors for icon, with Material You compatible content when selected
     val iconBackgroundColor = if (isSelected) {
         categoryColor
     } else {
         categoryColor.copy(alpha = 0.15f)
     }
     val iconTintColor = if (isSelected) {
-        if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
+        contentColorFor(categoryColor)
     } else {
         categoryColor
     }
@@ -975,7 +975,7 @@ private fun DnsPickerCompactLandscapeContent(
                 // "All" chip
                 item {
                     val allChipBgColor = MaterialTheme.colorScheme.primary
-                    val allChipContentColor = if (allChipBgColor.luminance() > 0.5f) Color.Black else Color.White
+                    val allChipContentColor = MaterialTheme.colorScheme.onPrimary
                     val isAllSelected = selectedCategory == null
                     FilterChip(
                         selected = isAllSelected,
@@ -1011,7 +1011,7 @@ private fun DnsPickerCompactLandscapeContent(
                     val category = DnsCategory.entries[index]
                     val categoryColor = CategoryColors.forCategory(category, isDarkTheme)
                     val isThisCategorySelected = selectedCategory == category
-                    val selectedContentColor = if (categoryColor.luminance() > 0.5f) Color.Black else Color.White
+                    val selectedContentColor = contentColorFor(categoryColor)
                     FilterChip(
                         selected = isThisCategorySelected,
                         onClick = {

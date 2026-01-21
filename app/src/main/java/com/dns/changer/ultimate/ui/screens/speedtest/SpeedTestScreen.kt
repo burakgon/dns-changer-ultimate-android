@@ -258,12 +258,12 @@ fun SpeedTestScreen(
                                         .shadow(
                                             elevation = 8.dp,
                                             shape = DnsShapes.Chip,
-                                            ambientColor = Color.White.copy(alpha = 0.3f),
-                                            spotColor = Color.White.copy(alpha = 0.3f)
+                                            ambientColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.3f),
+                                            spotColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.3f)
                                         )
                                         .border(
                                             width = 3.dp,
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.inverseSurface,
                                             shape = DnsShapes.Chip
                                         )
                                 } else {
@@ -442,12 +442,12 @@ fun SpeedTestScreen(
                                                 .shadow(
                                                     elevation = 8.dp,
                                                     shape = DnsShapes.Chip,
-                                                    ambientColor = Color.White.copy(alpha = 0.3f),
-                                                    spotColor = Color.White.copy(alpha = 0.3f)
+                                                    ambientColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.3f),
+                                                    spotColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.3f)
                                                 )
                                                 .border(
                                                     width = 3.dp,
-                                                    color = Color.White,
+                                                    color = MaterialTheme.colorScheme.inverseSurface,
                                                     shape = DnsShapes.Chip
                                                 )
                                         } else {
@@ -819,12 +819,12 @@ private fun InitialSpeedTestView(
                                 .shadow(
                                     elevation = 16.dp,
                                     shape = CircleShape,
-                                    ambientColor = Color.White.copy(alpha = 0.4f),
-                                    spotColor = Color.White.copy(alpha = 0.4f)
+                                    ambientColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f),
+                                    spotColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f)
                                 )
                                 .border(
                                     width = 4.dp,
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.inverseSurface,
                                     shape = CircleShape
                                 )
                         } else {
@@ -992,7 +992,7 @@ private fun SpeedTestGauge(
     val gaugeInteractionSource = remember { MutableInteractionSource() }
     val gaugeFocused by gaugeInteractionSource.collectIsFocusedAsState()
     val gaugeFocusScale = if (isTv && gaugeFocused && !isRunning) 1.05f else 1f
-    val focusBorderColor = if (isDarkTheme) Color.White else Color(0xFF1565C0)
+    val focusBorderColor = if (isDarkTheme) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.primary
 
     Box(
         modifier = modifier
@@ -1148,7 +1148,7 @@ private fun SpeedTestResultItem(
     val isFocused by interactionSource.collectIsFocusedAsState()
 
     // High-visibility focus color
-    val focusBorderColor = if (isDarkTheme) Color.White else Color(0xFF1565C0)
+    val focusBorderColor = if (isDarkTheme) MaterialTheme.colorScheme.inverseSurface else MaterialTheme.colorScheme.primary
     val focusScale = if (isTv && isFocused) 1.02f else 1f
     val cardShape = if (isFastest || (isTv && isFocused)) RoundedCornerShape(16.dp) else RoundedCornerShape(12.dp)
 
@@ -1476,6 +1476,7 @@ private fun LockedTop3ResultsCard(
                     val unlockFocused by unlockInteractionSource.collectIsFocusedAsState()
                     val unlockFocusScale = if (isTv && unlockFocused) 1.05f else 1f
                     val buttonShape = RoundedCornerShape(28.dp)
+                    val focusBorderColor = MaterialTheme.colorScheme.inverseSurface
 
                     Button(
                         onClick = onUnlockClick,
@@ -1495,12 +1496,12 @@ private fun LockedTop3ResultsCard(
                                         .shadow(
                                             elevation = 12.dp,
                                             shape = buttonShape,
-                                            ambientColor = Color.White.copy(alpha = 0.4f),
-                                            spotColor = Color.White.copy(alpha = 0.4f)
+                                            ambientColor = focusBorderColor.copy(alpha = 0.4f),
+                                            spotColor = focusBorderColor.copy(alpha = 0.4f)
                                         )
                                         .border(
                                             width = 3.dp,
-                                            color = Color.White,
+                                            color = focusBorderColor,
                                             shape = buttonShape
                                         )
                                 } else {

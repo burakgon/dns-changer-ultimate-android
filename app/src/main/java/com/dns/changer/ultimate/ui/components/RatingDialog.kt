@@ -106,6 +106,7 @@ import com.dns.changer.ultimate.ui.theme.isAndroidTv
 import com.dns.changer.ultimate.BuildConfig
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.ui.theme.DnsShapes
+import com.dns.changer.ultimate.ui.screens.connect.isAppInDarkTheme
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -475,12 +476,12 @@ private fun InitialRatingContent(
                                         .shadow(
                                             elevation = 12.dp,
                                             shape = DnsShapes.Button,
-                                            ambientColor = Color.White.copy(alpha = 0.4f),
-                                            spotColor = Color.White.copy(alpha = 0.4f)
+                                            ambientColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f),
+                                            spotColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f)
                                         )
                                         .border(
                                             width = 4.dp,
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.inverseSurface,
                                             shape = DnsShapes.Button
                                         )
                                 } else {
@@ -530,12 +531,12 @@ private fun InitialRatingContent(
                                         .shadow(
                                             elevation = 12.dp,
                                             shape = DnsShapes.Button,
-                                            ambientColor = Color.White.copy(alpha = 0.4f),
-                                            spotColor = Color.White.copy(alpha = 0.4f)
+                                            ambientColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f),
+                                            spotColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f)
                                         )
                                         .border(
                                             width = 4.dp,
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.inverseSurface,
                                             shape = DnsShapes.Button
                                         )
                                 } else {
@@ -885,12 +886,12 @@ private fun ThankYouContent(
                                     .shadow(
                                         elevation = 12.dp,
                                         shape = DnsShapes.Button,
-                                        ambientColor = Color.White.copy(alpha = 0.4f),
-                                        spotColor = Color.White.copy(alpha = 0.4f)
+                                        ambientColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f),
+                                        spotColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f)
                                     )
                                     .border(
                                         width = 4.dp,
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.inverseSurface,
                                         shape = DnsShapes.Button
                                     )
                             } else {
@@ -1097,12 +1098,12 @@ private fun FeedbackContent(
                                     .shadow(
                                         elevation = 8.dp,
                                         shape = DnsShapes.Button,
-                                        ambientColor = Color.White.copy(alpha = 0.3f),
-                                        spotColor = Color.White.copy(alpha = 0.3f)
+                                        ambientColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.3f),
+                                        spotColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.3f)
                                     )
                                     .border(
                                         width = 3.dp,
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.inverseSurface,
                                         shape = DnsShapes.Button
                                     )
                             } else {
@@ -1129,12 +1130,12 @@ private fun FeedbackContent(
                                     .shadow(
                                         elevation = 12.dp,
                                         shape = DnsShapes.Button,
-                                        ambientColor = Color.White.copy(alpha = 0.4f),
-                                        spotColor = Color.White.copy(alpha = 0.4f)
+                                        ambientColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f),
+                                        spotColor = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.4f)
                                     )
                                     .border(
                                         width = 4.dp,
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.inverseSurface,
                                         shape = DnsShapes.Button
                                     )
                             } else {

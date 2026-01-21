@@ -107,20 +107,71 @@ fun rememberSemanticColors(): SemanticColorScheme {
     // This respects the app's theme setting, not just the system setting
     val backgroundColor = MaterialTheme.colorScheme.background
     val isDark = backgroundColor.luminance() < 0.5f
+    // Use theme colors for on* values for proper Material You compatibility
+    val colorScheme = MaterialTheme.colorScheme
     return SemanticColorScheme(
         success = if (isDark) SemanticColors.SuccessDark else SemanticColors.SuccessLight,
         successContainer = if (isDark) SemanticColors.SuccessContainerDark else SemanticColors.SuccessContainerLight,
+        onSuccess = if (isDark) colorScheme.surface else colorScheme.inverseOnSurface,
         warning = if (isDark) SemanticColors.WarningDark else SemanticColors.WarningLight,
-        warningContainer = if (isDark) SemanticColors.WarningContainerDark else SemanticColors.WarningContainerLight
+        warningContainer = if (isDark) SemanticColors.WarningContainerDark else SemanticColors.WarningContainerLight,
+        onWarning = if (isDark) colorScheme.surface else colorScheme.inverseOnSurface
     )
 }
 
 data class SemanticColorScheme(
     val success: Color,
     val successContainer: Color,
+    val onSuccess: Color,
     val warning: Color,
-    val warningContainer: Color
+    val warningContainer: Color,
+    val onWarning: Color
 )
+
+/**
+ * Returns a content color that contrasts properly with the given background color.
+ * Uses Material You-compatible colors instead of pure black/white for better
+ * compatibility across different dynamic color palettes.
+ *
+ * This should be used when you have a colored background and need text/icons
+ * that will be readable on it.
+ */
+@Composable
+fun contentColorFor(backgroundColor: Color): Color {
+    val colorScheme = MaterialTheme.colorScheme
+    // Use theme's inverse colors for proper Material You compatibility
+    // These adapt to the dynamic color palette and look natural
+    return if (backgroundColor.luminance() > 0.5f) {
+        // Light background - use dark content
+        colorScheme.onSurface
+    } else {
+        // Dark background - use light content
+        colorScheme.inverseOnSurface
+    }
+}
+
+/**
+ * Returns proper content color based on the semantic meaning of the container.
+ * This should be preferred over contentColorFor when the container color
+ * is a known theme color (primary, tertiary, error, etc.)
+ */
+@Composable
+fun contentColorForContainer(
+    containerColor: Color,
+    isPrimary: Boolean = false,
+    isTertiary: Boolean = false,
+    isSecondary: Boolean = false,
+    isError: Boolean = false
+): Color {
+    val colorScheme = MaterialTheme.colorScheme
+    return when {
+        isPrimary -> colorScheme.onPrimary
+        isTertiary -> colorScheme.onTertiary
+        isSecondary -> colorScheme.onSecondary
+        isError -> colorScheme.onError
+        else -> contentColorFor(containerColor)
+    }
+}
 
 @Composable
 fun DnsChangerTheme(
