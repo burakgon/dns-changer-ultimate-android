@@ -81,6 +81,8 @@ class AdMobManager @Inject constructor(
             Log.d(TAG, "AdMob initialized successfully")
             // Start loading the first ad
             loadRewardedAd()
+            // Preload interstitial ad so it's ready for connect/disconnect
+            preloadInterstitialAd()
         }
     }
 
@@ -228,6 +230,69 @@ class AdMobManager @Inject constructor(
     private var showCallbackInvoked = AtomicBoolean(false)
 
     /**
+     * Preload an interstitial ad in the background.
+     * Called during initialization and after showing an ad.
+     * Does not block or invoke callbacks - just loads for future use.
+     */
+    fun preloadInterstitialAd() {
+        // If already loaded or loading, skip
+        if (_isInterstitialLoaded.value && interstitialAd != null) {
+            Log.d(TAG, "Interstitial ad already loaded, skipping preload")
+            return
+        }
+
+        if (_isInterstitialLoading.value) {
+            Log.d(TAG, "Interstitial ad already loading, skipping preload")
+            return
+        }
+
+        if (!isInitialized) {
+            Log.w(TAG, "AdMob not initialized yet, cannot preload interstitial")
+            return
+        }
+
+        _isInterstitialLoading.value = true
+        Log.d(TAG, "Preloading interstitial ad in background")
+
+        val adRequest = AdRequest.Builder().build()
+
+        InterstitialAd.load(
+            context,
+            INTERSTITIAL_AD_UNIT_ID,
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    Log.d(TAG, "Interstitial ad preloaded successfully!")
+                    interstitialAd = ad
+                    _isInterstitialLoaded.value = true
+                    _isInterstitialLoading.value = false
+                    interstitialRetryAttempt = 0
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e(TAG, "Interstitial ad preload failed: ${error.message} (code: ${error.code})")
+                    interstitialAd = null
+                    _isInterstitialLoaded.value = false
+                    _isInterstitialLoading.value = false
+                    // Retry preload with delay
+                    if (interstitialRetryAttempt < MAX_RETRY_ATTEMPTS) {
+                        interstitialRetryAttempt++
+                        val delayMs = INITIAL_RETRY_DELAY_MS * (1 shl (interstitialRetryAttempt - 1))
+                        Log.d(TAG, "Retrying interstitial preload in ${delayMs}ms (attempt $interstitialRetryAttempt/$MAX_RETRY_ATTEMPTS)")
+                        scope.launch {
+                            delay(delayMs)
+                            preloadInterstitialAd()
+                        }
+                    } else {
+                        Log.e(TAG, "Max interstitial preload retry attempts reached")
+                        interstitialRetryAttempt = 0
+                    }
+                }
+            }
+        )
+    }
+
+    /**
      * Load interstitial ad with a 6-second timeout.
      * If ad doesn't load within timeout, proceeds without showing ad.
      * This prevents users from getting stuck on "Connecting..." or "Disconnecting..." states.
@@ -340,6 +405,11 @@ class AdMobManager @Inject constructor(
                 interstitialAd = null
                 _isInterstitialLoaded.value = false
                 invokeShowCallback(onDismissed)
+                // Preload the next ad immediately so it's ready for next connect/disconnect
+                scope.launch {
+                    delay(500) // Small delay before loading next ad
+                    preloadInterstitialAd()
+                }
             }
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
@@ -348,6 +418,8 @@ class AdMobManager @Inject constructor(
                 interstitialAd = null
                 _isInterstitialLoaded.value = false
                 invokeShowCallback(onDismissed)
+                // Try to preload a new ad
+                preloadInterstitialAd()
             }
 
             override fun onAdShowedFullScreenContent() {
