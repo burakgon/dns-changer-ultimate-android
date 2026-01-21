@@ -1333,7 +1333,7 @@ private fun LockedTop3ResultsCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(6.dp),
+                    .blur(10.dp),
                 verticalArrangement = Arrangement.Top
             ) {
                 // Animate each position when the server at that position changes
