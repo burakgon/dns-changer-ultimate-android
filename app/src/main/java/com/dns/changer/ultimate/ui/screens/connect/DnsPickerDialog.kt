@@ -421,7 +421,7 @@ fun DnsPickerDialog(
                                 columns = GridCells.Fixed(gridColumns),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .weight(1f, fill = false),
+                                    .weight(1f, fill = true),
                                 contentPadding = PaddingValues(
                                     horizontal = if (isCompactLandscape) 8.dp else 12.dp,
                                     vertical = if (isCompactLandscape) 4.dp else 8.dp
@@ -455,7 +455,7 @@ fun DnsPickerDialog(
                             LazyColumn(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .weight(1f, fill = false),
+                                    .weight(1f, fill = true),
                                 contentPadding = PaddingValues(bottom = if (isCompact) 8.dp else 16.dp)
                             ) {
                                 if (selectedCategory == null) {
@@ -809,7 +809,7 @@ private fun DnsServerCard(
             // Selection indicator
             AnimatedVisibility(
                 visible = isSelected,
-                enter = scaleIn(spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
+                enter = scaleIn(spring(stiffness = Spring.StiffnessHigh)) + fadeIn(),
                 exit = scaleOut() + fadeOut()
             ) {
                 Box(
