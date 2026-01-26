@@ -93,8 +93,8 @@ class LeakTestViewModel @Inject constructor(
                 progress = 1f
             )
 
-            // Log leak test completion
-            val isLeaked = finalStatus == LeakTestStatus.COMPLETED_LEAK_DETECTED
+            // Log leak test completion - not protected means DNS is leaked
+            val isLeaked = finalStatus != LeakTestStatus.COMPLETED_SECURE
             analyticsManager.logEvent(AnalyticsEvents.LEAK_TEST_COMPLETED, mapOf(
                 AnalyticsParams.IS_LEAKED to isLeaked,
                 AnalyticsParams.RESOLVER_COUNT to testResult.first.size
