@@ -136,42 +136,48 @@ class MainViewModel @Inject constructor(
                 val isNowConnected = state is ConnectionState.Connected
                 val isNowDisconnected = state is ConnectionState.Disconnected
 
-                // Use atomic update to ensure we read and write the UI state atomically
+                // Fire analytics and side effects OUTSIDE _uiState.update {} to avoid
+                // duplicate calls when the update lambda is retried due to concurrent modifications.
+                // MutableStateFlow.update {} uses compare-and-set and may re-execute the lambda.
+                if (state is ConnectionState.Error) {
+                    android.util.Log.e("MainViewModel", "Error state: ${state.message}")
+                    analyticsManager.logEvent(
+                        AnalyticsEvents.DNS_CONNECTION_ERROR,
+                        mapOf(AnalyticsParams.ERROR_MESSAGE to (state.message ?: "unknown"))
+                    )
+                    viewModelScope.launch {
+                        kotlinx.coroutines.delay(2000)
+                        connectionManager.resetState()
+                    }
+                }
+
+                if (isNowConnected) {
+                    val connectedServer = (state as ConnectionState.Connected).server
+                    analyticsManager.logEvent(
+                        AnalyticsEvents.DNS_CONNECTED,
+                        mapOf(
+                            AnalyticsParams.SERVER_NAME to connectedServer.name,
+                            AnalyticsParams.DOH_ENABLED to connectedServer.isDoH
+                        )
+                    )
+                    analyticsManager.setUserProperty(AnalyticsUserProps.DOH_ENABLED, connectedServer.isDoH.toString())
+                }
+
+                if (isNowDisconnected && (wasDisconnecting || wasConnected)) {
+                    analyticsManager.logEvent(AnalyticsEvents.DNS_DISCONNECTED)
+                }
+
+                // Use atomic update for UI state only - no side effects inside
                 _uiState.update { currentUiState ->
                     val switchTarget = currentUiState.pendingSwitchToServer
                     val isSwitchingServers = switchTarget != null
 
                     android.util.Log.d("MainViewModel", "State: $previousConnectionState -> $state, pendingSwitch=${switchTarget?.name}")
 
-                    // Handle error state - auto-recover after showing briefly
-                    if (state is ConnectionState.Error) {
-                        android.util.Log.e("MainViewModel", "Error state: ${state.message}")
-                        analyticsManager.logEvent(
-                            AnalyticsEvents.DNS_CONNECTION_ERROR,
-                            mapOf(AnalyticsParams.ERROR_MESSAGE to (state.message ?: "unknown"))
-                        )
-                        // Auto-recover from error after a brief delay
-                        viewModelScope.launch {
-                            kotlinx.coroutines.delay(2000)
-                            connectionManager.resetState()
-                        }
-                    }
-
-                    // Track connected server for overlays
                     when {
                         isNowConnected -> {
                             val connectedServer = (state as ConnectionState.Connected).server
-                            analyticsManager.logEvent(
-                                AnalyticsEvents.DNS_CONNECTED,
-                                mapOf(
-                                    AnalyticsParams.SERVER_NAME to connectedServer.name,
-                                    AnalyticsParams.DOH_ENABLED to connectedServer.isDoH
-                                )
-                            )
-                            analyticsManager.setUserProperty(AnalyticsUserProps.DOH_ENABLED, connectedServer.isDoH.toString())
-                            // Show success overlay when connecting OR when switch completes
                             val showSuccessOverlay = wasConnecting || wasSwitching
-                            // Clear pending switch if we connected to the target server
                             val clearSwitch = switchTarget?.id == connectedServer.id || wasSwitching
                             android.util.Log.d("MainViewModel", "Connected! showSuccessOverlay=$showSuccessOverlay (wasConnecting=$wasConnecting, wasSwitching=$wasSwitching)")
                             if (clearSwitch) {
@@ -185,8 +191,6 @@ class MainViewModel @Inject constructor(
                             )
                         }
                         isNowDisconnected && (wasDisconnecting || wasConnected) -> {
-                            analyticsManager.logEvent(AnalyticsEvents.DNS_DISCONNECTED)
-                            // Only show disconnection overlay if NOT switching servers
                             if (!isSwitchingServers) {
                                 android.util.Log.d("MainViewModel", "Disconnected! showDisconnectionOverlay=true")
                                 currentUiState.copy(
