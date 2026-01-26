@@ -615,6 +615,7 @@ fun DnsChangerApp(
                 innerPadding = PaddingValues(0.dp),
                 isPremium = isPremium,
                 preferences = preferences,
+                mainViewModel = mainViewModel,
                 onRequestVpnPermission = { intent ->
                     onRequestVpnPermission(intent) { granted ->
                         mainViewModel.onVpnPermissionResult(granted)

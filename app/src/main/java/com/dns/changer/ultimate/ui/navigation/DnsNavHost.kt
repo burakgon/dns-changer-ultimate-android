@@ -23,6 +23,7 @@ import com.dns.changer.ultimate.ui.screens.settings.SettingsScreen
 import com.dns.changer.ultimate.ui.screens.settings.ThemeMode
 import com.dns.changer.ultimate.ui.screens.speedtest.SpeedTestScreen
 import com.dns.changer.ultimate.ui.theme.rememberAdaptiveLayoutConfig
+import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 import com.dns.changer.ultimate.ui.viewmodel.SpeedTestViewModel
 import com.revenuecat.purchases.models.StoreProduct
 
@@ -32,6 +33,7 @@ fun DnsNavHost(
     innerPadding: PaddingValues,
     isPremium: Boolean,
     preferences: DnsPreferences,
+    mainViewModel: MainViewModel,
     onRequestVpnPermission: (Intent) -> Unit,
     onShowPremiumGate: (title: String, description: String, onUnlock: () -> Unit) -> Unit,
     onThemeChanged: (ThemeMode) -> Unit,
@@ -88,6 +90,7 @@ fun DnsNavHost(
     ) {
         composable(route = Screen.Connect.route) {
             ConnectScreen(
+                viewModel = mainViewModel,
                 onRequestVpnPermission = onRequestVpnPermission,
                 adaptiveConfig = adaptiveConfig,
                 isPremium = isPremium,
@@ -111,6 +114,7 @@ fun DnsNavHost(
         composable(route = Screen.SpeedTest.route) {
             SpeedTestScreen(
                 viewModel = speedTestViewModel,
+                mainViewModel = mainViewModel,
                 isPremium = isPremium,
                 onShowPremiumGate = onShowPremiumGate,
                 onNavigateToConnectAndStart = {
@@ -131,7 +135,8 @@ fun DnsNavHost(
 
         composable(route = Screen.LeakTest.route) {
             DnsLeakTestScreen(
-                adaptiveConfig = adaptiveConfig
+                adaptiveConfig = adaptiveConfig,
+                mainViewModel = mainViewModel
             )
         }
 

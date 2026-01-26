@@ -151,7 +151,9 @@ class MainViewModel @Inject constructor(
                     }
                 }
 
-                if (isNowConnected) {
+                // Only fire analytics on genuine state transitions, not on initial
+                // StateFlow value delivery or re-emissions
+                if (isNowConnected && (wasConnecting || wasSwitching)) {
                     val connectedServer = (state as ConnectionState.Connected).server
                     analyticsManager.logEvent(
                         AnalyticsEvents.DNS_CONNECTED,
