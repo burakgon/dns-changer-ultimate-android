@@ -2,6 +2,9 @@ package com.dns.changer.ultimate.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
+import com.dns.changer.ultimate.ads.AnalyticsParams
 import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.service.DnsConnectionManager
@@ -52,7 +55,8 @@ data class LeakTestState(
 
 @HiltViewModel
 class LeakTestViewModel @Inject constructor(
-    private val connectionManager: DnsConnectionManager
+    private val connectionManager: DnsConnectionManager,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LeakTestState())
@@ -88,6 +92,13 @@ class LeakTestViewModel @Inject constructor(
                 userPublicIp = testResult.second,
                 progress = 1f
             )
+
+            // Log leak test completion
+            val isLeaked = finalStatus == LeakTestStatus.COMPLETED_LEAK_DETECTED
+            analyticsManager.logEvent(AnalyticsEvents.LEAK_TEST_COMPLETED, mapOf(
+                AnalyticsParams.IS_LEAKED to isLeaked,
+                AnalyticsParams.RESOLVER_COUNT to testResult.first.size
+            ))
         }
     }
 

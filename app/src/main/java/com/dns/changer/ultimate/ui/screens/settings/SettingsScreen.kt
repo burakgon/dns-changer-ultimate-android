@@ -50,6 +50,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -68,6 +69,9 @@ import com.dns.changer.ultimate.data.model.SubscriptionStatus
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.ui.components.SubscriptionStatusCard
 import com.dns.changer.ultimate.ui.components.openSubscriptionManagement
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 import com.dns.changer.ultimate.ui.theme.isAndroidTv
@@ -100,6 +104,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val analytics = LocalAnalyticsManager.current
     val savedTheme by preferences.themeMode.collectAsState(initial = "SYSTEM")
     val selectedTheme = ThemeMode.valueOf(savedTheme)
     // isPremium is passed as parameter (calculated hasAccess value from RevenueCat)
@@ -107,6 +112,11 @@ fun SettingsScreen(
 
     // TV Focus handling
     val isTv = isAndroidTv()
+
+    // Log screen view
+    LaunchedEffect(Unit) {
+        analytics.logScreenView("settings")
+    }
 
     // Center content on larger screens
     Box(
@@ -169,6 +179,7 @@ fun SettingsScreen(
                             onClick = {
                                 scope.launch { preferences.setThemeMode("LIGHT") }
                                 onThemeChanged(ThemeMode.LIGHT)
+                                analytics.logEvent(AnalyticsEvents.THEME_CHANGED, mapOf(AnalyticsParams.THEME_MODE to "LIGHT"))
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -180,6 +191,7 @@ fun SettingsScreen(
                             onClick = {
                                 scope.launch { preferences.setThemeMode("DARK") }
                                 onThemeChanged(ThemeMode.DARK)
+                                analytics.logEvent(AnalyticsEvents.THEME_CHANGED, mapOf(AnalyticsParams.THEME_MODE to "DARK"))
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -191,6 +203,7 @@ fun SettingsScreen(
                             onClick = {
                                 scope.launch { preferences.setThemeMode("SYSTEM") }
                                 onThemeChanged(ThemeMode.SYSTEM)
+                                analytics.logEvent(AnalyticsEvents.THEME_CHANGED, mapOf(AnalyticsParams.THEME_MODE to "SYSTEM"))
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -211,8 +224,16 @@ fun SettingsScreen(
                 isPremium = isPremium,
                 onManageSubscription = {
                     openSubscriptionManagement(context, subscriptionDetails?.managementUrl)
+                    analytics.logEvent(AnalyticsEvents.SUBSCRIPTION_STATUS_DIALOG, mapOf(
+                        AnalyticsParams.SOURCE to "settings_manage"
+                    ))
                 },
-                onShowPaywall = onShowPaywall
+                onShowPaywall = {
+                    onShowPaywall()
+                    analytics.logEvent(AnalyticsEvents.PAYWALL_VIEWED, mapOf(
+                        AnalyticsParams.SOURCE to "settings"
+                    ))
+                }
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -251,7 +272,12 @@ fun SettingsScreen(
                             )
                             .clickable {
                                 if (isPremium) {
-                                    scope.launch { preferences.setStartOnBoot(!startOnBoot) }
+                                    val newValue = !startOnBoot
+                                    scope.launch { preferences.setStartOnBoot(newValue) }
+                                    analytics.logEvent(AnalyticsEvents.SETTING_CHANGED, mapOf(
+                                        AnalyticsParams.SETTING_NAME to "start_on_boot",
+                                        AnalyticsParams.SETTING_VALUE to newValue.toString()
+                                    ))
                                 } else {
                                     onShowPaywall()
                                 }
@@ -296,6 +322,10 @@ fun SettingsScreen(
                             onCheckedChange = { enabled ->
                                 if (isPremium) {
                                     scope.launch { preferences.setStartOnBoot(enabled) }
+                                    analytics.logEvent(AnalyticsEvents.SETTING_CHANGED, mapOf(
+                                        AnalyticsParams.SETTING_NAME to "start_on_boot",
+                                        AnalyticsParams.SETTING_VALUE to enabled.toString()
+                                    ))
                                 } else {
                                     onShowPaywall()
                                 }
@@ -482,6 +512,10 @@ fun SettingsScreen(
                                 if (isPremium) {
                                     if (isAppLockEnabled) {
                                         onToggleAppLock(false)
+                                        analytics.logEvent(AnalyticsEvents.SETTING_CHANGED, mapOf(
+                                            AnalyticsParams.SETTING_NAME to "app_lock",
+                                            AnalyticsParams.SETTING_VALUE to "false"
+                                        ))
                                     } else {
                                         onSetupPin()
                                     }
@@ -532,6 +566,10 @@ fun SettingsScreen(
                                         onSetupPin()
                                     } else {
                                         onToggleAppLock(false)
+                                        analytics.logEvent(AnalyticsEvents.SETTING_CHANGED, mapOf(
+                                            AnalyticsParams.SETTING_NAME to "app_lock",
+                                            AnalyticsParams.SETTING_VALUE to "false"
+                                        ))
                                     }
                                 } else {
                                     onShowPaywall()
@@ -569,7 +607,14 @@ fun SettingsScreen(
                                         Modifier
                                     }
                                 )
-                                .clickable { onToggleBiometric(!isBiometricEnabled) }
+                                .clickable {
+                                    val newValue = !isBiometricEnabled
+                                    onToggleBiometric(newValue)
+                                    analytics.logEvent(AnalyticsEvents.SETTING_CHANGED, mapOf(
+                                        AnalyticsParams.SETTING_NAME to "biometric",
+                                        AnalyticsParams.SETTING_VALUE to newValue.toString()
+                                    ))
+                                }
                                 .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -601,7 +646,13 @@ fun SettingsScreen(
                             }
                             Switch(
                                 checked = isBiometricEnabled,
-                                onCheckedChange = onToggleBiometric,
+                                onCheckedChange = { enabled ->
+                                    onToggleBiometric(enabled)
+                                    analytics.logEvent(AnalyticsEvents.SETTING_CHANGED, mapOf(
+                                        AnalyticsParams.SETTING_NAME to "biometric",
+                                        AnalyticsParams.SETTING_VALUE to enabled.toString()
+                                    ))
+                                },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = MaterialTheme.colorScheme.tertiary,
                                     checkedTrackColor = MaterialTheme.colorScheme.tertiaryContainer
@@ -732,7 +783,12 @@ fun SettingsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onShowPrivacyOptions() }
+                                .clickable {
+                                    onShowPrivacyOptions()
+                                    analytics.logEvent(AnalyticsEvents.SETTING_CHANGED, mapOf(
+                                        AnalyticsParams.SETTING_NAME to "privacy_options"
+                                    ))
+                                }
                                 .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically

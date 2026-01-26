@@ -3,6 +3,10 @@ package com.dns.changer.ultimate.ui.viewmodel
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.AnalyticsUserProps
 import com.dns.changer.ultimate.data.model.PremiumState
 import com.dns.changer.ultimate.data.model.SubscriptionDetails
 import com.dns.changer.ultimate.data.model.SubscriptionStatus
@@ -34,7 +38,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PremiumViewModel @Inject constructor(
-    private val preferences: DnsPreferences
+    private val preferences: DnsPreferences,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     companion object {
@@ -77,6 +82,15 @@ class PremiumViewModel @Inject constructor(
         setupCustomerInfoListener()
         checkPremiumStatus()
         fetchProducts()
+        observePremiumForAnalytics()
+    }
+
+    private fun observePremiumForAnalytics() {
+        viewModelScope.launch {
+            isPremium.collect { premium ->
+                analyticsManager.setUserProperty(AnalyticsUserProps.IS_PREMIUM, premium.toString())
+            }
+        }
     }
 
     /**
@@ -371,16 +385,30 @@ class PremiumViewModel @Inject constructor(
                 callback = object : PurchaseCallback {
                     override fun onCompleted(storeTransaction: StoreTransaction, customerInfo: CustomerInfo) {
                         android.util.Log.d("PremiumViewModel", "Purchase completed: ${storeTransaction.orderId}")
+                        analyticsManager.logEvent(
+                            AnalyticsEvents.PURCHASE_COMPLETED,
+                            mapOf(AnalyticsParams.PRODUCT_ID to pkg.product.id)
+                        )
                         updatePremiumStateFromCustomerInfo(customerInfo)
                     }
 
                     override fun onError(error: PurchasesError, userCancelled: Boolean) {
+                        if (!userCancelled) {
+                            analyticsManager.logEvent(
+                                AnalyticsEvents.PURCHASE_FAILED,
+                                mapOf(AnalyticsParams.ERROR_MESSAGE to "${error.code}: ${error.message}")
+                            )
+                        }
                         handlePurchaseError(error, userCancelled)
                     }
                 }
             )
         } catch (e: Exception) {
             android.util.Log.e("PremiumViewModel", "Purchase exception", e)
+            analyticsManager.logEvent(
+                AnalyticsEvents.PURCHASE_FAILED,
+                mapOf(AnalyticsParams.ERROR_MESSAGE to (e.message ?: "unknown exception"))
+            )
             _premiumState.value = _premiumState.value.copy(
                 isLoading = false,
                 errorMessage = "An unexpected error occurred. Please try again."
@@ -397,16 +425,30 @@ class PremiumViewModel @Inject constructor(
                 callback = object : PurchaseCallback {
                     override fun onCompleted(storeTransaction: StoreTransaction, customerInfo: CustomerInfo) {
                         android.util.Log.d("PremiumViewModel", "Product purchase completed: ${storeTransaction.orderId}")
+                        analyticsManager.logEvent(
+                            AnalyticsEvents.PURCHASE_COMPLETED,
+                            mapOf(AnalyticsParams.PRODUCT_ID to product.id)
+                        )
                         updatePremiumStateFromCustomerInfo(customerInfo)
                     }
 
                     override fun onError(error: PurchasesError, userCancelled: Boolean) {
+                        if (!userCancelled) {
+                            analyticsManager.logEvent(
+                                AnalyticsEvents.PURCHASE_FAILED,
+                                mapOf(AnalyticsParams.ERROR_MESSAGE to "${error.code}: ${error.message}")
+                            )
+                        }
                         handlePurchaseError(error, userCancelled)
                     }
                 }
             )
         } catch (e: Exception) {
             android.util.Log.e("PremiumViewModel", "Product purchase exception", e)
+            analyticsManager.logEvent(
+                AnalyticsEvents.PURCHASE_FAILED,
+                mapOf(AnalyticsParams.ERROR_MESSAGE to (e.message ?: "unknown exception"))
+            )
             _premiumState.value = _premiumState.value.copy(
                 isLoading = false,
                 errorMessage = "An unexpected error occurred. Please try again."

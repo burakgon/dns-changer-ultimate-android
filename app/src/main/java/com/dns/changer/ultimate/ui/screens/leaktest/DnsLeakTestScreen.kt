@@ -106,6 +106,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.ui.screens.connect.isAppInDarkTheme
 import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.theme.WindowSize
@@ -121,12 +123,19 @@ fun DnsLeakTestScreen(
     mainViewModel: MainViewModel = hiltViewModel(),
     leakTestViewModel: LeakTestViewModel = hiltViewModel()
 ) {
+    val analytics = LocalAnalyticsManager.current
+
     // Get state from ViewModel
     val leakTestState by leakTestViewModel.state.collectAsState()
     val testStatus = leakTestState.status
     val results = leakTestState.results
     val userPublicIp = leakTestState.userPublicIp
     val progress = leakTestState.progress
+
+    // Log screen view
+    LaunchedEffect(Unit) {
+        analytics.logScreenView("leak_test")
+    }
 
     // Get connection state to determine if user is protected
     val connectionState by leakTestViewModel.connectionState.collectAsState()
@@ -149,6 +158,7 @@ fun DnsLeakTestScreen(
         if (!mainViewModel.isInternetAvailable()) {
             Toast.makeText(context, noInternetMessage, Toast.LENGTH_SHORT).show()
         } else {
+            analytics.logEvent(AnalyticsEvents.LEAK_TEST_STARTED)
             leakTestViewModel.startTest()
         }
     }

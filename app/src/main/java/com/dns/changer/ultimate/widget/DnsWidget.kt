@@ -46,12 +46,14 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.dns.changer.ultimate.MainActivity
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ads.AnalyticsEvents
 import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.model.PresetDnsServers
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.repository.DnsRepository
 import com.dns.changer.ultimate.service.DnsConnectionManager
+import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -228,15 +230,18 @@ class ToggleDnsAction : ActionCallback {
 
         val currentState = connectionManager.connectionState.value
         val isPremium = dnsPreferences.isPremium.first()
+        val firebaseAnalytics = FirebaseAnalytics.getInstance(context)
 
         // Premium users get instant toggle without opening the app
         if (isPremium) {
             when (currentState) {
                 is ConnectionState.Connected -> {
+                    firebaseAnalytics.logEvent(AnalyticsEvents.WIDGET_DISCONNECT_TAP, null)
                     connectionManager.disconnect()
                     DnsWidget.updateWidgetState(context)
                 }
                 is ConnectionState.Disconnected, is ConnectionState.Error -> {
+                    firebaseAnalytics.logEvent(AnalyticsEvents.WIDGET_CONNECT_TAP, null)
                     val server = dnsRepository.selectedServer.first()
                     if (server != null) {
                         connectionManager.connect(server)
@@ -259,9 +264,11 @@ class ToggleDnsAction : ActionCallback {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
             when (currentState) {
                 is ConnectionState.Connected -> {
+                    firebaseAnalytics.logEvent(AnalyticsEvents.WIDGET_DISCONNECT_TAP, null)
                     putExtra(EXTRA_WIDGET_ACTION, ACTION_DISCONNECT)
                 }
                 is ConnectionState.Disconnected, is ConnectionState.Error -> {
+                    firebaseAnalytics.logEvent(AnalyticsEvents.WIDGET_CONNECT_TAP, null)
                     putExtra(EXTRA_WIDGET_ACTION, ACTION_CONNECT)
                 }
                 else -> {

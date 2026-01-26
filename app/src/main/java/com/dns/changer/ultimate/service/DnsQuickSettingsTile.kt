@@ -6,6 +6,9 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
+import com.dns.changer.ultimate.ads.AnalyticsParams
 import com.dns.changer.ultimate.MainActivity
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.data.model.ConnectionState
@@ -36,6 +39,7 @@ class DnsQuickSettingsTile : TileService() {
         fun dnsConnectionManager(): DnsConnectionManager
         fun dnsRepository(): DnsRepository
         fun dnsPreferences(): DnsPreferences
+        fun analyticsManager(): AnalyticsManager
     }
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -59,6 +63,10 @@ class DnsQuickSettingsTile : TileService() {
         entryPoint.dnsPreferences()
     }
 
+    private val analyticsManager: AnalyticsManager by lazy {
+        entryPoint.analyticsManager()
+    }
+
     override fun onStartListening() {
         super.onStartListening()
         updateTileState()
@@ -73,6 +81,15 @@ class DnsQuickSettingsTile : TileService() {
 
         scope.launch {
             val currentState = connectionManager.connectionState.value
+            val action = when (currentState) {
+                is ConnectionState.Connected -> "disconnecting"
+                is ConnectionState.Disconnected -> "connecting"
+                else -> "other"
+            }
+            analyticsManager.logEvent(
+                AnalyticsEvents.QUICK_SETTINGS_TAP,
+                mapOf("action" to action)
+            )
             val isPremium = dnsPreferences.isPremium.first()
 
             // Premium users get instant toggle without opening the app

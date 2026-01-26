@@ -100,6 +100,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.model.LatencyRating
 import com.dns.changer.ultimate.data.model.SpeedTestResult
@@ -147,12 +150,19 @@ fun SpeedTestScreen(
     onNavigateToConnectAndStart: () -> Unit,
     adaptiveConfig: AdaptiveLayoutConfig
 ) {
+    val analytics = LocalAnalyticsManager.current
+
     val speedTestState by viewModel.speedTestState.collectAsState()
     val totalServerCount by viewModel.totalServerCount.collectAsState()
     val sessionUnlocked by viewModel.resultsUnlockedForSession.collectAsState()
     val shouldAutoStart by viewModel.shouldAutoStart.collectAsState()
 
     val isInitialState = speedTestState.results.isEmpty() && !speedTestState.isRunning
+
+    // Log screen view
+    LaunchedEffect(Unit) {
+        analytics.logScreenView("speed_test")
+    }
 
     // Auto-start test if requested (from Find Fastest button)
     LaunchedEffect(shouldAutoStart) {
@@ -186,12 +196,22 @@ fun SpeedTestScreen(
         if (!mainViewModel.isInternetAvailable()) {
             Toast.makeText(context, noInternetMessage, Toast.LENGTH_SHORT).show()
         } else {
+            analytics.logEvent(AnalyticsEvents.SPEED_TEST_STARTED, mapOf(
+                AnalyticsParams.SERVER_COUNT to totalServerCount
+            ))
             viewModel.startSpeedTest(isPremium = isPremium)
         }
     }
 
     // Handle server selection: navigate to main screen and go through full connection flow
     val onServerSelected: (DnsServer) -> Unit = { server ->
+        // Find the result to get the latency
+        val result = speedTestState.results.find { it.server.id == server.id }
+        analytics.logEvent(AnalyticsEvents.SPEED_TEST_APPLY_SERVER, mapOf(
+            AnalyticsParams.SERVER_NAME to server.name,
+            AnalyticsParams.LATENCY_MS to (result?.latencyMs ?: 0L)
+        ))
+        analytics.logEvent(AnalyticsEvents.SPEED_TEST_CONNECT_TAP)
         viewModel.selectServer(server)
         onNavigateToConnectAndStart()
     }

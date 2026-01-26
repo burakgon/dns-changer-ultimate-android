@@ -1,6 +1,9 @@
 package com.dns.changer.ultimate.ui.viewmodel
 
 import android.content.Context
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
+import com.dns.changer.ultimate.ads.AnalyticsUserProps
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -38,7 +41,8 @@ data class AppLockUiState(
 @HiltViewModel
 class AppLockViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val appLockPreferences: AppLockPreferences
+    private val appLockPreferences: AppLockPreferences,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppLockUiState())
@@ -147,6 +151,7 @@ class AppLockViewModel @Inject constructor(
 
             val isValid = appLockPreferences.verifyPin(pin)
             if (isValid) {
+                analyticsManager.logEvent(AnalyticsEvents.APP_LOCK_PIN_SUCCESS)
                 appLockPreferences.resetFailedAttempts()
                 appLockPreferences.setLastUnlockTime(System.currentTimeMillis())
                 _uiState.value = _uiState.value.copy(
@@ -155,6 +160,7 @@ class AppLockViewModel @Inject constructor(
                     errorMessage = null
                 )
             } else {
+                analyticsManager.logEvent(AnalyticsEvents.APP_LOCK_PIN_FAILED)
                 val attempts = appLockPreferences.incrementFailedAttempts()
                 val isLockedOut = appLockPreferences.isLockedOut()
                 val remaining = if (isLockedOut) {
@@ -177,6 +183,7 @@ class AppLockViewModel @Inject constructor(
     }
 
     fun onBiometricSuccess() {
+        analyticsManager.logEvent(AnalyticsEvents.APP_LOCK_BIOMETRIC_SUCCESS)
         viewModelScope.launch {
             appLockPreferences.resetFailedAttempts()
             appLockPreferences.setLastUnlockTime(System.currentTimeMillis())
@@ -189,6 +196,7 @@ class AppLockViewModel @Inject constructor(
     }
 
     fun onBiometricError(errorMessage: String?) {
+        analyticsManager.logEvent(AnalyticsEvents.APP_LOCK_BIOMETRIC_FAILED)
         _uiState.value = _uiState.value.copy(
             errorMessage = errorMessage
         )
@@ -205,6 +213,7 @@ class AppLockViewModel @Inject constructor(
         viewModelScope.launch {
             appLockPreferences.setPin(pin)
             appLockPreferences.setAppLockEnabled(true)
+            analyticsManager.setUserProperty(AnalyticsUserProps.APP_LOCK_ENABLED, "true")
             _uiState.value = _uiState.value.copy(
                 isAppLockEnabled = true,
                 isLocked = false
@@ -215,6 +224,7 @@ class AppLockViewModel @Inject constructor(
     fun disableAppLock() {
         viewModelScope.launch {
             appLockPreferences.disableAppLock()
+            analyticsManager.setUserProperty(AnalyticsUserProps.APP_LOCK_ENABLED, "false")
             _uiState.value = _uiState.value.copy(
                 isAppLockEnabled = false,
                 isLocked = false

@@ -108,6 +108,9 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.revenuecat.purchases.models.StoreProduct
 import com.dns.changer.ultimate.ui.viewmodel.PremiumViewModel
 import kotlinx.coroutines.delay
@@ -236,9 +239,16 @@ fun PaywallScreen(
     errorMessage: String? = null,
     onClearError: () -> Unit = {}
 ) {
+    val analytics = LocalAnalyticsManager.current
     var selectedPlan by remember { mutableStateOf(SubscriptionPlan.YEARLY_TRIAL) }
     var animationStep by remember { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Log screen view and paywall viewed
+    LaunchedEffect(Unit) {
+        analytics.logScreenView("paywall")
+        analytics.logEvent(AnalyticsEvents.PAYWALL_VIEWED)
+    }
 
     // Show error in snackbar
     LaunchedEffect(errorMessage) {
@@ -386,6 +396,28 @@ fun PaywallScreen(
                 }
             }
 
+            // Wrap callbacks with analytics
+            val onPlanSelectedWithAnalytics: (SubscriptionPlan) -> Unit = { plan ->
+                selectedPlan = plan
+                analytics.logEvent(AnalyticsEvents.PAYWALL_PLAN_SELECTED, mapOf(
+                    AnalyticsParams.PLAN_ID to plan.name
+                ))
+            }
+            val onPurchaseWithAnalytics: (StoreProduct) -> Unit = { product ->
+                analytics.logEvent(AnalyticsEvents.PURCHASE_INITIATED, mapOf(
+                    AnalyticsParams.PRODUCT_ID to product.id
+                ))
+                onPurchase(product)
+            }
+            val onRestoreWithAnalytics: () -> Unit = {
+                analytics.logEvent(AnalyticsEvents.RESTORE_PURCHASES_TAP)
+                onRestore()
+            }
+            val onDismissWithAnalytics: () -> Unit = {
+                analytics.logEvent(AnalyticsEvents.PAYWALL_DISMISSED)
+                onDismiss()
+            }
+
             // Use different layouts based on screen size and orientation
             when {
                 // Landscape or very wide screen - use horizontal layout
@@ -394,12 +426,12 @@ fun PaywallScreen(
                         animationStep = animationStep,
                         plans = plans,
                         selectedPlan = selectedPlan,
-                        onPlanSelected = { selectedPlan = it },
+                        onPlanSelected = onPlanSelectedWithAnalytics,
                         selectedPlanDetails = selectedPlanDetails,
                         isLoading = isLoading,
-                        onPurchase = onPurchase,
-                        onRestore = onRestore,
-                        onDismiss = onDismiss,
+                        onPurchase = onPurchaseWithAnalytics,
+                        onRestore = onRestoreWithAnalytics,
+                        onDismiss = onDismissWithAnalytics,
                         config = layoutConfig
                     )
                 }
@@ -409,12 +441,12 @@ fun PaywallScreen(
                         animationStep = animationStep,
                         plans = plans,
                         selectedPlan = selectedPlan,
-                        onPlanSelected = { selectedPlan = it },
+                        onPlanSelected = onPlanSelectedWithAnalytics,
                         selectedPlanDetails = selectedPlanDetails,
                         isLoading = isLoading,
-                        onPurchase = onPurchase,
-                        onRestore = onRestore,
-                        onDismiss = onDismiss,
+                        onPurchase = onPurchaseWithAnalytics,
+                        onRestore = onRestoreWithAnalytics,
+                        onDismiss = onDismissWithAnalytics,
                         config = layoutConfig
                     )
                 }

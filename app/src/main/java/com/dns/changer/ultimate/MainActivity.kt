@@ -47,9 +47,13 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.CompositionLocalProvider
 import com.dns.changer.ultimate.ads.AdMobManager
+import com.dns.changer.ultimate.ads.AnalyticsEvents
 import com.dns.changer.ultimate.ads.AnalyticsManager
+import com.dns.changer.ultimate.ads.AnalyticsParams
 import com.dns.changer.ultimate.ads.ConsentManager
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.preferences.RatingPreferences
 import com.dns.changer.ultimate.service.DnsSpeedTestService
@@ -167,6 +171,7 @@ class MainActivity : FragmentActivity() {
             }
 
             DnsChangerTheme(themeMode = currentTheme) {
+                CompositionLocalProvider(LocalAnalyticsManager provides analyticsManager) {
                 DnsChangerApp(
                     onRequestVpnPermission = { intent, callback ->
                         pendingVpnPermissionCallback = callback
@@ -203,6 +208,7 @@ class MainActivity : FragmentActivity() {
                     launchedFromWidgetOrQSFlow = _launchedFromWidgetOrQS,
                     onWidgetOrQSFlowConsumed = { _launchedFromWidgetOrQS.value = false }
                 )
+                }
             }
         }
     }
@@ -480,6 +486,7 @@ fun DnsChangerApp(
             // Wait 1 sec so user sees "Connecting..."
             kotlinx.coroutines.delay(1000)
             // Load and show ad
+            analyticsManager.logEvent(AnalyticsEvents.INTERSTITIAL_AD_SHOWN)
             onLoadInterstitialAd {
                 onShowInterstitialAd {
                     // Ad dismissed - NOW actually connect
@@ -533,6 +540,7 @@ fun DnsChangerApp(
             // Wait 1 sec so user sees "Disconnecting..."
             kotlinx.coroutines.delay(1000)
             // Load and show ad
+            analyticsManager.logEvent(AnalyticsEvents.INTERSTITIAL_AD_SHOWN)
             onLoadInterstitialAd {
                 onShowInterstitialAd {
                     // Ad dismissed - NOW actually disconnect
@@ -569,9 +577,11 @@ fun DnsChangerApp(
         if (widgetAction != null) {
             when (widgetAction) {
                 ToggleDnsAction.ACTION_CONNECT -> {
+                    analyticsManager.logEvent(AnalyticsEvents.WIDGET_CONNECT_TAP)
                     handleConnectWithAd()
                 }
                 ToggleDnsAction.ACTION_DISCONNECT -> {
+                    analyticsManager.logEvent(AnalyticsEvents.WIDGET_DISCONNECT_TAP)
                     handleDisconnectWithAd()
                 }
             }
@@ -687,6 +697,7 @@ fun DnsChangerApp(
                                 NavigationRailItem(
                                     selected = selected,
                                     onClick = {
+                                        analyticsManager.logEvent(AnalyticsEvents.TAB_SELECTED, mapOf(AnalyticsParams.TAB_NAME to screen.route))
                                         navController.navigate(screen.route) {
                                             popUpTo(navController.graph.findStartDestination().id) {
                                                 saveState = true
@@ -726,6 +737,7 @@ fun DnsChangerApp(
                             item(
                                 selected = selected,
                                 onClick = {
+                                    analyticsManager.logEvent(AnalyticsEvents.TAB_SELECTED, mapOf(AnalyticsParams.TAB_NAME to screen.route))
                                     navController.navigate(screen.route) {
                                         popUpTo(navController.graph.findStartDestination().id) {
                                             saveState = true
@@ -761,15 +773,25 @@ fun DnsChangerApp(
         }
 
         // Premium Gate Popup
+        if (showPremiumGate) {
+            LaunchedEffect(Unit) {
+                analyticsManager.logEvent(AnalyticsEvents.PREMIUM_GATE_SHOWN, mapOf(AnalyticsParams.FEATURE_NAME to premiumGateTitle))
+            }
+        }
         PremiumGatePopup(
             visible = showPremiumGate,
             featureTitle = premiumGateTitle.ifEmpty { stringResource(R.string.unlock_feature) },
             featureDescription = premiumGateDescription.ifEmpty { stringResource(R.string.premium_description) },
-            onDismiss = { showPremiumGate = false },
+            onDismiss = {
+                analyticsManager.logEvent(AnalyticsEvents.PREMIUM_GATE_DISMISSED)
+                showPremiumGate = false
+            },
             onWatchAd = {
+                analyticsManager.logEvent(AnalyticsEvents.PREMIUM_GATE_WATCH_AD)
                 showPremiumGate = false
                 val unlockCallback = onPremiumUnlock
                 onPremiumUnlock = null
+                analyticsManager.logEvent(AnalyticsEvents.REWARDED_AD_SHOWN)
                 onShowRewardedAd(
                     {
                         // Call the session-specific unlock callback
@@ -781,6 +803,7 @@ fun DnsChangerApp(
                 )
             },
             onGoPremium = {
+                analyticsManager.logEvent(AnalyticsEvents.PREMIUM_GATE_GO_PREMIUM)
                 showPremiumGate = false
                 handleShowPaywall()
             }
@@ -799,6 +822,18 @@ fun DnsChangerApp(
         // Debug logging for overlay decisions
         if (mainUiState.showConnectionSuccessOverlay || mainUiState.showDisconnectionOverlay) {
             android.util.Log.d("MainActivity", "Overlay state: success=${mainUiState.showConnectionSuccessOverlay}, disconnect=${mainUiState.showDisconnectionOverlay}, switching=$isSwitchingServers, bothSet=$bothOverlaysSet -> showSuccess=$showSuccessOverlay, showDisconnect=$showDisconnectOverlay")
+        }
+
+        // Log overlay visibility events
+        LaunchedEffect(showSuccessOverlay) {
+            if (showSuccessOverlay) {
+                analyticsManager.logEvent(AnalyticsEvents.CONNECTION_OVERLAY_SHOWN)
+            }
+        }
+        LaunchedEffect(showDisconnectOverlay) {
+            if (showDisconnectOverlay) {
+                analyticsManager.logEvent(AnalyticsEvents.DISCONNECTION_OVERLAY_SHOWN)
+            }
         }
 
         // Connection Success Overlay
@@ -866,8 +901,13 @@ fun DnsChangerApp(
         // Data Disclosure Dialog (Google Play User Data policy compliance)
         // MUST be shown at first launch BEFORE any data collection (Firebase Analytics)
         if (showDataDisclosure) {
+            // Log data disclosure shown (note: analytics may not be enabled yet at first launch)
+            LaunchedEffect(Unit) {
+                analyticsManager.logEvent(AnalyticsEvents.DATA_DISCLOSURE_SHOWN)
+            }
             DataDisclosureDialog(
                 onAccept = {
+                    analyticsManager.logEvent(AnalyticsEvents.DATA_DISCLOSURE_ACCEPTED)
                     // Save acceptance
                     dataDisclosureScope.launch {
                         preferences.setDataDisclosureAccepted(true)
@@ -888,8 +928,12 @@ fun DnsChangerApp(
         // VPN Disclosure Dialog (Google Play VpnService policy compliance)
         // Shown before first VPN connection to explain VpnService usage
         if (showVpnDisclosure) {
+            LaunchedEffect(Unit) {
+                analyticsManager.logEvent(AnalyticsEvents.VPN_DISCLOSURE_SHOWN)
+            }
             VpnDisclosureDialog(
                 onAccept = {
+                    analyticsManager.logEvent(AnalyticsEvents.VPN_DISCLOSURE_ACCEPTED)
                     // Save acceptance and proceed with pending action
                     disclosureScope.launch {
                         preferences.setVpnDisclosureAccepted(true)
@@ -910,6 +954,9 @@ fun DnsChangerApp(
                 SubscriptionStatus.PAUSED,
                 SubscriptionStatus.CANCELLED
             )) {
+            LaunchedEffect(Unit) {
+                analyticsManager.logEvent(AnalyticsEvents.SUBSCRIPTION_STATUS_DIALOG, mapOf(AnalyticsParams.SUBSCRIPTION_STATUS to premiumState.subscriptionStatus.name))
+            }
             BillingIssueDialog(
                 status = premiumState.subscriptionStatus,
                 subscriptionDetails = premiumState.subscriptionDetails,

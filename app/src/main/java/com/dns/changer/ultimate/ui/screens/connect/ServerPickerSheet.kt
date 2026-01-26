@@ -46,6 +46,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.data.model.DnsCategory
 import com.dns.changer.ultimate.data.model.DnsServer
 
@@ -97,6 +100,8 @@ fun ServerPickerSheet(
     onAddCustomDns: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val analytics = LocalAnalyticsManager.current
+
     // Pre-compute the flat list for better LazyColumn performance
     val listItems = remember(servers) {
         buildList {
@@ -184,7 +189,14 @@ fun ServerPickerSheet(
                         ServerRow(
                             server = item.server,
                             isSelected = selectedServer?.id == item.server.id,
-                            onClick = { onServerSelected(item.server) }
+                            onClick = {
+                                analytics.logEvent(AnalyticsEvents.SERVER_PICKER_SELECTED, mapOf(
+                                    AnalyticsParams.SERVER_NAME to item.server.name,
+                                    AnalyticsParams.SERVER_CATEGORY to item.server.category.displayName,
+                                    AnalyticsParams.IS_CUSTOM to item.server.isCustom
+                                ))
+                                onServerSelected(item.server)
+                            }
                         )
                     }
                 }

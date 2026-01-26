@@ -80,6 +80,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.ui.theme.isAndroidTv
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -97,9 +99,16 @@ fun AppLockScreen(
     errorMessage: String? = null,
     modifier: Modifier = Modifier
 ) {
+    val analytics = LocalAnalyticsManager.current
     val hapticFeedback = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val isTv = isAndroidTv()
+
+    // Log screen view
+    LaunchedEffect(Unit) {
+        analytics.logScreenView("app_lock")
+        analytics.logEvent(AnalyticsEvents.APP_LOCK_SHOWN)
+    }
 
     var pin by remember { mutableStateOf("") }
     val maxPinLength = 4

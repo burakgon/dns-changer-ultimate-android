@@ -7,6 +7,10 @@ import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsCategory
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.model.PresetDnsServers
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.AnalyticsUserProps
 import com.dns.changer.ultimate.data.repository.DnsRepository
 import com.dns.changer.ultimate.service.DnsConnectionManager
 import com.dns.changer.ultimate.service.DnsSpeedTestService
@@ -44,7 +48,8 @@ data class MainUiState(
 class MainViewModel @Inject constructor(
     private val dnsRepository: DnsRepository,
     private val connectionManager: DnsConnectionManager,
-    private val speedTestService: DnsSpeedTestService
+    private val speedTestService: DnsSpeedTestService,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -141,6 +146,10 @@ class MainViewModel @Inject constructor(
                     // Handle error state - auto-recover after showing briefly
                     if (state is ConnectionState.Error) {
                         android.util.Log.e("MainViewModel", "Error state: ${state.message}")
+                        analyticsManager.logEvent(
+                            AnalyticsEvents.DNS_CONNECTION_ERROR,
+                            mapOf(AnalyticsParams.ERROR_MESSAGE to (state.message ?: "unknown"))
+                        )
                         // Auto-recover from error after a brief delay
                         viewModelScope.launch {
                             kotlinx.coroutines.delay(2000)
@@ -152,6 +161,14 @@ class MainViewModel @Inject constructor(
                     when {
                         isNowConnected -> {
                             val connectedServer = (state as ConnectionState.Connected).server
+                            analyticsManager.logEvent(
+                                AnalyticsEvents.DNS_CONNECTED,
+                                mapOf(
+                                    AnalyticsParams.SERVER_NAME to connectedServer.name,
+                                    AnalyticsParams.DOH_ENABLED to connectedServer.isDoH
+                                )
+                            )
+                            analyticsManager.setUserProperty(AnalyticsUserProps.DOH_ENABLED, connectedServer.isDoH.toString())
                             // Show success overlay when connecting OR when switch completes
                             val showSuccessOverlay = wasConnecting || wasSwitching
                             // Clear pending switch if we connected to the target server
@@ -168,6 +185,7 @@ class MainViewModel @Inject constructor(
                             )
                         }
                         isNowDisconnected && (wasDisconnecting || wasConnected) -> {
+                            analyticsManager.logEvent(AnalyticsEvents.DNS_DISCONNECTED)
                             // Only show disconnection overlay if NOT switching servers
                             if (!isSwitchingServers) {
                                 android.util.Log.d("MainViewModel", "Disconnected! showDisconnectionOverlay=true")
@@ -222,6 +240,12 @@ class MainViewModel @Inject constructor(
     fun selectServer(server: DnsServer) {
         val wasConnected = connectionState.value is ConnectionState.Connected
         android.util.Log.d("MainViewModel", "selectServer: ${server.name}, wasConnected=$wasConnected")
+
+        analyticsManager.logEvent(
+            AnalyticsEvents.DNS_SERVER_SWITCH,
+            mapOf(AnalyticsParams.SERVER_NAME to server.name)
+        )
+        analyticsManager.setUserProperty(AnalyticsUserProps.SELECTED_SERVER, server.name)
 
         // Set pending switch target AND selected server atomically in UI state
         if (wasConnected) {

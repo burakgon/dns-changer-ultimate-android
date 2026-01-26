@@ -70,6 +70,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.ui.theme.isAndroidTv
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -107,6 +110,7 @@ private fun PinSetupContent(
     onPinSet: (String) -> Unit,
     isChangingPin: Boolean
 ) {
+    val analytics = LocalAnalyticsManager.current
     val hapticFeedback = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val isTv = isAndroidTv()
@@ -148,6 +152,9 @@ private fun PinSetupContent(
                 PinSetupStep.CONFIRM -> {
                     if (currentPin == firstPin) {
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        analytics.logEvent(AnalyticsEvents.SETTING_CHANGED, mapOf(
+                            AnalyticsParams.SETTING_NAME to "pin_setup"
+                        ))
                         onPinSet(currentPin)
                     } else {
                         isError = true

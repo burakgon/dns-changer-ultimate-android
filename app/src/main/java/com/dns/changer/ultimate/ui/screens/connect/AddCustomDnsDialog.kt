@@ -41,6 +41,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.ui.theme.DnsShapes
 
 @Composable
@@ -50,6 +53,8 @@ fun AddCustomDnsDialog(
     isPremium: Boolean = false,
     onShowPremiumGate: () -> Unit = {}
 ) {
+    val analytics = LocalAnalyticsManager.current
+
     var name by remember { mutableStateOf("") }
     var primaryDns by remember { mutableStateOf("") }
     var secondaryDns by remember { mutableStateOf("") }
@@ -291,6 +296,9 @@ fun AddCustomDnsDialog(
                     if (isDoHEnabled) {
                         dohUrlError = dohUrl.isBlank() || !isValidDohUrl(dohUrl)
                         if (!nameError && !dohUrlError) {
+                            analytics.logEvent(AnalyticsEvents.CUSTOM_DNS_SAVED, mapOf(
+                                AnalyticsParams.DOH_ENABLED to true
+                            ))
                             onConfirm(
                                 name.trim(),
                                 primaryDns.trim().ifBlank { "1.1.1.1" },
@@ -302,6 +310,9 @@ fun AddCustomDnsDialog(
                     } else {
                         primaryError = primaryDns.isBlank() || !isValidIp(primaryDns)
                         if (!nameError && !primaryError) {
+                            analytics.logEvent(AnalyticsEvents.CUSTOM_DNS_SAVED, mapOf(
+                                AnalyticsParams.DOH_ENABLED to false
+                            ))
                             onConfirm(
                                 name.trim(),
                                 primaryDns.trim(),

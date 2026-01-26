@@ -80,6 +80,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import kotlinx.coroutines.delay
 import com.dns.changer.ultimate.R
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.data.model.DnsCategory
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.ui.theme.contentColorFor
@@ -97,6 +100,15 @@ fun DnsPickerDialog(
     onFindFastest: () -> Unit,
     initialCategory: DnsCategory? = null
 ) {
+    val analytics = LocalAnalyticsManager.current
+
+    val onServerSelectedWithAnalytics: (DnsServer) -> Unit = { server ->
+        analytics.logEvent(AnalyticsEvents.SERVER_PICKER_SELECTED, mapOf(
+            AnalyticsParams.SERVER_NAME to server.name
+        ))
+        onServerSelected(server)
+    }
+
     var selectedCategory by remember(initialCategory) { mutableStateOf(initialCategory) }
     var searchQuery by remember { mutableStateOf("") }
     val isDarkTheme = isAppInDarkTheme()
@@ -213,12 +225,17 @@ fun DnsPickerDialog(
                     servers = servers,
                     selectedServer = selectedServer,
                     selectedCategory = selectedCategory,
-                    onCategorySelected = { selectedCategory = it },
+                    onCategorySelected = {
+                        analytics.logEvent(AnalyticsEvents.SERVER_PICKER_FILTER, mapOf(
+                            AnalyticsParams.FILTER_CATEGORY to (it?.displayName ?: "All")
+                        ))
+                        selectedCategory = it
+                    },
                     searchQuery = searchQuery,
                     onSearchQueryChange = { searchQuery = it },
                     filteredServers = filteredServers,
                     filteredServersMap = filteredServersMap,
-                    onServerSelected = onServerSelected,
+                    onServerSelected = onServerSelectedWithAnalytics,
                     onAddCustomDns = onAddCustomDns,
                     onDeleteCustomDns = onDeleteCustomDns,
                     onDismiss = onDismiss,
@@ -348,7 +365,12 @@ fun DnsPickerDialog(
                             val isAllSelected = selectedCategory == null
                             FilterChip(
                                 selected = isAllSelected,
-                                onClick = { selectedCategory = null },
+                                onClick = {
+                                    analytics.logEvent(AnalyticsEvents.SERVER_PICKER_FILTER, mapOf(
+                                        AnalyticsParams.FILTER_CATEGORY to "All"
+                                    ))
+                                    selectedCategory = null
+                                },
                                 label = {
                                     Text(
                                         text = "All",
@@ -382,7 +404,11 @@ fun DnsPickerDialog(
                                 FilterChip(
                                     selected = isThisCategorySelected,
                                     onClick = {
-                                        selectedCategory = if (selectedCategory == category) null else category
+                                        val newCategory = if (selectedCategory == category) null else category
+                                        analytics.logEvent(AnalyticsEvents.SERVER_PICKER_FILTER, mapOf(
+                                            AnalyticsParams.FILTER_CATEGORY to (newCategory?.displayName ?: "All")
+                                        ))
+                                        selectedCategory = newCategory
                                     },
                                     label = {
                                         Text(
@@ -437,7 +463,7 @@ fun DnsPickerDialog(
                                         server = server,
                                         isSelected = selectedServer?.id == server.id,
                                         onClick = {
-                                            onServerSelected(server)
+                                            onServerSelectedWithAnalytics(server)
                                             onDismiss()
                                         },
                                         onDelete = if (server.isCustom) {
@@ -477,7 +503,7 @@ fun DnsPickerDialog(
                                                     server = server,
                                                     isSelected = selectedServer?.id == server.id,
                                                     onClick = {
-                                                        onServerSelected(server)
+                                                        onServerSelectedWithAnalytics(server)
                                                         onDismiss()
                                                     },
                                                     onDelete = if (server.isCustom) {
@@ -501,7 +527,7 @@ fun DnsPickerDialog(
                                             server = server,
                                             isSelected = selectedServer?.id == server.id,
                                             onClick = {
-                                                onServerSelected(server)
+                                                onServerSelectedWithAnalytics(server)
                                                 onDismiss()
                                             },
                                             onDelete = if (server.isCustom) {

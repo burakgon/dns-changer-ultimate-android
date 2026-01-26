@@ -2,6 +2,9 @@ package com.dns.changer.ultimate.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
+import com.dns.changer.ultimate.ads.AnalyticsParams
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.model.SpeedTestState
 import com.dns.changer.ultimate.service.DnsSpeedTestService
@@ -19,11 +22,30 @@ import javax.inject.Inject
 @HiltViewModel
 class SpeedTestViewModel @Inject constructor(
     private val speedTestService: DnsSpeedTestService,
-    private val dnsRepository: com.dns.changer.ultimate.data.repository.DnsRepository
+    private val dnsRepository: com.dns.changer.ultimate.data.repository.DnsRepository,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     // Directly expose service state - service is Singleton so state survives config changes
     val speedTestState: StateFlow<SpeedTestState> = speedTestService.state
+
+    init {
+        // Observe speed test state to log completion event
+        viewModelScope.launch {
+            var wasRunning = false
+            speedTestService.state.collect { state ->
+                if (wasRunning && !state.isRunning && state.results.isNotEmpty()) {
+                    val fastest = state.fastestResult
+                    analyticsManager.logEvent(AnalyticsEvents.SPEED_TEST_COMPLETED, mapOf(
+                        AnalyticsParams.FASTEST_SERVER to (fastest?.server?.name ?: ""),
+                        AnalyticsParams.FASTEST_LATENCY_MS to (fastest?.latencyMs ?: 0L),
+                        AnalyticsParams.SERVER_COUNT to state.results.size
+                    ))
+                }
+                wasRunning = state.isRunning
+            }
+        }
+    }
 
     // Total server count (preset + custom)
     val totalServerCount: StateFlow<Int> = dnsRepository.allServers

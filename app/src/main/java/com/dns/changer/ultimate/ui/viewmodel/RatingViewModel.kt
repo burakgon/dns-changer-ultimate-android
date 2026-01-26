@@ -6,6 +6,8 @@ import android.net.Uri
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
 import com.dns.changer.ultimate.BuildConfig
 import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.preferences.RatingPreferences
@@ -23,7 +25,8 @@ import javax.inject.Inject
 @HiltViewModel
 class RatingViewModel @Inject constructor(
     private val ratingPreferences: RatingPreferences,
-    private val connectionManager: DnsConnectionManager
+    private val connectionManager: DnsConnectionManager,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     private val _showRatingDialog = MutableStateFlow(false)
@@ -73,10 +76,12 @@ class RatingViewModel @Inject constructor(
     private suspend fun checkAndShowPromptIfNeeded() {
         if (ratingPreferences.shouldShowPrompt()) {
             _showRatingDialog.value = true
+            analyticsManager.logEvent(AnalyticsEvents.RATING_DIALOG_SHOWN)
         }
     }
 
     fun onPositiveResponse() {
+        analyticsManager.logEvent(AnalyticsEvents.RATING_POSITIVE)
         viewModelScope.launch {
             ratingPreferences.setLikedApp(true)
             ratingPreferences.setHasResponded(true)
@@ -87,6 +92,7 @@ class RatingViewModel @Inject constructor(
     }
 
     fun onNegativeResponse() {
+        analyticsManager.logEvent(AnalyticsEvents.RATING_NEGATIVE)
         viewModelScope.launch {
             ratingPreferences.setLikedApp(false)
             // Don't mark as responded yet - wait for feedback
@@ -94,6 +100,7 @@ class RatingViewModel @Inject constructor(
     }
 
     fun onFeedbackSubmitted(feedback: String, activity: Activity) {
+        analyticsManager.logEvent(AnalyticsEvents.RATING_FEEDBACK_SUBMITTED)
         viewModelScope.launch {
             ratingPreferences.setHasResponded(true)
             _showRatingDialog.value = false
@@ -123,6 +130,7 @@ class RatingViewModel @Inject constructor(
     }
 
     fun onFeedbackSkipped() {
+        analyticsManager.logEvent(AnalyticsEvents.RATING_FEEDBACK_SKIPPED)
         viewModelScope.launch {
             ratingPreferences.setHasResponded(true)
             _showRatingDialog.value = false

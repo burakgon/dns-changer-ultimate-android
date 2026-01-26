@@ -75,6 +75,9 @@ import com.dns.changer.ultimate.ui.theme.AdaptiveLayoutConfig
 import com.dns.changer.ultimate.ui.theme.WindowSize
 import com.dns.changer.ultimate.ui.theme.isAndroidTv
 import com.dns.changer.ultimate.ui.theme.tvFocusable
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsParams
+import com.dns.changer.ultimate.ads.LocalAnalyticsManager
 import com.dns.changer.ultimate.ui.viewmodel.MainViewModel
 
 @Composable
@@ -89,6 +92,10 @@ fun ConnectScreen(
     onConnectWithAd: () -> Unit = {},
     onDisconnectWithAd: () -> Unit = {}
 ) {
+    val analytics = LocalAnalyticsManager.current
+
+    LaunchedEffect(Unit) { analytics.logScreenView("connect") }
+
     val uiState by viewModel.uiState.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
 
@@ -154,8 +161,17 @@ fun ConnectScreen(
                         focusRequester = powerButtonFocusRequester,
                         onClick = {
                             when (connectionState) {
-                                is ConnectionState.Connected -> onDisconnectWithAd()
-                                is ConnectionState.Disconnected -> onConnectWithAd()
+                                is ConnectionState.Connected -> {
+                                    analytics.logEvent(AnalyticsEvents.DNS_DISCONNECT_TAP)
+                                    onDisconnectWithAd()
+                                }
+                                is ConnectionState.Disconnected -> {
+                                    analytics.logEvent(AnalyticsEvents.DNS_CONNECT_TAP, mapOf(
+                                        AnalyticsParams.SERVER_NAME to (uiState.selectedServer?.name ?: "none"),
+                                        AnalyticsParams.IS_PREMIUM to isPremium
+                                    ))
+                                    onConnectWithAd()
+                                }
                                 else -> {}
                             }
                         }
@@ -183,7 +199,10 @@ fun ConnectScreen(
                         ServerSelectionCard(
                             server = uiState.selectedServer,
                             isConnected = connectionState is ConnectionState.Connected,
-                            onClick = { showServerPicker = true },
+                            onClick = {
+                                analytics.logEvent(AnalyticsEvents.SERVER_PICKER_OPENED)
+                                showServerPicker = true
+                            },
                             maxWidth = 400.dp,
                             isTv = isTv
                         )
@@ -218,8 +237,17 @@ fun ConnectScreen(
                         focusRequester = powerButtonFocusRequester,
                         onClick = {
                             when (connectionState) {
-                                is ConnectionState.Connected -> onDisconnectWithAd()
-                                is ConnectionState.Disconnected -> onConnectWithAd()
+                                is ConnectionState.Connected -> {
+                                    analytics.logEvent(AnalyticsEvents.DNS_DISCONNECT_TAP)
+                                    onDisconnectWithAd()
+                                }
+                                is ConnectionState.Disconnected -> {
+                                    analytics.logEvent(AnalyticsEvents.DNS_CONNECT_TAP, mapOf(
+                                        AnalyticsParams.SERVER_NAME to (uiState.selectedServer?.name ?: "none"),
+                                        AnalyticsParams.IS_PREMIUM to isPremium
+                                    ))
+                                    onConnectWithAd()
+                                }
                                 else -> {}
                             }
                         }
@@ -243,7 +271,10 @@ fun ConnectScreen(
                         ServerSelectionCard(
                             server = uiState.selectedServer,
                             isConnected = connectionState is ConnectionState.Connected,
-                            onClick = { showServerPicker = true },
+                            onClick = {
+                                analytics.logEvent(AnalyticsEvents.SERVER_PICKER_OPENED)
+                                showServerPicker = true
+                            },
                             isTv = isTv
                         )
                     }
@@ -267,6 +298,7 @@ fun ConnectScreen(
                 viewModel.selectServer(server)
             },
             onAddCustomDns = {
+                analytics.logEvent(AnalyticsEvents.CUSTOM_DNS_DIALOG_OPENED)
                 // Custom DNS is a premium feature
                 if (!isPremium) {
                     // Show premium gate with ads option
@@ -278,6 +310,7 @@ fun ConnectScreen(
                 }
             },
             onDeleteCustomDns = { serverId ->
+                analytics.logEvent(AnalyticsEvents.CUSTOM_DNS_DELETED)
                 viewModel.removeCustomDns(serverId)
             },
             onDismiss = {

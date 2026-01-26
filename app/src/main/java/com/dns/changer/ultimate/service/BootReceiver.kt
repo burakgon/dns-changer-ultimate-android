@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
 import com.dns.changer.ultimate.data.model.PresetDnsServers
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import dagger.hilt.android.AndroidEntryPoint
@@ -21,6 +23,9 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var preferences: DnsPreferences
+
+    @Inject
+    lateinit var analyticsManager: AnalyticsManager
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -65,6 +70,7 @@ class BootReceiver : BroadcastReceiver() {
                 }
 
                 Log.d("BootReceiver", "Starting VPN with server: ${server.name}")
+                analyticsManager.logEvent(AnalyticsEvents.BOOT_AUTO_CONNECT)
 
                 // Start the VPN service
                 val serviceIntent = Intent(context, DnsVpnService::class.java).apply {
