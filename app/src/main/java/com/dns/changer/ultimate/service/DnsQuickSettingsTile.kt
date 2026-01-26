@@ -162,6 +162,7 @@ class DnsQuickSettingsTile : TileService() {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
             putExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION, action)
+            putExtra(ToggleDnsAction.EXTRA_ACTION_SOURCE, ToggleDnsAction.SOURCE_QS)
         }
         launchActivity(intent)
     }

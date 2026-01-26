@@ -47,13 +47,13 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.dns.changer.ultimate.MainActivity
 import com.dns.changer.ultimate.R
 import com.dns.changer.ultimate.ads.AnalyticsEvents
+import com.dns.changer.ultimate.ads.AnalyticsManager
 import com.dns.changer.ultimate.data.model.ConnectionState
 import com.dns.changer.ultimate.data.model.DnsServer
 import com.dns.changer.ultimate.data.model.PresetDnsServers
 import com.dns.changer.ultimate.data.preferences.DnsPreferences
 import com.dns.changer.ultimate.data.repository.DnsRepository
 import com.dns.changer.ultimate.service.DnsConnectionManager
-import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -118,6 +118,7 @@ class DnsWidget : GlanceAppWidget() {
         fun dnsConnectionManager(): DnsConnectionManager
         fun dnsRepository(): DnsRepository
         fun dnsPreferences(): DnsPreferences
+        fun analyticsManager(): AnalyticsManager
     }
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -211,8 +212,11 @@ class DnsWidget : GlanceAppWidget() {
 class ToggleDnsAction : ActionCallback {
     companion object {
         const val EXTRA_WIDGET_ACTION = "widget_action"
+        const val EXTRA_ACTION_SOURCE = "action_source"
         const val ACTION_CONNECT = "connect"
         const val ACTION_DISCONNECT = "disconnect"
+        const val SOURCE_WIDGET = "widget"
+        const val SOURCE_QS = "qs"
     }
 
     override suspend fun onAction(
@@ -230,18 +234,18 @@ class ToggleDnsAction : ActionCallback {
 
         val currentState = connectionManager.connectionState.value
         val isPremium = dnsPreferences.isPremium.first()
-        val firebaseAnalytics = FirebaseAnalytics.getInstance(context)
+        val analyticsManager = entryPoint.analyticsManager()
 
         // Premium users get instant toggle without opening the app
         if (isPremium) {
             when (currentState) {
                 is ConnectionState.Connected -> {
-                    firebaseAnalytics.logEvent(AnalyticsEvents.WIDGET_DISCONNECT_TAP, null)
+                    analyticsManager.logEvent(AnalyticsEvents.WIDGET_DISCONNECT_TAP)
                     connectionManager.disconnect()
                     DnsWidget.updateWidgetState(context)
                 }
                 is ConnectionState.Disconnected, is ConnectionState.Error -> {
-                    firebaseAnalytics.logEvent(AnalyticsEvents.WIDGET_CONNECT_TAP, null)
+                    analyticsManager.logEvent(AnalyticsEvents.WIDGET_CONNECT_TAP)
                     val server = dnsRepository.selectedServer.first()
                     if (server != null) {
                         connectionManager.connect(server)
@@ -260,15 +264,15 @@ class ToggleDnsAction : ActionCallback {
         }
 
         // Non-premium users: Open app with action to show ads
+        // Analytics events are logged in MainActivity to go through AnalyticsManager consent checks
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(EXTRA_ACTION_SOURCE, SOURCE_WIDGET)
             when (currentState) {
                 is ConnectionState.Connected -> {
-                    firebaseAnalytics.logEvent(AnalyticsEvents.WIDGET_DISCONNECT_TAP, null)
                     putExtra(EXTRA_WIDGET_ACTION, ACTION_DISCONNECT)
                 }
                 is ConnectionState.Disconnected, is ConnectionState.Error -> {
-                    firebaseAnalytics.logEvent(AnalyticsEvents.WIDGET_CONNECT_TAP, null)
                     putExtra(EXTRA_WIDGET_ACTION, ACTION_CONNECT)
                 }
                 else -> {

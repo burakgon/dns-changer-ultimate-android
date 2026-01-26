@@ -91,6 +91,8 @@ object AnalyticsEvents {
     // -- Widget & Quick Settings --
     const val WIDGET_CONNECT_TAP = "widget_connect_tap"
     const val WIDGET_DISCONNECT_TAP = "widget_disconnect_tap"
+    const val QS_CONNECT_TAP = "qs_connect_tap"
+    const val QS_DISCONNECT_TAP = "qs_disconnect_tap"
     const val QUICK_SETTINGS_TAP = "quick_settings_tap"
 
     // -- Boot --
@@ -189,6 +191,11 @@ class AnalyticsManager @Inject constructor(
 
     private var isEnabled = false
 
+    // Buffer events fired before consent is granted so they aren't lost
+    private val pendingEvents = mutableListOf<Pair<String, Map<String, Any>?>>()
+    private val pendingUserProperties = mutableListOf<Pair<String, String?>>()
+    private val pendingScreenViews = mutableListOf<Pair<String, String?>>()
+
     /**
      * Enables Firebase Analytics after user consent.
      * This should be called ONLY after the user accepts the data disclosure dialog.
@@ -214,6 +221,23 @@ class AnalyticsManager @Inject constructor(
         // Enable analytics collection
         firebaseAnalytics.setAnalyticsCollectionEnabled(true)
         isEnabled = true
+
+        // Flush any events that were buffered before consent was granted
+        if (pendingUserProperties.isNotEmpty()) {
+            Log.d(TAG, "Flushing ${pendingUserProperties.size} buffered user properties")
+            pendingUserProperties.forEach { (name, value) -> setUserProperty(name, value) }
+            pendingUserProperties.clear()
+        }
+        if (pendingScreenViews.isNotEmpty()) {
+            Log.d(TAG, "Flushing ${pendingScreenViews.size} buffered screen views")
+            pendingScreenViews.forEach { (name, clazz) -> logScreenView(name, clazz) }
+            pendingScreenViews.clear()
+        }
+        if (pendingEvents.isNotEmpty()) {
+            Log.d(TAG, "Flushing ${pendingEvents.size} buffered events")
+            pendingEvents.forEach { (name, params) -> logEvent(name, params) }
+            pendingEvents.clear()
+        }
 
         Log.d(TAG, "Firebase Analytics enabled successfully")
     }
@@ -270,7 +294,8 @@ class AnalyticsManager @Inject constructor(
      */
     fun logScreenView(screenName: String, screenClass: String? = null) {
         if (!isEnabled) {
-            Log.d(TAG, "Analytics not enabled, skipping screen view: $screenName")
+            Log.d(TAG, "Analytics not enabled, buffering screen view: $screenName")
+            pendingScreenViews.add(screenName to screenClass)
             return
         }
 
@@ -288,7 +313,8 @@ class AnalyticsManager @Inject constructor(
      */
     fun logEvent(eventName: String, params: Map<String, Any>? = null) {
         if (!isEnabled) {
-            Log.d(TAG, "Analytics not enabled, skipping event: $eventName")
+            Log.d(TAG, "Analytics not enabled, buffering event: $eventName")
+            pendingEvents.add(eventName to params)
             return
         }
 
@@ -316,7 +342,11 @@ class AnalyticsManager @Inject constructor(
      * Set user property for analytics segmentation.
      */
     fun setUserProperty(name: String, value: String?) {
-        if (!isEnabled) return
+        if (!isEnabled) {
+            Log.d(TAG, "Analytics not enabled, buffering user property: $name=$value")
+            pendingUserProperties.add(name to value)
+            return
+        }
         Log.d(TAG, "📊 user_property: $name=$value")
         firebaseAnalytics.setUserProperty(name, value)
     }

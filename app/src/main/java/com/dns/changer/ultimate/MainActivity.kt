@@ -117,11 +117,11 @@ class MainActivity : FragmentActivity() {
 
     private var pendingVpnPermissionCallback: ((Boolean) -> Unit)? = null
 
-    // Widget action state flow to handle both onCreate and onNewIntent
+    // Widget/QS action state flow to handle both onCreate and onNewIntent
     private val _widgetAction = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
-    // Track if current action was triggered from widget or quick settings
-    private val _launchedFromWidgetOrQS = kotlinx.coroutines.flow.MutableStateFlow(false)
+    // Track the source of the action: "widget", "qs", or null (in-app)
+    private val _actionSource = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -153,7 +153,8 @@ class MainActivity : FragmentActivity() {
         if (savedInstanceState == null) {
             intent?.getStringExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION)?.let { action ->
                 _widgetAction.value = action
-                _launchedFromWidgetOrQS.value = true
+                _actionSource.value = intent.getStringExtra(ToggleDnsAction.EXTRA_ACTION_SOURCE)
+                    ?: ToggleDnsAction.SOURCE_WIDGET // default to widget for backwards compat
             }
         }
 
@@ -205,8 +206,8 @@ class MainActivity : FragmentActivity() {
                     widgetActionFlow = _widgetAction,
                     onWidgetActionConsumed = { _widgetAction.value = null },
                     onSetWidgetAction = { action -> _widgetAction.value = action },
-                    launchedFromWidgetOrQSFlow = _launchedFromWidgetOrQS,
-                    onWidgetOrQSFlowConsumed = { _launchedFromWidgetOrQS.value = false }
+                    actionSourceFlow = _actionSource,
+                    onActionSourceConsumed = { _actionSource.value = null }
                 )
                 }
             }
@@ -215,10 +216,11 @@ class MainActivity : FragmentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Handle widget action when activity is already running
+        // Handle widget/QS action when activity is already running
         intent.getStringExtra(ToggleDnsAction.EXTRA_WIDGET_ACTION)?.let { action ->
             _widgetAction.value = action
-            _launchedFromWidgetOrQS.value = true
+            _actionSource.value = intent.getStringExtra(ToggleDnsAction.EXTRA_ACTION_SOURCE)
+                ?: ToggleDnsAction.SOURCE_WIDGET
         }
     }
 
@@ -247,8 +249,8 @@ fun DnsChangerApp(
     widgetActionFlow: kotlinx.coroutines.flow.StateFlow<String?>,
     onWidgetActionConsumed: () -> Unit,
     onSetWidgetAction: (String) -> Unit,
-    launchedFromWidgetOrQSFlow: kotlinx.coroutines.flow.StateFlow<Boolean>,
-    onWidgetOrQSFlowConsumed: () -> Unit,
+    actionSourceFlow: kotlinx.coroutines.flow.StateFlow<String?>,
+    onActionSourceConsumed: () -> Unit,
     mainViewModel: MainViewModel = hiltViewModel(),
     premiumViewModel: PremiumViewModel = hiltViewModel(),
     ratingViewModel: RatingViewModel = hiltViewModel(),
@@ -431,8 +433,8 @@ fun DnsChangerApp(
         }
     }
 
-    // Track if action was triggered from widget/quick settings (for premium upsell)
-    val launchedFromWidgetOrQS by launchedFromWidgetOrQSFlow.collectAsState()
+    // Track the source of the action (widget, qs, or null for in-app)
+    val actionSource by actionSourceFlow.collectAsState()
 
     // Context for showing toasts
     val context = LocalContext.current
@@ -571,22 +573,30 @@ fun DnsChangerApp(
         }
     }
 
-    // Handle widget action by observing the StateFlow
+    // Handle widget/QS action by observing the StateFlow
     val widgetAction by widgetActionFlow.collectAsState()
     LaunchedEffect(widgetAction) {
         if (widgetAction != null) {
             when (widgetAction) {
                 ToggleDnsAction.ACTION_CONNECT -> {
-                    analyticsManager.logEvent(AnalyticsEvents.WIDGET_CONNECT_TAP)
+                    // Log source-specific event (skip for in-app triggers like SpeedTest → Connect)
+                    when (actionSource) {
+                        ToggleDnsAction.SOURCE_WIDGET -> analyticsManager.logEvent(AnalyticsEvents.WIDGET_CONNECT_TAP)
+                        ToggleDnsAction.SOURCE_QS -> analyticsManager.logEvent(AnalyticsEvents.QS_CONNECT_TAP)
+                    }
                     handleConnectWithAd()
                 }
                 ToggleDnsAction.ACTION_DISCONNECT -> {
-                    analyticsManager.logEvent(AnalyticsEvents.WIDGET_DISCONNECT_TAP)
+                    when (actionSource) {
+                        ToggleDnsAction.SOURCE_WIDGET -> analyticsManager.logEvent(AnalyticsEvents.WIDGET_DISCONNECT_TAP)
+                        ToggleDnsAction.SOURCE_QS -> analyticsManager.logEvent(AnalyticsEvents.QS_DISCONNECT_TAP)
+                    }
                     handleDisconnectWithAd()
                 }
             }
-            // Consume the action so it doesn't repeat
+            // Consume the action and source so they don't repeat
             onWidgetActionConsumed()
+            onActionSourceConsumed()
         }
     }
 
@@ -840,11 +850,11 @@ fun DnsChangerApp(
         ConnectionSuccessOverlay(
             visible = showSuccessOverlay,
             server = mainUiState.lastConnectedServer,
-            showPremiumCard = launchedFromWidgetOrQS && !isPremium,
+            showPremiumCard = actionSource != null && !isPremium,
             onGoPremium = { handleShowPaywall() },
             onContinue = {
                 mainViewModel.dismissConnectionSuccessOverlay()
-                onWidgetOrQSFlowConsumed()
+                onActionSourceConsumed()
             }
         )
 
@@ -852,11 +862,11 @@ fun DnsChangerApp(
         DisconnectionOverlay(
             visible = showDisconnectOverlay,
             previousServer = mainUiState.lastConnectedServer,
-            showPremiumCard = launchedFromWidgetOrQS && !isPremium,
+            showPremiumCard = actionSource != null && !isPremium,
             onGoPremium = { handleShowPaywall() },
             onContinue = {
                 mainViewModel.dismissDisconnectionOverlay()
-                onWidgetOrQSFlowConsumed()
+                onActionSourceConsumed()
             }
         )
 
