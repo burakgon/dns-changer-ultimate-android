@@ -45,7 +45,6 @@ fun DnsNavHost(
     onShowPaywall: () -> Unit = {},
     onConnectWithAd: () -> Unit = {},
     onDisconnectWithAd: () -> Unit = {},
-    onTriggerConnectAction: () -> Unit = {},
     // Subscription status parameters
     subscriptionStatus: SubscriptionStatus = SubscriptionStatus.NONE,
     subscriptionDetails: SubscriptionDetails? = null,
@@ -126,8 +125,8 @@ fun DnsNavHost(
                         launchSingleTop = true
                         restoreState = true
                     }
-                    // Trigger connect action via state (same as widget) to ensure proper timing
-                    onTriggerConnectAction()
+                    // Trigger connect through standard ad flow
+                    onConnectWithAd()
                 },
                 adaptiveConfig = adaptiveConfig
             )

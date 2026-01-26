@@ -642,7 +642,6 @@ fun DnsChangerApp(
                 },
                 onConnectWithAd = onConnectWithAd,
                 onDisconnectWithAd = onDisconnectWithAd,
-                onTriggerConnectAction = { onSetWidgetAction(ToggleDnsAction.ACTION_CONNECT) },
                 subscriptionStatus = premiumState.subscriptionStatus,
                 subscriptionDetails = premiumState.subscriptionDetails,
                 // GDPR Privacy Options

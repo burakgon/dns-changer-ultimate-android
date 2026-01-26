@@ -212,7 +212,7 @@ fun SpeedTestScreen(
             AnalyticsParams.LATENCY_MS to (result?.latencyMs ?: 0L)
         ))
         analytics.logEvent(AnalyticsEvents.SPEED_TEST_CONNECT_TAP)
-        viewModel.selectServer(server)
+        mainViewModel.selectServer(server)
         onNavigateToConnectAndStart()
     }
 
