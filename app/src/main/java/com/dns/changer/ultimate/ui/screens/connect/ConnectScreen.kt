@@ -295,7 +295,11 @@ fun ConnectScreen(
             servers = uiState.servers,
             selectedServer = uiState.selectedServer,
             onServerSelected = { server ->
-                viewModel.selectServer(server)
+                val wasConnected = viewModel.selectServer(server)
+                if (wasConnected) {
+                    // Re-connect through the standard ad flow instead of direct switch
+                    onConnectWithAd()
+                }
             },
             onAddCustomDns = {
                 analytics.logEvent(AnalyticsEvents.CUSTOM_DNS_DIALOG_OPENED)

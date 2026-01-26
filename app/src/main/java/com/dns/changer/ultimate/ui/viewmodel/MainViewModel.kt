@@ -243,7 +243,12 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun selectServer(server: DnsServer) {
+    /**
+     * Select a server. Does NOT auto-reconnect — the caller must trigger
+     * the connect flow (with ads) when the user is already connected.
+     * Returns true if the user was connected (caller should reconnect).
+     */
+    fun selectServer(server: DnsServer): Boolean {
         val wasConnected = connectionState.value is ConnectionState.Connected
         android.util.Log.d("MainViewModel", "selectServer: ${server.name}, wasConnected=$wasConnected")
 
@@ -255,7 +260,7 @@ class MainViewModel @Inject constructor(
 
         // Set pending switch target AND selected server atomically in UI state
         if (wasConnected) {
-            android.util.Log.d("MainViewModel", "Server switch initiated to ${server.name}")
+            android.util.Log.d("MainViewModel", "Server selected while connected: ${server.name}")
             _uiState.update { it.copy(
                 selectedServer = server,
                 pendingSwitchToServer = server
@@ -264,18 +269,12 @@ class MainViewModel @Inject constructor(
             _uiState.update { it.copy(selectedServer = server) }
         }
 
-        android.util.Log.d("MainViewModel", "selectServer for ${server.name}")
-
-        // Auto-reconnect if we were already connected
-        if (wasConnected) {
-            android.util.Log.d("MainViewModel", "Server switching to ${server.name}")
-            connectionManager.switchServer(server)
-        } else {
-            // Save selection in background (switchServer does this internally)
-            viewModelScope.launch {
-                dnsRepository.selectServer(server)
-            }
+        // Save selection in background
+        viewModelScope.launch {
+            dnsRepository.selectServer(server)
         }
+
+        return wasConnected
     }
 
     fun prepareConnect() {
