@@ -279,6 +279,7 @@ class AnalyticsManager @Inject constructor(
             screenClass?.let { putString(FirebaseAnalytics.Param.SCREEN_CLASS, it) }
         }
 
+        Log.d(TAG, "📊 screen_view: $screenName${screenClass?.let { " ($it)" } ?: ""}")
         firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, bundle)
     }
 
@@ -290,6 +291,9 @@ class AnalyticsManager @Inject constructor(
             Log.d(TAG, "Analytics not enabled, skipping event: $eventName")
             return
         }
+
+        val paramsStr = params?.entries?.joinToString(", ") { "${it.key}=${it.value}" } ?: ""
+        Log.d(TAG, "📊 $eventName${if (paramsStr.isNotEmpty()) " {$paramsStr}" else ""}")
 
         val bundle = params?.let { map ->
             android.os.Bundle().apply {
@@ -313,6 +317,7 @@ class AnalyticsManager @Inject constructor(
      */
     fun setUserProperty(name: String, value: String?) {
         if (!isEnabled) return
+        Log.d(TAG, "📊 user_property: $name=$value")
         firebaseAnalytics.setUserProperty(name, value)
     }
 
