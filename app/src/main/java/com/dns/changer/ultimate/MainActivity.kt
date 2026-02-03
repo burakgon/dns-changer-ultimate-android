@@ -42,6 +42,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -97,6 +100,11 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
+    companion object {
+        // Track if ProcessLifecycleOwner observer is already added (survives Activity recreation)
+        private var lifecycleObserverAdded = false
+    }
+
     @Inject
     lateinit var adMobManager: AdMobManager
 
@@ -136,9 +144,21 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Increment launch count for rating prompt using lifecycle-aware scope
-        lifecycleScope.launch(Dispatchers.IO) {
-            ratingPreferences.incrementLaunchCount()
+        // Use ProcessLifecycleOwner to detect app foreground (handles back button correctly)
+        // This counts as a "launch" every time app comes to foreground, not just onCreate
+        if (!lifecycleObserverAdded) {
+            lifecycleObserverAdded = true
+            ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) {
+                    // App came to foreground - increment launch count
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        ratingPreferences.incrementLaunchCount()
+                        // Signal that launch count is ready
+                        kotlinx.coroutines.delay(50)
+                        ratingPreferences.notifyLaunchCountReady()
+                    }
+                }
+            })
         }
 
         // Note: GDPR consent gathering is now handled in the Composable
@@ -554,8 +574,6 @@ fun DnsChangerApp(
             }
         }
     }
-
-    // Rating prompt is automatically checked via Flow observation in RatingViewModel
 
     // Handle In-App Review request
     LaunchedEffect(shouldRequestReview) {

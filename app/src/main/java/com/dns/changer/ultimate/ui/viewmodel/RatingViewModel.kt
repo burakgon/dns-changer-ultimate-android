@@ -14,7 +14,6 @@ import com.dns.changer.ultimate.data.preferences.RatingPreferences
 import com.dns.changer.ultimate.service.DnsConnectionManager
 import com.google.android.play.core.review.ReviewManagerFactory
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +40,37 @@ class RatingViewModel @Inject constructor(
     init {
         observeConnectionForRating()
         observeLaunchCountForRating()
+        observeLaunchCountReady()
+        checkAndShowNativeReviewIfNeeded()
+    }
+
+    /**
+     * Observe signal from MainActivity that launch count has been incremented.
+     * This ensures we check AFTER the increment completes, fixing race condition.
+     */
+    private fun observeLaunchCountReady() {
+        viewModelScope.launch {
+            ratingPreferences.launchCountReady.collect {
+                android.util.Log.d("RatingViewModel", "Launch count ready signal received")
+                checkAndShowPromptIfNeeded()
+            }
+        }
+    }
+
+    /**
+     * Check if user previously liked the app but hasn't seen the native review prompt.
+     * If so, trigger the native review on this app launch.
+     */
+    private fun checkAndShowNativeReviewIfNeeded() {
+        viewModelScope.launch {
+            val likedApp = ratingPreferences.likedApp.first()
+            val hasShownNativePrompt = ratingPreferences.hasShownNativePrompt.first()
+
+            if (likedApp && !hasShownNativePrompt) {
+                // User liked the app in a previous session, show native review now
+                _shouldRequestReview.value = true
+            }
+        }
     }
 
     private fun observeLaunchCountForRating() {
@@ -80,14 +110,23 @@ class RatingViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Called from UI after composition to ensure launch count has been incremented.
+     * This fixes the race condition where ViewModel init happens before launch count update.
+     */
+    fun checkRatingPromptAfterLaunch() {
+        viewModelScope.launch {
+            checkAndShowPromptIfNeeded()
+        }
+    }
+
     fun onPositiveResponse() {
         analyticsManager.logEvent(AnalyticsEvents.RATING_POSITIVE)
         viewModelScope.launch {
             ratingPreferences.setLikedApp(true)
             ratingPreferences.setHasResponded(true)
-            // Trigger native review after a short delay
-            delay(300)
-            _shouldRequestReview.value = true
+            // Native review will be triggered on next app launch
+            // by checkAndShowNativeReviewIfNeeded()
         }
     }
 

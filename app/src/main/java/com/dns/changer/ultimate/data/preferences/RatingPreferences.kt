@@ -9,6 +9,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -26,6 +29,14 @@ class RatingPreferences @Inject constructor(
         val HAS_SHOWN_NATIVE_PROMPT = booleanPreferencesKey("has_shown_native_prompt")
         val LAUNCH_COUNT = intPreferencesKey("launch_count")
         val SUCCESSFUL_CONNECTIONS = intPreferencesKey("successful_connections")
+    }
+
+    // Signal that launch count has been updated and is ready to be checked
+    private val _launchCountReady = MutableSharedFlow<Unit>(replay = 0)
+    val launchCountReady: SharedFlow<Unit> = _launchCountReady.asSharedFlow()
+
+    suspend fun notifyLaunchCountReady() {
+        _launchCountReady.emit(Unit)
     }
 
     val hasResponded: Flow<Boolean> = context.ratingDataStore.data.map { preferences ->
