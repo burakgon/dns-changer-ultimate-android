@@ -310,10 +310,11 @@ class PremiumViewModel @Inject constructor(
             // Grace Period: Has billing issue but still active (RevenueCat keeps isActive=true during grace)
             billingIssueDetectedAt != null && isActive -> SubscriptionStatus.GRACE_PERIOD
 
-            // Account Hold / Billing Issue: Has billing issue, no longer active, but still recoverable
-            // willRenew=true means user can fix payment to recover subscription
-            // If willRenew=false, subscription is cancelled and should fall to EXPIRED
-            billingIssueDetectedAt != null && !isActive && willRenew -> SubscriptionStatus.BILLING_ISSUE
+            // Account Hold: Has billing issue and no longer active
+            // Note: willRenew may be false during account hold because payment failed,
+            // but user can still recover by fixing their payment method during the hold period.
+            // We use ACCOUNT_HOLD regardless of willRenew when billingIssueDetectedAt is set.
+            billingIssueDetectedAt != null && !isActive -> SubscriptionStatus.ACCOUNT_HOLD
 
             // Cancelled but still active: User cancelled renewal but still has access
             unsubscribeDetectedAt != null && isActive && !willRenew -> SubscriptionStatus.CANCELLED
@@ -324,7 +325,7 @@ class PremiumViewModel @Inject constructor(
             // Paused: Not active, will renew, no billing/cancel issues (Google Play pause feature)
             !isActive && willRenew && billingIssueDetectedAt == null -> SubscriptionStatus.PAUSED
 
-            // Expired: Not active and won't renew
+            // Expired: Not active and won't renew (and no billing issue)
             !isActive && !willRenew -> SubscriptionStatus.EXPIRED
 
             // Fallback

@@ -63,6 +63,7 @@ import com.dns.changer.ultimate.service.DnsSpeedTestService
 import com.dns.changer.ultimate.ui.components.ConnectionSuccessOverlay
 import com.dns.changer.ultimate.ui.components.DisconnectionOverlay
 import com.dns.changer.ultimate.ui.components.BillingIssueDialog
+import com.dns.changer.ultimate.ui.components.AccountHoldPopup
 import com.dns.changer.ultimate.ui.components.openSubscriptionManagement
 import com.dns.changer.ultimate.ui.components.PremiumGatePopup
 import com.dns.changer.ultimate.ui.components.RatingDialog
@@ -416,13 +417,14 @@ fun DnsChangerApp(
     var premiumGateDescription by remember { mutableStateOf("") }
     var showPaywall by remember { mutableStateOf(false) }
     var showSubscriptionStatusDialog by remember { mutableStateOf(false) }
+    var showAccountHoldPopup by remember { mutableStateOf(false) }
 
     // Helper: Show subscription status dialog instead of paywall when subscription exists but inactive
     // This prevents showing "buy" options when user just needs to fix/resume their existing subscription
     val handleShowPaywall: () -> Unit = {
         when (premiumState.subscriptionStatus) {
             SubscriptionStatus.PAUSED,
-            SubscriptionStatus.BILLING_ISSUE -> {
+            SubscriptionStatus.ACCOUNT_HOLD -> {
                 // Subscription exists but is inactive - show status dialog to fix it
                 showSubscriptionStatusDialog = true
             }
@@ -437,7 +439,7 @@ fun DnsChangerApp(
     LaunchedEffect(premiumState.subscriptionStatus) {
         when (premiumState.subscriptionStatus) {
             SubscriptionStatus.GRACE_PERIOD,
-            SubscriptionStatus.BILLING_ISSUE,
+            SubscriptionStatus.ACCOUNT_HOLD,
             SubscriptionStatus.PAUSED,
             SubscriptionStatus.CANCELLED -> {
                 showSubscriptionStatusDialog = true
@@ -640,10 +642,15 @@ fun DnsChangerApp(
                     }
                 },
                 onShowPremiumGate = { title, description, unlockCallback ->
-                    premiumGateTitle = title
-                    premiumGateDescription = description
-                    onPremiumUnlock = unlockCallback
-                    showPremiumGate = true
+                    // If subscription is in Account Hold, show Account Hold popup instead of premium gate
+                    if (premiumState.subscriptionStatus == SubscriptionStatus.ACCOUNT_HOLD) {
+                        showAccountHoldPopup = true
+                    } else {
+                        premiumGateTitle = title
+                        premiumGateDescription = description
+                        onPremiumUnlock = unlockCallback
+                        showPremiumGate = true
+                    }
                 },
                 onThemeChanged = onThemeChanged,
                 // Paywall parameters
@@ -837,6 +844,22 @@ fun DnsChangerApp(
             }
         )
 
+        // Account Hold Popup (shown when user tries to access premium features while in Account Hold)
+        if (showAccountHoldPopup) {
+            LaunchedEffect(Unit) {
+                analyticsManager.logEvent(AnalyticsEvents.SUBSCRIPTION_STATUS_DIALOG, mapOf(AnalyticsParams.SUBSCRIPTION_STATUS to "ACCOUNT_HOLD_FEATURE_GATE"))
+            }
+        }
+        AccountHoldPopup(
+            visible = showAccountHoldPopup,
+            managementUrl = premiumState.subscriptionDetails?.managementUrl,
+            onDismiss = { showAccountHoldPopup = false },
+            onFixPayment = {
+                showAccountHoldPopup = false
+                openSubscriptionManagement(context, premiumState.subscriptionDetails?.managementUrl)
+            }
+        )
+
         // Overlay display logic:
         // - If showing ad flow, suppress overlays (show AFTER ad closes)
         // - If switching servers (pendingSwitchToServer != null), don't show any overlays
@@ -978,7 +1001,7 @@ fun DnsChangerApp(
         if (showSubscriptionStatusDialog &&
             premiumState.subscriptionStatus in listOf(
                 SubscriptionStatus.GRACE_PERIOD,
-                SubscriptionStatus.BILLING_ISSUE,
+                SubscriptionStatus.ACCOUNT_HOLD,
                 SubscriptionStatus.PAUSED,
                 SubscriptionStatus.CANCELLED
             )) {

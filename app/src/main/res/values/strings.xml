@@ -252,6 +252,11 @@
     <string name="billing_issue_update_button">Update Payment Method</string>
     <string name="billing_issue_dismiss">I\'ll do it later</string>
 
+    <!-- Account Hold Feature Gate Popup -->
+    <string name="account_hold_feature_title">Account On Hold</string>
+    <string name="account_hold_feature_desc">Your subscription is on hold due to a payment issue. Fix your payment method to unlock this feature.</string>
+    <string name="account_hold_feature_button">Fix Payment Method</string>
+
     <!-- Subscription Status Dialogs -->
     <string name="subscription_paused_title">Subscription Paused</string>
     <string name="subscription_paused_desc">Your subscription is currently paused. Premium features are unavailable until you resume your subscription in Google Play.</string>

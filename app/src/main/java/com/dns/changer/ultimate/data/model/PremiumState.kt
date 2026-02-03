@@ -42,12 +42,12 @@ enum class SubscriptionStatus {
     PAUSED,
 
     /**
-     * Account Hold / Billing Issue (SUBSCRIPTION_STATE_ON_HOLD)
+     * Account Hold (SUBSCRIPTION_STATE_ON_HOLD)
      * Grace period expired, billing still failing. NO ACCESS.
      * User can recover by fixing payment method within hold period (typically 30 days).
      * After hold period expires, subscription is cancelled.
      */
-    BILLING_ISSUE,
+    ACCOUNT_HOLD,
 
     /**
      * Expired (SUBSCRIPTION_STATE_EXPIRED)

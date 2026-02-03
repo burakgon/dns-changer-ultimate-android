@@ -43,7 +43,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCardOff
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
@@ -191,7 +190,7 @@ fun SubscriptionStatusCard(
                         SubscriptionStatus.CANCELLED -> stringResource(R.string.subscription_access_until)
                         SubscriptionStatus.EXPIRED -> stringResource(R.string.subscription_expired_on)
                         SubscriptionStatus.PAUSED -> stringResource(R.string.subscription_paused_since)
-                        SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.subscription_on_hold_since)
+                        SubscriptionStatus.ACCOUNT_HOLD -> stringResource(R.string.subscription_on_hold_since)
                         else -> stringResource(R.string.subscription_next_billing)
                     }
                     DetailRow(
@@ -213,7 +212,7 @@ fun SubscriptionStatusCard(
                 }
 
                 // Billing issue indicator
-                if (subscriptionStatus == SubscriptionStatus.BILLING_ISSUE) {
+                if (subscriptionStatus == SubscriptionStatus.ACCOUNT_HOLD) {
                     Spacer(modifier = Modifier.height(12.dp))
                     StatusInfoBox(
                         icon = Icons.Default.CreditCardOff,
@@ -251,7 +250,7 @@ fun SubscriptionStatusCard(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.OpenInNew,
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -259,7 +258,7 @@ fun SubscriptionStatusCard(
                     Text(
                         text = when (subscriptionStatus) {
                             SubscriptionStatus.PAUSED -> stringResource(R.string.resume_subscription)
-                            SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.fix_payment)
+                            SubscriptionStatus.ACCOUNT_HOLD -> stringResource(R.string.fix_payment)
                             else -> stringResource(R.string.manage_subscription)
                         },
                         fontWeight = FontWeight.Medium
@@ -313,7 +312,7 @@ private fun StatusIcon(status: SubscriptionStatus, isPremium: Boolean) {
         SubscriptionStatus.ACTIVE -> Icons.Default.CheckCircle to SubscriptionColors.SuccessGreen
         SubscriptionStatus.GRACE_PERIOD -> Icons.Default.Warning to SubscriptionColors.WarningOrange
         SubscriptionStatus.PAUSED -> Icons.Default.Pause to SubscriptionColors.WarningOrange
-        SubscriptionStatus.BILLING_ISSUE -> Icons.Default.CreditCardOff to SubscriptionColors.ErrorRed
+        SubscriptionStatus.ACCOUNT_HOLD -> Icons.Default.CreditCardOff to SubscriptionColors.ErrorRed
         SubscriptionStatus.CANCELLED -> Icons.Default.Cancel to SubscriptionColors.WarningOrange
         SubscriptionStatus.EXPIRED -> Icons.Default.Error to SubscriptionColors.ErrorRed
         SubscriptionStatus.NONE -> Icons.Default.WorkspacePremium to MaterialTheme.colorScheme.onSurfaceVariant
@@ -358,7 +357,7 @@ private fun StatusBadge(status: SubscriptionStatus, isPremium: Boolean, isDark: 
             SubscriptionColors.WarningOrange.copy(alpha = if (isDark) 0.2f else 0.15f),
             SubscriptionColors.WarningOrange
         )
-        SubscriptionStatus.BILLING_ISSUE -> Triple(
+        SubscriptionStatus.ACCOUNT_HOLD -> Triple(
             stringResource(R.string.status_billing_issue),
             SubscriptionColors.ErrorRed.copy(alpha = if (isDark) 0.2f else 0.15f),
             SubscriptionColors.ErrorRed
@@ -471,7 +470,7 @@ private fun getStatusDisplayText(status: SubscriptionStatus, isPremium: Boolean)
         SubscriptionStatus.ACTIVE -> stringResource(R.string.subscription_status_active)
         SubscriptionStatus.GRACE_PERIOD -> stringResource(R.string.subscription_status_grace)
         SubscriptionStatus.PAUSED -> stringResource(R.string.subscription_status_paused)
-        SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.subscription_status_billing)
+        SubscriptionStatus.ACCOUNT_HOLD -> stringResource(R.string.subscription_status_billing)
         SubscriptionStatus.CANCELLED -> stringResource(R.string.subscription_status_cancelled)
         SubscriptionStatus.EXPIRED -> stringResource(R.string.subscription_status_expired)
         SubscriptionStatus.NONE -> stringResource(R.string.subscription_status_free)
@@ -485,7 +484,7 @@ private fun getStatusColor(status: SubscriptionStatus, isPremium: Boolean, isDar
         SubscriptionStatus.ACTIVE -> SubscriptionColors.SuccessGreen
         SubscriptionStatus.GRACE_PERIOD -> SubscriptionColors.WarningOrange
         SubscriptionStatus.PAUSED -> SubscriptionColors.WarningOrange
-        SubscriptionStatus.BILLING_ISSUE -> SubscriptionColors.ErrorRed
+        SubscriptionStatus.ACCOUNT_HOLD -> SubscriptionColors.ErrorRed
         SubscriptionStatus.CANCELLED -> SubscriptionColors.WarningOrange
         SubscriptionStatus.EXPIRED -> SubscriptionColors.ErrorRed
         SubscriptionStatus.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -499,7 +498,7 @@ private fun formatDate(date: Date): String {
 
 /**
  * Adaptive dialog for subscription status notifications
- * Handles: GRACE_PERIOD, BILLING_ISSUE, PAUSED, CANCELLED
+ * Handles: GRACE_PERIOD, ACCOUNT_HOLD, PAUSED, CANCELLED
  * Works on phones, tablets, foldables, and TV
  */
 @Composable
@@ -586,7 +585,7 @@ fun BillingIssueDialog(
                             SubscriptionColors.WarningOrange,
                             SubscriptionColors.WarningOrange.copy(alpha = 0.15f)
                         )
-                        SubscriptionStatus.BILLING_ISSUE -> Triple(
+                        SubscriptionStatus.ACCOUNT_HOLD -> Triple(
                             Icons.Default.CreditCardOff,
                             SubscriptionColors.ErrorRed,
                             SubscriptionColors.ErrorRed.copy(alpha = 0.15f)
@@ -629,7 +628,7 @@ fun BillingIssueDialog(
                     Text(
                         text = when (status) {
                             SubscriptionStatus.GRACE_PERIOD -> stringResource(R.string.billing_issue_title_grace)
-                            SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.billing_issue_title_expired)
+                            SubscriptionStatus.ACCOUNT_HOLD -> stringResource(R.string.billing_issue_title_expired)
                             SubscriptionStatus.PAUSED -> stringResource(R.string.subscription_paused_title)
                             SubscriptionStatus.CANCELLED -> stringResource(R.string.subscription_cancelled_title)
                             else -> stringResource(R.string.billing_issue_title_grace)
@@ -646,7 +645,7 @@ fun BillingIssueDialog(
                     Text(
                         text = when (status) {
                             SubscriptionStatus.GRACE_PERIOD -> stringResource(R.string.billing_issue_desc_grace)
-                            SubscriptionStatus.BILLING_ISSUE -> stringResource(R.string.billing_issue_desc_expired)
+                            SubscriptionStatus.ACCOUNT_HOLD -> stringResource(R.string.billing_issue_desc_expired)
                             SubscriptionStatus.PAUSED -> stringResource(R.string.subscription_paused_desc)
                             SubscriptionStatus.CANCELLED -> stringResource(R.string.subscription_cancelled_desc)
                             else -> stringResource(R.string.billing_issue_desc_grace)
@@ -691,7 +690,7 @@ fun BillingIssueDialog(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = when (status) {
-                                SubscriptionStatus.BILLING_ISSUE -> SubscriptionColors.ErrorRed
+                                SubscriptionStatus.ACCOUNT_HOLD -> SubscriptionColors.ErrorRed
                                 else -> SubscriptionColors.WarningOrange
                             }
                         )
@@ -723,6 +722,189 @@ fun BillingIssueDialog(
                             text = stringResource(R.string.billing_issue_dismiss),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Popup shown when user tries to access a premium feature while their subscription is on hold.
+ * This is different from the Paywall - it prompts the user to fix their payment method.
+ */
+@Composable
+fun AccountHoldPopup(
+    visible: Boolean,
+    managementUrl: String?,
+    onDismiss: () -> Unit,
+    onFixPayment: () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(animationSpec = tween(300)),
+        exit = fadeOut(animationSpec = tween(300))
+    ) {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val screenWidth = maxWidth
+                val screenHeight = maxHeight
+                val isLandscape = screenWidth > screenHeight
+                val isWideScreen = screenWidth > 600.dp
+
+                // Adaptive dialog width
+                val dialogWidth = when {
+                    isWideScreen -> 420.dp
+                    isLandscape -> 380.dp
+                    else -> screenWidth - 32.dp
+                }
+
+                // Floating animation for the card
+                val infiniteTransition = rememberInfiniteTransition(label = "float")
+                val floatOffset by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 4f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(2000, easing = EaseInOut),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "floatOffset"
+                )
+
+                Surface(
+                    modifier = Modifier
+                        .widthIn(max = dialogWidth)
+                        .heightIn(max = screenHeight * 0.85f),
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 8.dp,
+                    tonalElevation = 2.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Close button
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.TopEnd
+                        ) {
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cancel),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Animated icon
+                        val scale by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(800, easing = EaseInOut),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "iconScale"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .scale(scale)
+                                .background(
+                                    color = SubscriptionColors.ErrorRed.copy(alpha = 0.15f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CreditCardOff,
+                                contentDescription = null,
+                                tint = SubscriptionColors.ErrorRed,
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Title
+                        Text(
+                            text = stringResource(R.string.account_hold_feature_title),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Description
+                        Text(
+                            text = stringResource(R.string.account_hold_feature_desc),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Fix Payment button
+                        Button(
+                            onClick = {
+                                onDismiss()
+                                onFixPayment()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SubscriptionColors.ErrorRed
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.account_hold_feature_button),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Dismiss button
+                        TextButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.billing_issue_dismiss),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
