@@ -1773,6 +1773,19 @@ private fun BottomPurchaseSection(
                     modifier = Modifier.clickable { onRestore() }
                 )
             }
+
+            Spacer(modifier = Modifier.height(if (isCompact) 6.dp else 10.dp))
+
+            // Policy disclosure text
+            Text(
+                text = "*VIP users can still see cross promotion ads.\nSubscription renews automatically unless cancelled. Subscription may be cancelled at any time from the Play Store.",
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = if (isCompact) 8.sp else 9.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+                lineHeight = if (isCompact) 10.sp else 12.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
             }
         }
     }
@@ -1838,6 +1851,18 @@ private fun LandscapePurchaseSection(
                 Text(" • ", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = if (isLarge) 11.sp else 9.sp)
                 Text("Restore", style = MaterialTheme.typography.labelSmall, fontSize = if (isLarge) 11.sp else 9.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onRestore() })
             }
+
+            Spacer(Modifier.height(if (isLarge) 8.dp else 6.dp))
+
+            // Policy disclosure text
+            Text(
+                text = "*VIP users can still see cross promotion ads.\nSubscription renews automatically unless cancelled. Subscription may be cancelled at any time from the Play Store.",
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = if (isLarge) 9.sp else 8.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+                lineHeight = if (isLarge) 12.sp else 10.sp
+            )
         }
     }
 }
