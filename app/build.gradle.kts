@@ -15,8 +15,8 @@ android {
         applicationId = "com.burakgon.dnschanger"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10042
-        versionName = "10042"
+        versionCode = 10043
+        versionName = "10043"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
