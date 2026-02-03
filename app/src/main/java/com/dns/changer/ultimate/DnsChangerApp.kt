@@ -1,12 +1,10 @@
 package com.dns.changer.ultimate
 
 import android.app.Application
-import com.dns.changer.ultimate.ads.AdMobManager
 import com.revenuecat.purchases.LogLevel
 import com.revenuecat.purchases.Purchases
 import com.revenuecat.purchases.PurchasesConfiguration
 import dagger.hilt.android.HiltAndroidApp
-import javax.inject.Inject
 
 @HiltAndroidApp
 class DnsChangerApp : Application() {
@@ -16,14 +14,11 @@ class DnsChangerApp : Application() {
         private const val REVENUECAT_API_KEY = "goog_qryzFkHcohaglsKjuSNrNzVkrUc"
     }
 
-    @Inject
-    lateinit var adMobManager: AdMobManager
-
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize AdMob
-        adMobManager.initialize()
+        // Note: AdMob is initialized in MainActivity AFTER GDPR consent is gathered
+        // This ensures compliance with EU privacy regulations
 
         // Initialize RevenueCat
         initializeRevenueCat()
